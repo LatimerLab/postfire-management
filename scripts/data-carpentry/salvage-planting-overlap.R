@@ -18,8 +18,8 @@ facts.planting <- facts[facts$ACTIVITY %in% planting,]
 salvage <- c("Salvage Cut (intermediate treatment, not regeneration)","Stand Clearcut (EA/RH/FH)")
 facts.salvage <- facts[facts$ACTIVITY %in% salvage,]
 
-## We're only interested in areas planted between 2000 and 2014
-planting.years <- 2000:2014
+## We're only interested in areas planted between 2000 and 2015
+planting.years <- 2000:2015
 facts.planting <- facts.planting[facts.planting$year %in% planting.years,]
 
 ## We're only interested in salvage that happened within 6 years prior to the planting
