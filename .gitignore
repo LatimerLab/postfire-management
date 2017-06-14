@@ -1,3 +1,8 @@
+/data/non-synced/
+
+
+## Below this line is github default .gitignore for R files
+
 # History files
 .Rhistory
 .Rapp.history
