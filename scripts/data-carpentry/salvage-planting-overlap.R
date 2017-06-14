@@ -6,6 +6,9 @@ library(sf)
 ## Load FACTS data
 facts <- st_read(dsn = "data/non-synced/existing-datasets/CA_Activity_merged.shp", stringsAsFactors = FALSE)
 facts$year <- substr(facts$DATE_COMPL,1,4)
+#project to CA Albers
+facts <- st_transform(facts,crs=3310)
+facts$id <- 1:nrow(facts)
 
 
 ## Make planting-only FACTS layer
@@ -23,10 +26,11 @@ facts.planting <- facts.planting[facts.planting$year %in% planting.years,]
 ## We're only interested in salvage that happened within 8 years prior to the planting
 salvage.prior <- 8
 salvage.years <- (min(planting.years)-salvage.prior):(max(planting.years))
+facts.salvage <- facts.salvage[facts.salvage$year %in% salvage.years,]
 
 
 ## For each planted polygon, get all touching salvage polygons from up to 10 years prior to the planting
-overlapping.polygons <- facts.salvage[1,] #just add first row as an example
+all.overlap.ids <- NULL #just add first row as an example
 
 for(i in 1:nrow(facts.planting)) {
   
@@ -38,15 +42,19 @@ for(i in 1:nrow(facts.planting)) {
   # see which salvage polygons (rows) at least partially overlap the planted areas
   salvage.overlap <- st_intersects(facts.planting.polygon,facts.salvage.matchyears)
   
-  cat(i)
+  overlap.ids <- facts.salvage.matchyears[unlist(salvage.overlap),]$id
   
-  overlapping.polygons <- rbind(overlapping.polygons,facts.salvage.matchyears[unlist(salvage.overlap),])
+  all.overlap.ids <- c(all.overlap.ids,overlap.ids)
+  
+  cat("\r ",i)
+  
+  ##! here we could add IDs to the saved salvage polygons to reference the planting polygons they are associated with
+  
   
 }
 
-overlapping.salvage.polygons <- overlapping.polygons[-1,] # remove first row, which was just a template for the object
-overlapping.salvage.polygons <- unique(overlapping.salvage.polygons)
-
+all.overlap.ids <- unique(all.overlap.ids)
+overlapping.salvage.polygons <- facts.salvage[facts.salvage$id %in% all.overlap.ids,]
 
 
 ## Save the planting and salvage polygons
