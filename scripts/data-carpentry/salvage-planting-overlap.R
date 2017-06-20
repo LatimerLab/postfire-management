@@ -19,13 +19,20 @@ salvage <- c("Salvage Cut (intermediate treatment, not regeneration)","Stand Cle
 facts.salvage <- facts[facts$ACTIVITY %in% salvage,]
 
 ## We're only interested in areas planted between 2000 and 2015
-planting.years <- 2000:2015
+planting.years <- 1980:2017
 facts.planting <- facts.planting[facts.planting$year %in% planting.years,]
 
 ## We're only interested in salvage that happened within 6 years prior to the planting
 salvage.prior <- 6
 salvage.years <- (min(planting.years)-salvage.prior):(max(planting.years))
 facts.salvage <- facts.salvage[facts.salvage$year %in% salvage.years,]
+
+## Optionally thin to a focal region
+rd <- st_read(dsn = "data/non-synced/existing-datasets/ranger-districts/S_USA.RangerDistrict.shp", stringsAsFactors = FALSE)
+rd <- rd[rd$FORESTNAME == "Plumas National Forest",]
+rd <- st_transform(rd,crs=3310)
+facts.salvage <- st_intersection(facts.salvage,rd)
+facts.planting <- st_intersection(facts.planting,rd)
 
 
 ## For each planted polygon, get all touching salvage polygons from up to 6 years prior to the planting
