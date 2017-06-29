@@ -3,7 +3,7 @@
   <title></title>
   <autotransaction active="0"/>
   <evaluateDefaultValues active="0"/>
-  <layer-tree-group expanded="1" checked="Qt::Checked" name="">
+  <layer-tree-group expanded="1" checked="Qt::PartiallyChecked" name="">
     <customproperties/>
     <layer-tree-layer expanded="1" checked="Qt::Checked" id="salvage_that_overlaps20170614095409575" name="salvage_that_overlaps">
       <customproperties/>
@@ -17,7 +17,10 @@
     <layer-tree-layer expanded="0" checked="Qt::Checked" id="FRAP_fires_since_198020170614104249337" name="FRAP_fires_since_1980">
       <customproperties/>
     </layer-tree-layer>
-    <layer-tree-layer expanded="1" checked="Qt::Checked" id="pnf_0120170619185918480" name="pnf_01">
+    <layer-tree-layer expanded="1" checked="Qt::Checked" id="pnf_01_georef320170619191320404" name="pnf_01_georef3">
+      <customproperties/>
+    </layer-tree-layer>
+    <layer-tree-layer expanded="1" checked="Qt::Unchecked" id="Lassen_visitor_map20170619192402280" name="Lassen visitor map">
       <customproperties/>
     </layer-tree-layer>
   </layer-tree-group>
@@ -25,10 +28,10 @@
   <mapcanvas>
     <units>meters</units>
     <extent>
-      <xmin>654646.37303502659779042</xmin>
-      <ymin>4434502.61016407515853643</ymin>
-      <xmax>669856.90136171493213624</xmax>
-      <ymax>4448197.36206284072250128</ymax>
+      <xmin>716728.2844755471451208</xmin>
+      <ymin>4430141.71158446371555328</ymin>
+      <xmax>731415.03149825416039675</xmax>
+      <ymax>4438161.53801159560680389</ymax>
     </extent>
     <rotation>0</rotation>
     <projections>1</projections>
@@ -49,9 +52,13 @@
       <layer_coordinate_transform destAuthId="EPSG:26910" srcAuthId="EPSG:26910" srcDatumTransform="-1" destDatumTransform="-1" layerid="pnf_0120170619185918480"/>
       <layer_coordinate_transform destAuthId="EPSG:26910" srcAuthId="EPSG:3310" srcDatumTransform="-1" destDatumTransform="-1" layerid="salvage_that_overlaps20170614095409575"/>
       <layer_coordinate_transform destAuthId="EPSG:26910" srcAuthId="EPSG:3310" srcDatumTransform="-1" destDatumTransform="-1" layerid="planting20170614095406516"/>
+      <layer_coordinate_transform destAuthId="EPSG:26910" srcAuthId="EPSG:3157" srcDatumTransform="-1" destDatumTransform="-1" layerid="pnf_01_georef320170619191320404"/>
+      <layer_coordinate_transform destAuthId="EPSG:26910" srcAuthId="EPSG:3310" srcDatumTransform="-1" destDatumTransform="-1" layerid="Lassen_visitor_map20170619192402280"/>
       <layer_coordinate_transform destAuthId="EPSG:26910" srcAuthId="EPSG:26910" srcDatumTransform="-1" destDatumTransform="-1" layerid="pnf_0120170619184254842"/>
       <layer_coordinate_transform destAuthId="EPSG:26910" srcAuthId="EPSG:3310" srcDatumTransform="-1" destDatumTransform="-1" layerid="maint_that_overlaps1985201720170619172800397"/>
+      <layer_coordinate_transform destAuthId="EPSG:26910" srcAuthId="EPSG:3157" srcDatumTransform="-1" destDatumTransform="-1" layerid="pnf_01_georef220170619190710336"/>
       <layer_coordinate_transform destAuthId="EPSG:26910" srcAuthId="EPSG:3310" srcDatumTransform="-1" destDatumTransform="-1" layerid="FRAP_fires_since_198020170614104249337"/>
+      <layer_coordinate_transform destAuthId="EPSG:26910" srcAuthId="EPSG:3157" srcDatumTransform="-1" destDatumTransform="-1" layerid="pnf_01_georef220170619190633357"/>
     </layer_coordinate_transform_info>
   </mapcanvas>
   <layer-tree-canvas>
@@ -60,7 +67,8 @@
       <item>salvage_that_overlaps20170614095409575</item>
       <item>FRAP_fires_since_198020170614104249337</item>
       <item>maint_that_overlaps1985201720170619172800397</item>
-      <item>pnf_0120170619185918480</item>
+      <item>pnf_01_georef320170619191320404</item>
+      <item>Lassen_visitor_map20170619192402280</item>
     </custom-order>
   </layer-tree-canvas>
   <legend updateDrawingOrder="true">
@@ -84,14 +92,19 @@
         <legendlayerfile isInOverview="0" layerid="FRAP_fires_since_198020170614104249337" visible="1"/>
       </filegroup>
     </legendlayer>
-    <legendlayer drawingOrder="-1" open="true" checked="Qt::Checked" name="pnf_01" showFeatureCount="0">
+    <legendlayer drawingOrder="-1" open="true" checked="Qt::Checked" name="pnf_01_georef3" showFeatureCount="0">
       <filegroup open="true" hidden="false">
-        <legendlayerfile isInOverview="0" layerid="pnf_0120170619185918480" visible="1"/>
+        <legendlayerfile isInOverview="0" layerid="pnf_01_georef320170619191320404" visible="1"/>
+      </filegroup>
+    </legendlayer>
+    <legendlayer drawingOrder="-1" open="true" checked="Qt::Unchecked" name="Lassen visitor map" showFeatureCount="0">
+      <filegroup open="true" hidden="false">
+        <legendlayerfile isInOverview="0" layerid="Lassen_visitor_map20170619192402280" visible="0"/>
       </filegroup>
     </legendlayer>
   </legend>
   <Composer title="Composer 1" visible="1">
-    <Composition resizeToContentsMarginLeft="0" snapping="0" showPages="1" guidesVisible="1" resizeToContentsMarginTop="0" worldFileMap="{7b34bdec-f16a-4ea8-a69b-b80cef065f2e}" alignmentSnap="1" printResolution="300" paperWidth="558.8" gridVisible="0" snapGridOffsetX="0" smartGuides="1" snapGridOffsetY="0" resizeToContentsMarginRight="0" snapTolerancePixels="5" printAsRaster="1" generateWorldFile="0" paperHeight="431.8" numPages="1" snapGridResolution="10" resizeToContentsMarginBottom="0">
+    <Composition resizeToContentsMarginLeft="0" snapping="0" showPages="1" guidesVisible="1" resizeToContentsMarginTop="0" worldFileMap="{7b34bdec-f16a-4ea8-a69b-b80cef065f2e}" alignmentSnap="1" printResolution="300" paperWidth="279.4" gridVisible="0" snapGridOffsetX="0" smartGuides="1" snapGridOffsetY="0" resizeToContentsMarginRight="0" snapTolerancePixels="5" printAsRaster="1" generateWorldFile="0" paperHeight="215.9" numPages="1" snapGridResolution="10" resizeToContentsMarginBottom="0">
       <symbol alpha="1" clip_to_extent="1" type="fill" name="">
         <layer pass="0" class="SimpleFill" locked="0">
           <prop k="border_width_map_unit_scale" v="0,0,0,0,0,0"/>
@@ -108,7 +121,7 @@
         </layer>
       </symbol>
       <ComposerMap followPreset="false" mapRotation="0" keepLayerSet="false" followPresetName="" id="0" previewMode="Cache" drawCanvasItems="true">
-        <Extent ymin="4874910.07005705125629902" xmin="-13436741.90634717233479023" ymax="4898625.07008124329149723" xmax="-13406051.90631586499512196"/>
+        <Extent ymin="4431277.0793405519798398" xmin="719455.4761640103533864" ymax="4439900.71571298409253359" xmax="730615.47617539344355464"/>
         <LayerSet/>
         <Grid/>
         <ComposerMapGrid rightAnnotationDirection="0" gridFramePenColor="0,0,0,255" show="0" bottomAnnotationPosition="1" annotationPrecision="3" showAnnotation="0" topFrameDivisions="0" uuid="{79aab9bf-7a58-465f-b131-156c5fa05ec9}" leftAnnotationDirection="0" topAnnotationPosition="1" rightAnnotationDisplay="0" offsetX="0" offsetY="0" rightFrameDivisions="0" gridStyle="0" annotationFontColor="0,0,0,255" intervalX="0" gridFrameSideFlags="15" intervalY="0" bottomAnnotationDirection="0" leftAnnotationDisplay="0" leftFrameDivisions="0" frameFillColor1="255,255,255,255" annotationExpression="" frameFillColor2="0,0,0,255" crossLength="3" gridFramePenThickness="0.5" bottomAnnotationDisplay="0" unit="0" topAnnotationDisplay="0" leftAnnotationPosition="1" blendMode="0" gridFrameStyle="0" rightAnnotationPosition="1" gridFrameWidth="2" name="Grid 1" annotationFormat="0" bottomFrameDivisions="0" topAnnotationDirection="0" frameAnnotationDistance="1">
@@ -160,7 +173,7 @@
           <annotationFontProperties description="MS Shell Dlg 2,7.8,-1,5,50,0,0,0,0,0" style=""/>
         </ComposerMapGrid>
         <AtlasMap scalingMode="2" atlasDriven="0" margin="0.10000000000000001"/>
-        <ComposerItem pagey="0" page="1" id="" lastValidViewScaleFactor="4.72441" positionMode="0" positionLock="false" x="0" y="0" visibility="1" zValue="1" background="true" transparency="0" frameJoinStyle="miter" blendMode="0" width="558.8" outlineWidth="0.3" excludeFromExports="0" uuid="{7b34bdec-f16a-4ea8-a69b-b80cef065f2e}" height="431.8" itemRotation="0" frame="false" pagex="0">
+        <ComposerItem pagey="0" page="1" id="" lastValidViewScaleFactor="4.72441" positionMode="0" positionLock="false" x="0" y="0" visibility="1" zValue="1" background="true" transparency="0" frameJoinStyle="miter" blendMode="0" width="279.4" outlineWidth="0.3" excludeFromExports="0" uuid="{7b34bdec-f16a-4ea8-a69b-b80cef065f2e}" height="215.9" itemRotation="0" frame="false" pagex="0">
           <FrameColor alpha="255" red="0" blue="0" green="0"/>
           <BackgroundColor alpha="255" red="0" blue="0" green="0"/>
           <customproperties/>
@@ -172,10 +185,10 @@
   <mapcanvas>
     <units>degrees</units>
     <extent>
-      <xmin>570072.48334677680395544</xmin>
-      <ymin>4267935.00252215284854174</ymin>
-      <xmax>887753.02186677767895162</xmax>
-      <ymax>4512758.77668215055018663</ymax>
+      <xmin>703365.11262599495239556</xmin>
+      <ymin>4444538.26666361279785633</ymin>
+      <xmax>710711.74288246151991189</xmax>
+      <ymax>4449222.89762385375797749</ymax>
     </extent>
     <rotation>0</rotation>
     <projections>0</projections>
@@ -197,7 +210,7 @@
   <projectlayers>
     <maplayer simplifyAlgorithm="0" minimumScale="0" maximumScale="1e+08" simplifyDrawingHints="1" readOnly="0" minLabelScale="0" maxLabelScale="1e+08" simplifyDrawingTol="1" geometry="Polygon" simplifyMaxScale="1" type="vector" hasScaleBasedVisibilityFlag="0" simplifyLocal="1" scaleBasedLabelVisibilityFlag="0">
       <id>FRAP_fires_since_198020170614104249337</id>
-      <datasource>C:/Users/DYoung/Documents/UC Davis/Research Projects/Post-fire management/postfire-management/data/non-synced/existing-datasets/FRAP_fires_since_1980.shp</datasource>
+      <datasource>../data/non-synced/existing-datasets/FRAP_fires_since_1980.shp</datasource>
       <keywordList>
         <value></value>
       </keywordList>
@@ -517,7 +530,7 @@
         </symbol>
       </SingleCategoryDiagramRenderer>
       <DiagramLayerSettings yPosColumn="-1" showColumn="-1" linePlacementFlags="10" placement="0" dist="0" xPosColumn="-1" priority="0" obstacle="0" zIndex="0" showAll="1"/>
-      <annotationform>C:/Users/DYoung/Documents/UC Davis/Research Projects/Post-fire management/postfire-management/QGIS-projects</annotationform>
+      <annotationform>.</annotationform>
       <aliases>
         <alias field="OBJECTID" index="0" name=""/>
         <alias field="YEAR_" index="1" name=""/>
@@ -564,10 +577,10 @@
           <column width="-1" hidden="1" type="actions"/>
         </columns>
       </attributetableconfig>
-      <editform>C:/Users/DYoung/Documents/UC Davis/Research Projects/Post-fire management/postfire-management/QGIS-projects</editform>
+      <editform>.</editform>
       <editforminit/>
       <editforminitcodesource>0</editforminitcodesource>
-      <editforminitfilepath>C:/Users/DYoung/Documents/UC Davis/Research Projects/Post-fire management/postfire-management/QGIS-projects</editforminitfilepath>
+      <editforminitfilepath>.</editforminitfilepath>
       <editforminitcode><![CDATA[# -*- coding: utf-8 -*-
 """
 QGIS forms can have a Python function that is called when the form is
@@ -595,13 +608,60 @@ def my_form_open(dialog, layer, feature):
     </maplayer>
     <maplayer minimumScale="0" maximumScale="1e+08" type="raster" hasScaleBasedVisibilityFlag="0">
       <extent>
+        <xmin>-173818.78536705579608679</xmin>
+        <ymin>201512.07443689840147272</ymin>
+        <xmax>-35424.90035905578406528</xmax>
+        <ymax>383040.43586889840662479</ymax>
+      </extent>
+      <id>Lassen_visitor_map20170619192402280</id>
+      <datasource>../../../../GIS/CA abiotic layers/NF visitor maps/Lassen/Lassen visitor map.tif</datasource>
+      <keywordList>
+        <value></value>
+      </keywordList>
+      <layername>Lassen visitor map</layername>
+      <srs>
+        <spatialrefsys>
+          <proj4>+proj=aea +lat_1=34 +lat_2=40.5 +lat_0=0 +lon_0=-120 +x_0=0 +y_0=-4000000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs</proj4>
+          <srsid>1268</srsid>
+          <srid>3310</srid>
+          <authid>EPSG:3310</authid>
+          <description>NAD83 / California Albers</description>
+          <projectionacronym>aea</projectionacronym>
+          <ellipsoidacronym>GRS80</ellipsoidacronym>
+          <geographicflag>false</geographicflag>
+        </spatialrefsys>
+      </srs>
+      <customproperties>
+        <property key="identify/format" value="Value"/>
+      </customproperties>
+      <provider>gdal</provider>
+      <noData>
+        <noDataList bandNo="1" useSrcNoData="1"/>
+        <noDataList bandNo="2" useSrcNoData="1"/>
+        <noDataList bandNo="3" useSrcNoData="1"/>
+      </noData>
+      <map-layer-style-manager current="">
+        <map-layer-style name=""/>
+      </map-layer-style-manager>
+      <pipe>
+        <rasterrenderer opacity="1" alphaBand="-1" blueBand="3" greenBand="2" type="multibandcolor" redBand="1">
+          <rasterTransparency/>
+        </rasterrenderer>
+        <brightnesscontrast brightness="0" contrast="0"/>
+        <huesaturation colorizeGreen="128" colorizeOn="0" colorizeRed="255" colorizeBlue="128" grayscaleMode="0" saturation="0" colorizeStrength="100"/>
+        <rasterresampler maxOversampling="2"/>
+      </pipe>
+      <blendMode>0</blendMode>
+    </maplayer>
+    <maplayer minimumScale="0" maximumScale="1e+08" type="raster" hasScaleBasedVisibilityFlag="0">
+      <extent>
         <xmin>607209.44220701057929546</xmin>
         <ymin>4351412.87626959197223186</ymin>
         <xmax>766049.71146701055113226</xmax>
         <ymax>4473824.76334959175437689</ymax>
       </extent>
       <id>Raster20170619185642325</id>
-      <datasource>C:/Users/DYoung/Documents/UC Davis/GIS/CA abiotic layers/NF visitor maps/pnf_01.jpg</datasource>
+      <datasource>../../../../GIS/CA abiotic layers/NF visitor maps/pnf_01.jpg</datasource>
       <keywordList>
         <value></value>
       </keywordList>
@@ -642,7 +702,7 @@ def my_form_open(dialog, layer, feature):
     </maplayer>
     <maplayer simplifyAlgorithm="0" minimumScale="0" maximumScale="1e+08" simplifyDrawingHints="1" readOnly="0" minLabelScale="0" maxLabelScale="1e+08" simplifyDrawingTol="1" geometry="Polygon" simplifyMaxScale="1" type="vector" hasScaleBasedVisibilityFlag="0" simplifyLocal="1" scaleBasedLabelVisibilityFlag="0">
       <id>maint_that_overlaps1985201720170619172800397</id>
-      <datasource>C:/Users/DYoung/Documents/UC Davis/Research Projects/Post-fire management/postfire-management/data/non-synced/existing-datasets/Tara-planting-maintenance/maint_that_overlaps19852017.shp</datasource>
+      <datasource>../data/non-synced/existing-datasets/Tara-planting-maintenance/maint_that_overlaps19852017.shp</datasource>
       <keywordList>
         <value></value>
       </keywordList>
@@ -912,6 +972,7 @@ def my_form_open(dialog, layer, feature):
       <SingleCategoryDiagramRenderer diagramType="Histogram" sizeLegend="0" attributeLegend="1">
         <DiagramCategory penColor="#000000" labelPlacementMethod="XHeight" penWidth="0" diagramOrientation="Up" sizeScale="0,0,0,0,0,0" minimumSize="0" barWidth="5" penAlpha="255" maxScaleDenominator="1e+08" backgroundColor="#ffffff" transparency="0" width="15" scaleDependency="Area" backgroundAlpha="255" angleOffset="1440" scaleBasedVisibility="0" enabled="0" height="15" lineSizeScale="0,0,0,0,0,0" sizeType="MM" lineSizeType="MM" minScaleDenominator="inf">
           <fontProperties description="MS Shell Dlg 2,7.8,-1,5,50,0,0,0,0,0" style=""/>
+          <attribute field="" color="#000000" label=""/>
         </DiagramCategory>
         <symbol alpha="1" clip_to_extent="1" type="marker" name="sizeSymbol">
           <layer pass="0" class="SimpleMarker" locked="0">
@@ -937,7 +998,7 @@ def my_form_open(dialog, layer, feature):
         </symbol>
       </SingleCategoryDiagramRenderer>
       <DiagramLayerSettings yPosColumn="-1" showColumn="-1" linePlacementFlags="10" placement="0" dist="0" xPosColumn="-1" priority="0" obstacle="0" zIndex="0" showAll="1"/>
-      <annotationform></annotationform>
+      <annotationform>.</annotationform>
       <aliases>
         <alias field="SUID" index="0" name=""/>
         <alias field="FOR_NUM" index="1" name=""/>
@@ -972,10 +1033,10 @@ def my_form_open(dialog, layer, feature):
           <column width="-1" hidden="1" type="actions"/>
         </columns>
       </attributetableconfig>
-      <editform></editform>
+      <editform>.</editform>
       <editforminit/>
       <editforminitcodesource>0</editforminitcodesource>
-      <editforminitfilepath></editforminitfilepath>
+      <editforminitfilepath>.</editforminitfilepath>
       <editforminitcode><![CDATA[# -*- coding: utf-8 -*-
 """
 QGIS forms can have a Python function that is called when the form is
@@ -1003,7 +1064,7 @@ def my_form_open(dialog, layer, feature):
     </maplayer>
     <maplayer simplifyAlgorithm="0" minimumScale="0" maximumScale="1e+08" simplifyDrawingHints="1" readOnly="0" minLabelScale="0" maxLabelScale="1e+08" simplifyDrawingTol="1" geometry="Polygon" simplifyMaxScale="1" type="vector" hasScaleBasedVisibilityFlag="0" simplifyLocal="1" scaleBasedLabelVisibilityFlag="0">
       <id>planting20170614095406516</id>
-      <datasource>C:/Users/DYoung/Documents/UC Davis/Research Projects/Post-fire management/postfire-management/data/output-exploratory/salvage-overlap-planting/planting.shp</datasource>
+      <datasource>../data/output-exploratory/salvage-overlap-planting/planting.shp</datasource>
       <keywordList>
         <value></value>
       </keywordList>
@@ -1323,7 +1384,7 @@ def my_form_open(dialog, layer, feature):
         </symbol>
       </SingleCategoryDiagramRenderer>
       <DiagramLayerSettings yPosColumn="-1" showColumn="-1" linePlacementFlags="10" placement="0" dist="0" xPosColumn="-1" priority="0" obstacle="0" zIndex="0" showAll="1"/>
-      <annotationform>C:/Users/DYoung/Documents/UC Davis/Research Projects/Post-fire management/postfire-management/QGIS-projects</annotationform>
+      <annotationform>.</annotationform>
       <aliases>
         <alias field="SUID" index="0" name=""/>
         <alias field="ACTIVITY" index="1" name=""/>
@@ -1370,10 +1431,10 @@ def my_form_open(dialog, layer, feature):
           <column width="-1" hidden="0" type="field" name="SHAPE_LEN"/>
         </columns>
       </attributetableconfig>
-      <editform>C:/Users/DYoung/Documents/UC Davis/Research Projects/Post-fire management/postfire-management/QGIS-projects</editform>
+      <editform>.</editform>
       <editforminit/>
       <editforminitcodesource>0</editforminitcodesource>
-      <editforminitfilepath>C:/Users/DYoung/Documents/UC Davis/Research Projects/Post-fire management/postfire-management/QGIS-projects</editforminitfilepath>
+      <editforminitfilepath>.</editforminitfilepath>
       <editforminitcode><![CDATA[# -*- coding: utf-8 -*-
 """
 QGIS forms can have a Python function that is called when the form is
@@ -1401,24 +1462,24 @@ def my_form_open(dialog, layer, feature):
     </maplayer>
     <maplayer minimumScale="0" maximumScale="1e+08" type="raster" hasScaleBasedVisibilityFlag="0">
       <extent>
-        <xmin>607209.44220701057929546</xmin>
-        <ymin>4351412.87626959197223186</ymin>
-        <xmax>766049.71146701055113226</xmax>
-        <ymax>4473824.76334959175437689</ymax>
+        <xmin>607139.91434974037110806</xmin>
+        <ymin>4351635.05688390228897333</ymin>
+        <xmax>765909.3212016683537513</xmax>
+        <ymax>4474031.91727735567837954</ymax>
       </extent>
-      <id>pnf_0120170619185918480</id>
-      <datasource>C:/Users/DYoung/Documents/UC Davis/GIS/CA abiotic layers/NF visitor maps/pnf_01.jpg</datasource>
+      <id>pnf_01_georef320170619191320404</id>
+      <datasource>../../../../GIS/CA abiotic layers/NF visitor maps/pnf_01_georef3.tif</datasource>
       <keywordList>
         <value></value>
       </keywordList>
-      <layername>pnf_01</layername>
+      <layername>pnf_01_georef3</layername>
       <srs>
         <spatialrefsys>
           <proj4>+proj=utm +zone=10 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs</proj4>
-          <srsid>2287</srsid>
-          <srid>26910</srid>
-          <authid>EPSG:26910</authid>
-          <description>NAD83 / UTM zone 10N</description>
+          <srsid>1117</srsid>
+          <srid>3157</srid>
+          <authid>EPSG:3157</authid>
+          <description>NAD83(CSRS) / UTM zone 10N</description>
           <projectionacronym>utm</projectionacronym>
           <ellipsoidacronym>GRS80</ellipsoidacronym>
           <geographicflag>false</geographicflag>
@@ -1454,7 +1515,7 @@ def my_form_open(dialog, layer, feature):
         <ymax>253105.46399119589477777</ymax>
       </extent>
       <id>salvage_that_overlaps20170614095409575</id>
-      <datasource>C:/Users/DYoung/Documents/UC Davis/Research Projects/Post-fire management/postfire-management/data/output-exploratory/salvage-overlap-planting/salvage_that_overlaps.shp</datasource>
+      <datasource>../data/output-exploratory/salvage-overlap-planting/salvage_that_overlaps.shp</datasource>
       <keywordList>
         <value></value>
       </keywordList>
@@ -1794,7 +1855,7 @@ def my_form_open(dialog, layer, feature):
         </symbol>
       </SingleCategoryDiagramRenderer>
       <DiagramLayerSettings yPosColumn="-1" showColumn="-1" linePlacementFlags="10" placement="0" dist="0" xPosColumn="-1" priority="0" obstacle="0" zIndex="0" showAll="1"/>
-      <annotationform>C:/Users/DYoung/Documents/UC Davis/Research Projects/Post-fire management/postfire-management/QGIS-projects</annotationform>
+      <annotationform>.</annotationform>
       <aliases>
         <alias field="SUID" index="0" name=""/>
         <alias field="ACTIVITY" index="1" name=""/>
@@ -1841,10 +1902,10 @@ def my_form_open(dialog, layer, feature):
           <column width="-1" hidden="0" type="field" name="SHAPE_LEN"/>
         </columns>
       </attributetableconfig>
-      <editform>C:/Users/DYoung/Documents/UC Davis/Research Projects/Post-fire management/postfire-management/QGIS-projects</editform>
+      <editform>.</editform>
       <editforminit/>
       <editforminitcodesource>0</editforminitcodesource>
-      <editforminitfilepath>C:/Users/DYoung/Documents/UC Davis/Research Projects/Post-fire management/postfire-management/QGIS-projects</editforminitfilepath>
+      <editforminitfilepath>.</editforminitfilepath>
       <editforminitcode><![CDATA[# -*- coding: utf-8 -*-
 """
 QGIS forms can have a Python function that is called when the form is
@@ -1889,9 +1950,9 @@ def my_form_open(dialog, layer, feature):
     </Paths>
     <WMSServiceTitle type="QString"></WMSServiceTitle>
     <WFSLayers type="QStringList"/>
+    <WMSRestrictedLayers type="QStringList"/>
     <WMSContactMail type="QString"></WMSContactMail>
     <WMSRestrictedComposers type="QStringList"/>
-    <WMSRestrictedLayers type="QStringList"/>
     <PositionPrecision>
       <DecimalPlaces type="int">2</DecimalPlaces>
       <Automatic type="bool">true</Automatic>
@@ -1926,9 +1987,9 @@ def my_form_open(dialog, layer, feature):
       <DefaultSnapToleranceUnit type="int">2</DefaultSnapToleranceUnit>
       <LayerSnappingList type="QStringList">
         <value>FRAP_fires_since_198020170614104249337</value>
+        <value>maint_that_overlaps1985201720170619172800397</value>
         <value>planting20170614095406516</value>
         <value>salvage_that_overlaps20170614095409575</value>
-        <value>maint_that_overlaps1985201720170619172800397</value>
       </LayerSnappingList>
       <LayerSnappingEnabledList type="QStringList">
         <value>disabled</value>
