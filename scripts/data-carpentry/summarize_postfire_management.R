@@ -51,7 +51,7 @@ fires.focal <- fires[fires$VB_ID %in% fires.focal.names,]
 planting.management <- NULL
 
 
-for(i in 13:nrow(fires.focal))  {
+for(i in 1:nrow(fires.focal))  {
 
   fire.focal <- fires.focal[i,]
   year.focal <- as.numeric(fire.focal$FIRE_YEAR)
