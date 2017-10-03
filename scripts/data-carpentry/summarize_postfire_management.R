@@ -1,6 +1,10 @@
 setwd("~/UC Davis/Research Projects/Post-fire management/postfire-management")
 
 library(sf)
+library(rgeos)
+library(sp)
+library(rgdal)
+library(raster)
 
 
 planting <- c("Plant Trees")
@@ -13,24 +17,12 @@ prune <- c("Pruning to Raise Canopy Height and Discourage Crown Fire","Prune")
 manage.except.plant <- c(salvage,prep,release,thin,replant,prune)
 manage <- c(planting,manage.except.plant)
 
-#! there is also prune
-
-
-
-
-
-
 ## Load FACTS data
 facts <- st_read(dsn = "data/non-synced/existing-datasets/CA_Activity_merged.shp", stringsAsFactors = FALSE)
 st_precision(facts) <- 100000 #this seems to translate to about one meter. make number larger for more precision
 facts$year <- as.numeric(substr(facts$DATE_COMPL,1,4)) #! or do we want accomplished?
 facts$year <- ifelse(is.na(facts$year),3000,facts$year)
-
-
-
-#project to CA Albers
 facts <- st_transform(facts,crs=3310)
-#st_precision(facts) <- 1
 facts$id <- 1:nrow(facts)
 facts <- st_buffer(facts,0)
 
@@ -49,12 +41,6 @@ fires.focal.names <- c("2007ANTELOPE_CMPLX","2007MOONLIGHT","2001STREAM","2006BO
                  "2008GOVERNMENT","2001STAR",
                  "2007RALSTON","1992CLEVELAND","2004FREDS","2004POWER",
                  "1994BIG_CREEK")
-
-# fires.focal.names <- c("2007ANTELOPE_CMPLX","2001STREAM","2006BOULDER_CMPLX","1989LAYMAN","2008COLD","2012CHIPS","2000STORRIE","2008RICH",
-#                        "2012READING","1987LOST","2009SUGARLOAF","2002CONE","2004STRAYLOR","2008PIT",
-#                        "2008GOVERNMENT","2001STAR",
-#                        "2007RALSTON","1992CLEVELAND","2004FREDS","2004POWER",
-#                        "1994BIG_CREEK")
 
 fires.focal <- fires[fires$VB_ID %in% fires.focal.names,]
 
@@ -82,28 +68,7 @@ for(i in 13:nrow(fires.focal))  {
   ## get all facts units overlapping it
   facts.fire <- st_intersection(facts,fire.focal)
   facts.fire <- st_buffer(facts.fire,0)
-  
-  # 
-  # ##testing
-  # #write the focal fire
-  # st_write(fire.focal,"temp_test/focal_fire.shp")
-  # 
-  # 
-  # ##testing
-  # #write the facts clipped to focal fire
-  # st_write(facts.fire,"temp_test/focal_facts.shp")
-  # 
-  
-  
-  library(rgeos)
-  library(sp)
-  library(rgdal)
-  library(raster)
-  
-  # facts.fire <- readOGR("temp_test/focal_facts.shp")
-  # fire.focal <- readOGR("temp_test/focal_fire.shp")
-  # 
-  
+
   facts.fire <- as(facts.fire,"Spatial")
   fire.focal <- as(fire.focal,"Spatial")
   
@@ -148,37 +113,13 @@ for(i in 13:nrow(fires.focal))  {
   facts.fire.prune <- facts.fire[facts.fire$ACTIVITY %in% prune,]
   facts.fire.prune <- facts.fire.prune[facts.fire.prune$year >= year.focal,] # management must have occurred the same year as the fire or later
   
-  # ## define points where there was a problem, to remove from management shapefile #! later move to top of code for entire facts shapefile or else this will result in not slicing a polygon where it should be sliced
-  # point <- st_multipoint(matrix(c(-32795,85515,
-  #                                -32836,85757,
-  #                               -56997,248401,
-  #                               -55342,248374,
-  #                               -55286,248363,
-  #                               -55173,248421,
-  #                               -55104,248478),
-  #                                ncol=2,byrow=TRUE))
-  # point <- st_sfc(point,crs=3310)
-  # poly <- st_buffer(point,10)
-  # 
-
   setScale(1000)
   
   ## split the planting units along the boundaries of the all management plygons (including planting, in case there were multiple overlapping plantings)
-  #facts.fire.management <-gBuffer(facts.fire.management,width=0,byid=TRUE)
-  #facts.fire.management <- st_difference(facts.fire.management,poly) # remove trouble area
   facts.fire.management.lines <- as(facts.fire.management,"SpatialLines")
-  #facts.fire.management.lines2 <- st_cast(facts.fire.management.lines,"LINESTRING")
-  #facts.fire.management.lines <- st_simplify(facts.fire.management.lines,1)
-  #facts.fire.management.lines <- st_buffer(facts.fire.management.lines,dist=0) 
   facts.fire.management.lines.buffer <- gBuffer(facts.fire.management.lines,width=0.1,byid=TRUE)
-  #facts.fire.management.lines.buffer <- gBuffer(facts.fire.management.lines.buffer,width=0,byid=FALSE)
-  #facts.fire.management.lines.buffer <- unionSpatialPolygons(facts.fire.management.lines.buffer,IDs=rep("a",nrow(facts.fire.management.lines.buffer))) # union them all together
   facts.fire.planting.union <- gBuffer(facts.fire.salvage.planting,width=0)
-  #!facts.fire.planting.union <- gUnaryUnion(facts.fire.planting.union) # dissolving any adjacent (or overlapping) planting and salvage boundaries, because they are about to be split back out (including by salvage and planting)
-  #facts.fire.planting.union <- st_difference(facts.fire.planting.union,poly)
-  #facts.fire.planting.union <- st_union(facts.fire.planting.union) # dissolving any adjacent (or overlapping) planting and salvage boundaries, because they are about to be split back out (including by salvage and planting)
-  #facts.fire.management.lines.buffer <- st_union(facts.fire.management.lines.buffer)
-  
+
   facts.fire.management.lines.buffer <- gBuffer(facts.fire.management.lines.buffer,width=0)
   facts.fire.planting.union <- gBuffer(facts.fire.planting.union,width=0)
   
@@ -192,31 +133,15 @@ for(i in 13:nrow(fires.focal))  {
   facts.fire.planting.split$area.sqm <- gArea(facts.fire.planting.split,byid=TRUE)
   facts.fire.planting.split <- facts.fire.planting.split[facts.fire.planting.split$area.sqm > 10,]
 
-  
-    
-  #facts.fire.planting.split <- st_sf(st_cast(facts.fire.planting.split,"POLYGON"))
   pl.spl <- facts.fire.planting.split
 
-  
-  
-  # 
-  # #testing
-  # #write the split planting layer
-  # st_write(facts.fire.planting.split,"temp_test/facts_split_lookfor_largeone.shp",delete_dsn=TRUE)
-  # 
-  # 
-  # 
-  #writeOGR(facts.fire.planting.split,"temp_test",layer="facts_split_lookfor_largeone4.shp",driver="ESRI Shapefile",overwrite_layer=TRUE)
-  # 
-  # 
   
   for(j in 1:nrow(pl.spl)) {
     
     cat("\r--- Planting unit slice",j,"of",nrow(pl.spl))
     
     planting.slice <- pl.spl[j,]
-    #planting.slice <- gBuffer(planting.slice,width=0.1)
-    
+
     # get all overlapping planting units and their associated info
     if(nrow(facts.fire.planting) == 0) planting.over <- NULL else planting.over <- intersect(facts.fire.planting,planting.slice)
     planting.years <- planting.over$year
@@ -347,174 +272,4 @@ for(i in 13:nrow(fires.focal))  {
   
 }
 
-
-
-
-## get sizes of the slices
-
-
-
-
-fire.planting.split <- st_intersection(facts.fire.planting.split,facts.fire.planting)
-
-
-##testing
-#write the split planting layer
-st_write(planting.management,"temp_test/planting_slices_w_attr.shp")
-
-#write the intersection of the split planting layer with the planting layer
-st_write(fire.planting.split,"temp_test/planting_split_intersection.shp")
-
-#write the planting layer
-st_write(facts.fire.planting,"temp_test/planting.shp")
-
-#write the new one-deep split planting layer
-st_write(facts.fire.planting.split,"temp_test/planting_split_single.shp",delete_dsn=TRUE)
-
-
-
-
-
-# for each split planting unit component, get what overlaps with it
-
-for(j in 1:nrow(facts.fire.planting.split)) {
-  
-  planting.split.row <- planting.split[]
-  
-  planting.intersect <- st_intersect(facts.fire.planting,)
-  
-  
-  
-  
-}
-  
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-test <- aggregate(facts.fire.management,by = facts.fire.planting.split,FUN=paste)
-
-
-
-
-
-
-p1 <- rbind(c(0,0), c(1,0), c(3,2), c(2,4), c(1,4), c(0,0))
-pol1 <-st_polygon(list(p1))
-p2 <- rbind(c(3,0), c(4,0), c(4,1), c(3,1), c(3,0))
-pol2 <-st_polygon(list(p2))
-p3 <- rbind(c(4,0), c(4,1), c(5,1), c(5,0),c(4,0))
-pol3 <-st_polygon(list(p3))
-p4 <- rbind(c(3,3), c(4,2), c(4,3), c(3,3))
-pol4 <-st_polygon(list(p4))
-
-d = data.frame(some_attribute = 1:4)
-d$geometry = st_sfc(pol1,pol2,pol3,pol4)
-df = st_as_sf(d)
-
-df_union <- st_union(df)
-
-df2 <- st_cast(df,"POLYGON")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-## Make planting-only FACTS layer
-planting <- c("Plant Trees")
-facts.planting <- facts[facts$ACTIVITY %in% planting,]
-
-## Make salvage-only FACTS layer
-salvage <- c("Salvage Cut (intermediate treatment, not regeneration)","Stand Clearcut (EA/RH/FH)")
-facts.salvage <- facts[facts$ACTIVITY %in% salvage,]
-
-## We're only interested in areas planted between 2000 and 2015
-planting.years <- 1980:2017
-facts.planting <- facts.planting[facts.planting$year %in% planting.years,]
-
-## We're only interested in salvage that happened within 6 years prior to the planting
-salvage.prior <- 6
-salvage.years <- (min(planting.years)-salvage.prior):(max(planting.years))
-facts.salvage <- facts.salvage[facts.salvage$year %in% salvage.years,]
-
-## Optionally thin to a focal region
-rd <- st_read(dsn = "data/non-synced/existing-datasets/ranger-districts/S_USA.RangerDistrict.shp", stringsAsFactors = FALSE)
-rd <- rd[rd$FORESTNAME == "Tahoe National Forest",]
-rd <- st_transform(rd,crs=3310)
-rd <- st_buffer(rd,0)
-
-facts.salvage <- st_intersection(facts.salvage,rd)
-facts.planting <- st_intersection(facts.planting,rd)
-
-
-## For each planted polygon, get all touching salvage polygons from up to 6 years prior to the planting
-all.overlap.ids <- NULL #just add first row as an example
-
-for(i in 1:nrow(facts.planting)) {
-  
-  if(i == 318) next()
-  
-  facts.planting.polygon <- facts.planting[i,]
-  planting.year <- as.numeric(facts.planting.polygon$year)
-  salvage.year.range <- (planting.year-10):planting.year #this includes salvage that happened in the same year as planting
-  facts.salvage.matchyears <- facts.salvage[facts.salvage$year %in% salvage.year.range,]
-  
-  if(nrow(facts.salvage.matchyears) == 0) {
-    next()
-  }
-  
-  # see which salvage polygons (rows) at least partially overlap the planted areas
-  salvage.overlap <- st_intersects(facts.planting.polygon,facts.salvage.matchyears)
-  
-  overlap.ids <- facts.salvage.matchyears[unlist(salvage.overlap),]$id
-  
-  all.overlap.ids <- c(all.overlap.ids,overlap.ids)
-  
-  cat("\r ",i)
-  
-  ##! here we could add IDs to the saved salvage polygons to reference the planting polygons they are associated with
-  
-  
-}
-
-all.overlap.ids <- unique(all.overlap.ids)
-overlapping.salvage.polygons <- facts.salvage[facts.salvage$id %in% all.overlap.ids,]
-
-
-## Save the planting and salvage polygons
-st_write(facts.planting,dsn="data/output-exploratory/salvage-overlap-planting/planting.shp",delete_dsn=TRUE)
-st_write(overlapping.salvage.polygons,dsn="data/output-exploratory/salvage-overlap-planting/salvage_that_overlaps.shp",delete_dsn=TRUE)
-#st_write(facts.salvage,dsn="data/output-exploratory/salvage-overlap-planting/salvage_all.shp") # for testing
-
-## Load them out again
-
-facts.planting <- st_read(dsn="data/output-exploratory/salvage-overlap-planting/planting.shp")
 
