@@ -29,8 +29,10 @@ facts.salvage <- facts.salvage[facts.salvage$year %in% salvage.years,]
 
 ## Optionally thin to a focal region
 rd <- st_read(dsn = "data/non-synced/existing-datasets/ranger-districts/S_USA.RangerDistrict.shp", stringsAsFactors = FALSE)
-rd <- rd[rd$FORESTNAME == "Plumas National Forest",]
+rd <- rd[rd$FORESTNAME == "Tahoe National Forest",]
 rd <- st_transform(rd,crs=3310)
+rd <- st_buffer(rd,0)
+
 facts.salvage <- st_intersection(facts.salvage,rd)
 facts.planting <- st_intersection(facts.planting,rd)
 
@@ -40,10 +42,16 @@ all.overlap.ids <- NULL #just add first row as an example
 
 for(i in 1:nrow(facts.planting)) {
   
+  if(i == 318) next()
+  
   facts.planting.polygon <- facts.planting[i,]
   planting.year <- as.numeric(facts.planting.polygon$year)
   salvage.year.range <- (planting.year-10):planting.year #this includes salvage that happened in the same year as planting
   facts.salvage.matchyears <- facts.salvage[facts.salvage$year %in% salvage.year.range,]
+  
+  if(nrow(facts.salvage.matchyears) == 0) {
+    next()
+  }
   
   # see which salvage polygons (rows) at least partially overlap the planted areas
   salvage.overlap <- st_intersects(facts.planting.polygon,facts.salvage.matchyears)
@@ -67,3 +75,8 @@ overlapping.salvage.polygons <- facts.salvage[facts.salvage$id %in% all.overlap.
 st_write(facts.planting,dsn="data/output-exploratory/salvage-overlap-planting/planting.shp",delete_dsn=TRUE)
 st_write(overlapping.salvage.polygons,dsn="data/output-exploratory/salvage-overlap-planting/salvage_that_overlaps.shp",delete_dsn=TRUE)
 #st_write(facts.salvage,dsn="data/output-exploratory/salvage-overlap-planting/salvage_all.shp") # for testing
+
+## Load them out again
+
+facts.planting <- st_read(dsn="data/output-exploratory/salvage-overlap-planting/planting.shp")
+
