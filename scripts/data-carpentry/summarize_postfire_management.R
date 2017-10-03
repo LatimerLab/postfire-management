@@ -307,5 +307,11 @@ for(i in 20:nrow(fires.focal))  {
 
 #add an overall ID and write to file
 
-writeOGR(planting.management,"data/output-exploratory/aggregated-management-history/shapefiles",layer="management_history.shp",driver="ESRI Shapefile")
+out <- as(planting.management,"sf")
+out$id <- paste0(out$fire.year,out$fire.name,out$slice.id)
 
+st_write(out,dsn="data/output-exploratory/aggregated-management-history/shapefiles/management_history.gpkg",driver="GPKG",delete_dsn=TRUE)
+st_write(out,dsn="data/output-exploratory/aggregated-management-history/shapefiles/management_history2.shp",driver="ESRI shapefile",delete_dsn=TRUE)
+
+out.nogeom <- as.data.frame(out)[-ncol(out)]
+write.csv(out.nogeom,"data/output-exploratory/aggregated-management-history/management_history.csv",row.names=FALSE)
