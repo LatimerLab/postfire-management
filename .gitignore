@@ -44,4 +44,5 @@ vignettes/*.pdf
 # Directories with files too large to sync
 /data/non-synced/
 
-
+# Directories with archived code
+/scripts/data-carpentry/archived-old-versions/
