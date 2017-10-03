@@ -36,3 +36,12 @@ vignettes/*.pdf
 # Temporary files created by R markdown
 *.utf8.md
 *.knit.md
+
+# Directories without code
+/temp_test/
+/QGIS-projects/
+
+# Directories with files too large to sync
+/data/non-synced/
+
+
