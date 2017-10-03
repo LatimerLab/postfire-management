@@ -314,4 +314,4 @@ st_write(out,dsn="data/output-exploratory/aggregated-management-history/shapefil
 st_write(out,dsn="data/output-exploratory/aggregated-management-history/shapefiles/management_history2.shp",driver="ESRI shapefile",delete_dsn=TRUE)
 
 out.nogeom <- as.data.frame(out)[-ncol(out)]
-write.csv(out.nogeom,"data/output-exploratory/aggregated-management-history/management_history.csv",row.names=FALSE)
+write.csv(out.nogeom,"data/output-exploratory/aggregated-management-history/aggregated_management_history.csv",row.names=FALSE)
