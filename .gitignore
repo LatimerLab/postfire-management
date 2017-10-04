@@ -7,6 +7,11 @@
 .Rhistory
 .Rapp.history
 
+# GPKG auxiliary files
+.gpkg-shm
+.gpkg-wal
+.gpkg-journal
+
 # Session Data files
 .RData
 
