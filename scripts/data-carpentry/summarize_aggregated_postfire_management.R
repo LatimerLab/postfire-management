@@ -63,7 +63,8 @@ salvage.x.plant <- salvage.x.plant %>%
     
 salvage.x.plant.simp <- salvage.x.plant %>%
   mutate(area.sqm_tot = area.sqm_tot/10000) %>%
-  select(fire.name,salvaged,planted,area.ha=area.sqm_tot,area_prop=area.sqm_tot_prop,contains("area_tot_prop"))
+  select(fire.name,salvaged,planted,area.ha=area.sqm_tot,area_prop=area.sqm_tot_prop,contains("area_tot_prop")) %>%
+  filter(area.ha > 1) # the resulting fire X salvage (t/f) X planted (t/f) area must be > 1 ha this mostly removes the not-salvaged, not-planted factor level which on most fires is a tiny area: the area that happened to have been planted the same year as the fire, just before it)
 
   
 ## shorten names
