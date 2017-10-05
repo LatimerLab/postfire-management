@@ -51,7 +51,7 @@ fires.focal <- fires[fires$VB_ID %in% fires.focal.names,]
 planting.management <- NULL
 
 
-for(i in 20:nrow(fires.focal))  {
+for(i in 1:nrow(fires.focal))  {
 
   fire.focal <- fires.focal[i,]
   year.focal <- as.numeric(fire.focal$FIRE_YEAR)
@@ -117,13 +117,7 @@ for(i in 20:nrow(fires.focal))  {
   facts.fire.prune <- facts.fire[facts.fire$ACTIVITY %in% prune,]
   facts.fire.prune <- facts.fire.prune[facts.fire.prune$year >= year.focal,] # management must have occurred the same year as the fire or later
   
-  
-  ## test write facts.fire.salvage.planting
-  out <- as(facts.fire.salvage.planting,"sf")
-  st_write(out,dsn="temp_test/plant_salvage_history.gpkg",driver="GPKG",delete_dsn=TRUE)
 
-  
-  
   ## split the planting units along the boundaries of the all management plygons (including planting, in case there were multiple overlapping plantings)
   facts.fire.management.lines <- as(facts.fire.management,"SpatialLines")
   facts.fire.management.lines.buffer <- gBuffer(facts.fire.management.lines,width=0.1,byid=TRUE)
@@ -297,11 +291,6 @@ for(i in 20:nrow(fires.focal))  {
     pl.spl[j,"prune.n.unique.years"] <- paste(mgmt.n.unique.years,collapse=", ")
     
 
-    if ( (pl.spl[j,]$salvage.years.post == "") & (pl.spl[j,]$planting.years.post == "") ) {
-      print ("\nNo planting or salvage\n")
-    }
-    
-    
   }
 
   pl.spl$fire.name <- fire.name
