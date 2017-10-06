@@ -116,7 +116,6 @@ for(i in 1:nrow(fires.focal))  {
   ## pull out all prune
   facts.fire.prune <- facts.fire[facts.fire$ACTIVITY %in% prune,]
   facts.fire.prune <- facts.fire.prune[facts.fire.prune$year >= year.focal,] # management must have occurred the same year as the fire or later
-  
 
   ## split the planting units along the boundaries of the all management plygons (including planting, in case there were multiple overlapping plantings)
   facts.fire.management.lines <- as(facts.fire.management,"SpatialLines")
@@ -144,7 +143,6 @@ for(i in 1:nrow(fires.focal))  {
 
   pl.spl <- facts.fire.planting.split
   
-  
   #remove topology errors
   facts.fire.planting <- gBuffer(facts.fire.planting,width=0,byid=TRUE)
   facts.fire.salvage <- gBuffer(facts.fire.salvage,width=0,byid=TRUE)
@@ -153,6 +151,8 @@ for(i in 1:nrow(fires.focal))  {
   facts.fire.thin <- gBuffer(facts.fire.thin,width=0,byid=TRUE)
   facts.fire.replant <- gBuffer(facts.fire.replant,width=0,byid=TRUE)
   facts.fire.prune <- gBuffer(facts.fire.prune,width=0,byid=TRUE)
+  
+  facts.fire.planting <- gBuffer(facts.fire.planting,width=0,byid=TRUE)
   
 
   
@@ -166,7 +166,9 @@ for(i in 1:nrow(fires.focal))  {
 
 
     # get all overlapping planting units and their associated info
-    if(is.null(facts.fire.planting)) planting.over <- NULL else planting.over <- intersect(facts.fire.planting,planting.slice)
+    if(is.null(facts.fire.planting)) planting.over <- NULL else planting.over <- raster::intersect(facts.fire.planting,planting.slice)
+ 
+  
     planting.years <- planting.over$year
     planting.years.post <- planting.years - year.focal
     years.order <- order(planting.years.post)
@@ -187,7 +189,7 @@ for(i in 1:nrow(fires.focal))  {
     
 
     
-    if(is.null(facts.fire.salvage)) mgmt.over <- NULL else mgmt.over <- intersect(facts.fire.salvage,planting.slice)
+    if(is.null(facts.fire.salvage)) mgmt.over <- NULL else mgmt.over <- raster::intersect(facts.fire.salvage,planting.slice)
     mgmt.years <- mgmt.over$year
     mgmt.years.post <- mgmt.years - year.focal
     years.order <- order(mgmt.years.post)
@@ -206,7 +208,7 @@ for(i in 1:nrow(fires.focal))  {
     
 
     
-    if(is.null(facts.fire.prep)) mgmt.over <- NULL else mgmt.over <- intersect(facts.fire.prep,planting.slice)
+    if(is.null(facts.fire.prep)) mgmt.over <- NULL else mgmt.over <- raster::intersect(facts.fire.prep,planting.slice)
     mgmt.years <- mgmt.over$year
     mgmt.years.post <- mgmt.years - year.focal
     years.order <- order(mgmt.years.post)
@@ -223,7 +225,7 @@ for(i in 1:nrow(fires.focal))  {
     
     # get all overlapping release units and their associated info
     
-    if(is.null(facts.fire.release)) mgmt.over <- NULL else mgmt.over <- intersect(facts.fire.release,planting.slice)
+    if(is.null(facts.fire.release)) mgmt.over <- NULL else mgmt.over <- raster::intersect(facts.fire.release,planting.slice)
     mgmt.years <- mgmt.over$year
     mgmt.years.post <- mgmt.years - year.focal
     years.order <- order(mgmt.years.post)
@@ -240,7 +242,7 @@ for(i in 1:nrow(fires.focal))  {
     
     # get all overlapping thin units and their associated info
     
-    if(is.null(facts.fire.thin)) mgmt.over <- NULL else mgmt.over <- intersect(facts.fire.thin,planting.slice)
+    if(is.null(facts.fire.thin)) mgmt.over <- NULL else mgmt.over <- raster::intersect(facts.fire.thin,planting.slice)
     mgmt.years <- mgmt.over$year
     mgmt.years.post <- mgmt.years - year.focal
     years.order <- order(mgmt.years.post)
@@ -258,7 +260,7 @@ for(i in 1:nrow(fires.focal))  {
     # get all overlapping replant units and their associated info
     
 
-    if(is.null(facts.fire.replant)) mgmt.over <- NULL else mgmt.over <- intersect(facts.fire.replant,planting.slice)
+    if(is.null(facts.fire.replant)) mgmt.over <- NULL else mgmt.over <- raster::intersect(facts.fire.replant,planting.slice)
     mgmt.years <- mgmt.over$year
     mgmt.years.post <- mgmt.years - year.focal
     years.order <- order(mgmt.years.post)
@@ -275,7 +277,7 @@ for(i in 1:nrow(fires.focal))  {
     
     # get all overlapping prune units and their associated info
     
-    if(is.null(facts.fire.prune)) mgmt.over <- NULL else mgmt.over <- intersect(facts.fire.prune,planting.slice)
+    if(is.null(facts.fire.prune)) mgmt.over <- NULL else mgmt.over <- raster::intersect(facts.fire.prune,planting.slice)
     mgmt.years <- mgmt.over$year
     mgmt.years.post <- mgmt.years - year.focal
     years.order <- order(mgmt.years.post)
@@ -306,13 +308,20 @@ for(i in 1:nrow(fires.focal))  {
 }
 
 
-#add an overall ID and write to file
+## remove the (small) polygons where there was a topology exception that caused the script to think the slice did not fall within a planted area when in fact it did
+errors <- which(planting.management$planting.nyears == 0 & planting.management$salvage.nyears == 0)
+planting.management <- planting.management[-errors,]
 
+
+#add an overall ID and write to file
 out <- as(planting.management,"sf")
 out$id <- paste0(out$fire.year,out$fire.name,out$slice.id)
 
 st_write(out,dsn="data/output-exploratory/aggregated-management-history/shapefiles/management_history.gpkg",driver="GPKG",delete_dsn=TRUE)
-st_write(out,dsn="data/output-exploratory/aggregated-management-history/shapefiles/management_history2.shp",driver="ESRI shapefile",delete_dsn=TRUE)
 
-out.nogeom <- as.data.frame(out)[-ncol(out)]
+# remove geometry columns
+out.nogeom <- out %>%
+  as.data.frame() %>%
+  select(-geometry)
+  
 write.csv(out.nogeom,"data/output-exploratory/aggregated-management-history/aggregated_management_history.csv",row.names=FALSE)
