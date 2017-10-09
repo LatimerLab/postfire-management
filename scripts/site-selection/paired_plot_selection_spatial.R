@@ -1,14 +1,24 @@
+setwd("~/UC Davis/Research Projects/Post-fire management/postfire-management")
+
 library(sf)
+library(rgdal)
 
 #### Load necessary layers ####
 
 # load FACTS planting history slices of focal fires
+planting.slices <- readOGR("data/output-exploratory/aggregated-management-history/shapefiles/management_history.gpkg",stringsAsFactors = FALSE)
+planting.slices <- as(planting.slices,"sf")
 
 
-# extract names of focal fires
+planting.slices <- st_read("data/output-exploratory/aggregated-management-history/shapefiles/management_history.gpkg",stringAsFactors=FALSE)
+
+# load names of focal fires
+focal.fires.input <- read.csv("data/analysis-parameters/focal_fires.csv",stringsAsFactors=FALSE)
+fires.focal.names <- unique(focal.fires.input$VB_ID)
 
 
-# load fire database and thin to focal fires
+# load fire perimeter database and thin to focal fires
+fires <- readOGR("data/non-synced/existing-datasets/veg_severity_perimeters16_1.gdb")
 
 
 # load full FACTS (not just planting) and clip to focal fires

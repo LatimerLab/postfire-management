@@ -36,11 +36,9 @@ fires <- fires[fires$FIRE_YEAR > 1984,] # only fires since 1984
 #optional output list of fires and years
 #write.csv(as.data.frame(fires)[,c("FIRE_YEAR","FIRE_NAME","VB_ID","NUM_ASSESS","NIFMID_LNK","AGENCY","ICS_CODE","EDIT_DATE")],"data/output-exploratory/fire-names/veg_severity_perimeters.csv",row.names=FALSE)
 
-fires.focal.names <- c("2007ANTELOPE_CMPLX","2007MOONLIGHT","2001STREAM","2006BOULDER_CMPLX","1989LAYMAN","2008COLD","2012CHIPS","2000STORRIE","2008RICH",
-                 "2012READING","1987LOST","2009SUGARLOAF","2002CONE","2004STRAYLOR","2008PIT",
-                 "2008GOVERNMENT","2001STAR",
-                 "2007RALSTON","1992CLEVELAND","2004FREDS","2004POWER",
-                 "1994BIG_CREEK")
+# read in focal fires
+focal.fires.input <- read.csv("data/analysis-parameters/focal_fires.csv",stringsAsFactors=FALSE)
+fires.focal.names <- unique(focal.fires.input$VB_ID)
 
 fires.focal <- fires[fires$VB_ID %in% fires.focal.names,]
 
