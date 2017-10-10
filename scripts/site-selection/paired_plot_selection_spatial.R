@@ -9,6 +9,12 @@ library(sp)
 crs <- 3310 # CA albers
 
 
+#### Convenience functions ####
+
+deg2rad <- function(x) {
+  x*pi/180
+}
+
 #### Load necessary layers ####
 
 # load FACTS planting history slices of focal fires
@@ -67,7 +73,7 @@ planting.zone <- st_union(planting.zone)
 
 
 # Buffer in by 20 m and out by 20 m and place points along the resulting perimeters to establish the candidate set of "treated" and "control" plots
-treated.plot.perim <- st_buffer(planting.zone,dist=-20)
+treated.plot.perim <- st_buffer(planting.zone,dist=-30)
 treated.plot.perim <- st_cast(treated.plot.perim,"MULTILINESTRING")
 treated.perim.length <- st_length(treated.plot.perim) %>% sum() %>% as.numeric()
 treated.plot.perim <- as(treated.plot.perim,"Spatial")
@@ -75,7 +81,7 @@ trt.candidate.plots <- spsample(treated.plot.perim,n=treated.perim.length/100,ty
 trt.candidate.plots <- as(trt.candidate.plots,"sf")
 
 
-control.plot.perim <- st_buffer(planting.zone,dist=20)
+control.plot.perim <- st_buffer(planting.zone,dist=30)
 control.plot.perim <- st_cast(control.plot.perim,"MULTILINESTRING")
 control.perim.length <- st_length(control.plot.perim) %>% sum() %>% as.numeric()
 control.plot.perim <- as(control.plot.perim,"Spatial")
@@ -88,6 +94,10 @@ ctrl.candidate.plots$type <- "control"
 
 candidate.plots <- rbind(trt.candidate.plots,ctrl.candidate.plots)
 candidate.plots$id <- seq(1,nrow(candidate.plots))
+
+
+#### Compile attributes of candidate plots ####
+
 
 # Optional, not implemented: Remove candidate control plots that are in an area with any FACTS management history (beyond planting)
 
@@ -119,7 +129,6 @@ get_mostrecent_VB_ID <- function(x) { # function to get the fire name and year f
 most.recent.focal.fire <- lapply(fire.intersect,FUN=get_mostrecent_VB_ID)
 candidate.plots$most.recent.focal.fire <- unlist(most.recent.focal.fire)
 
-st_write(candidate.plots,"temp_test/candidate_plots.shp",delete_dsn=TRUE)
 
 
 
@@ -129,6 +138,8 @@ candidate.plots <- as(candidate.plots,"Spatial") # change the plots to SpatialPo
 candidate.plots$slope <- extract(slope.aspect[["slope"]],candidate.plots)
 candidate.plots$aspect <- extract(slope.aspect[["aspect"]],candidate.plots)
 candidate.plots$elev <- extract(dem,candidate.plots)
+
+candidate.plots$northness <- cos(deg2rad(candidate.plots$aspect))
 
 
 # Get the severity of the most recent overlapping focal fire(s) -- that is the fire that prompted the planting
@@ -154,7 +165,6 @@ get_mostrecent_severity <- function(x) { # function to get the severities of the
 most.recent.focal.fire.sev <- lapply(sev.intersect,FUN=get_mostrecent_severity)
 candidate.plots$focal.fire.sev <- unlist(most.recent.focal.fire.sev)
 
-st_write(candidate.plots,"temp_test/candidate_plots.shp",delete_dsn=TRUE)
 
 
 # get fire history (in one alphabetized concatenated string) -- not just of focal fires -- to make sure that treated and control plots have same fire history
@@ -173,7 +183,6 @@ get_all_VB_IDs <- function(x) { # function to get the VB_ID of all overlapping h
 vb_ids <- lapply(fire.perim.intersect,FUN=get_all_VB_IDs)
 candidate.plots$fire.history <- unlist(vb_ids)
 
-st_write(candidate.plots,"temp_test/candidate_plots.shp",delete_dsn=TRUE)
 
 # note that we don't have to check whether the plots burned after the focal fire because the script to generate the planting unit slices already excludes planting unit slices that burned after the focal fire.
 #   although control plots could fall outside this area (and thus have burned after the focal fire), we will make sure they didn't by making sure their fire history is the same as that of their paired treated plot
@@ -184,7 +193,7 @@ st_write(candidate.plots,"temp_test/candidate_plots.shp",delete_dsn=TRUE)
 # Compare to FS ownership layer to make sure all plots are FS land
 #    buffer FS layer in by 30 m to make sure not near private (i.e., that the boundary was set along ownerhip), allowing for some spatial error)
 ownership.union <- st_union(ownership)
-ownership.bufferin30 <- st_buffer(ownership.union,-30)
+ownership.bufferin30 <- st_buffer(ownership.union,-100)
 fires.focal.union <- st_union(fires.focal)
 
 ownership.fires <- st_intersection(ownership.bufferin30,fires.focal.union)
@@ -220,17 +229,178 @@ activity.date <- lapply(facts.all.intersect,FUN=get_all_facts_management)
 candidate.plots$management.history <- unlist(activity.date)
 
 
+#### Filter out candidate plots to find those meeting criteria ####
+
+candidate.plots.backup <- candidate.plots
+
+# filter based on severity, ownership
+candidate.plots <- candidate.plots %>%
+  filter(focal.fire.sev == 4) %>%  # include only candidate plots that have high severity surrounding them #! in the future, may want to look out to a wider surrounding area
+  filter(ownership == "fs") # include only candidate plots that are on (buffered in) FS land
+
+# break back into treated and control
+trt <- candidate.plots %>% filter(type=="treatment")
+ctl <- candidate.plots %>% filter(type=="control")
+
+trt$index <- 1:nrow(trt)
+ctl$index <- 1:nrow(ctl)
+
+# get distances between each treated plot and each control
+a <- st_distance(trt,ctl) # takes 1-2 min. maybe do after narrowing
+
+# for each row (treated plot), which columns (control plots) are within x distance
+radius <- set_units(80,m)
+close.pairs <- which(a < radius,arr.ind=T)
+colnames(close.pairs) <- c("trt","ctl")
+close.pairs <- as.data.frame(close.pairs)
+
+trt.data <- as.data.frame(trt) %>% select(-geometry)
+ctl.data <- as.data.frame(ctl) %>% select(-geometry)
 
 
 
-# include only candidate plots that have high severity surrounding them
+## for each treated plot
+for(i in 1:nrow(trt)) {
+  
+  cat("\r Running for row",i,"of",nrow(trt),"          ")
+  
+  trt.focal <- trt.data[i,]
+  
+  # close.ctl.plots <- close.pairs %>%
+  #   filter(trt==i) %>%
+  #   select(ctl)
+  
+  close.ctl.plots <- close.pairs[close.pairs$trt==i,"ctl"]
+  
+  ctl.close <- ctl.data[close.ctl.plots,]
+  
+  
+  #check all close controls to make sure comparable:
+  # same: focal fire (that triggered planting); fire history
+  # within: 5 slope, 0.5 northness, 100 elevation
+  
+  ctl.close <- ctl.close[ctl.close$most.recent.focal.fire == trt.focal$most.recent.focal.fire &
+                           ctl.close$fire.history == trt.focal$fire.history &
+                           near(ctl.close$slope,trt.focal$slope,10) &
+                           near(ctl.close$elev,trt.focal$elev,100) &
+                           near(ctl.close$northness,trt.focal$northness,0.5),]
+  
 
-# exclude plot pairs that did not match in terms of slope, aspect, elevation, and fire severity
+  
+  # get the distance between the treated plot and each comparable control
+  dist <- a[i,ctl.close$index]
+  
+  # get the distance to the closest control
+  closest.distance <- min(dist)
+  
+  # which of them was the closest?
+  closest <- which(dist == closest.distance)
+  
+  #get the id number of the closest control
+  closest.id <- ctl.close[closest,"id"]
+  
+  if(length(closest.id) == 0) {
+    closest.id <- NA
+  }
+  
+  trt.data[i,"closest.ctl.id"] <- closest.id
+  trt.data[i,"closest.ctl.dist"] <- closest.distance
+  
+}
 
-# if multiple plot pairs from the same planting slice are within X distance, randomly remove them until they are > X distance
+## if multiple treated plots claim the same control, choose the one that is the closest to its control
+
+# for each control plot ID that is paired with a treatment plot, load all paired treatment plots; flag those that are not the closest
+
+trt.data$not.closest <- "no"
+
+paired.ctl.ids <- unique(trt.data$closest.ctl.id)
+
+for(ctl.id in paired.ctl.ids) {
+
+  if(is.na(ctl.id)) next()  
+  if(ctl.id == -1) next()
+
+  
+  trt.using.ctl <- trt.data[trt.data$closest.ctl.id == ctl.id & !is.na(trt.data$closest.ctl.id),]
+  
+  if(nrow(trt.using.ctl) < 2) next()
+  
+  distances <- trt.using.ctl$closest.ctl.dist
+  non.min.dist.index <- which(distances != min(distances))
+  non.min.dist.plot.ids <- trt.using.ctl[non.min.dist.index,"id"]
+  
+  # set those plots to "not closest"
+  trt.data[trt.data$id %in% non.min.dist.plot.ids,"not.closest"] <- "yes"
+  
+  
+}
+
+
+
+
+
+
+
+trt$ctl.id <- trt.data$closest.ctl.id
+trt$ctl.dist <- trt.data$closest.ctl.dist
+trt$not.closest <- trt.data$not.closest
+
+trt$ctl.dist <- ifelse(trt$ctl.dist == Inf,999999,trt$ctl.dist)
+trt$ctl.id <- ifelse(is.na(trt$ctl.id),-1,trt$ctl.id)
+
+
+
+ctl$ctl.id <- -1
+ctl$ctl.dist <- 999999
+ctl$not.closest <- "n/a"
+
+candidate.plots.paired <- rbind(trt,ctl)
+
+
+# Optional; not implemented: if multiple plot pairs from the same planting slice are within X distance, randomly remove them until they are > X distance
+
+
+
+# keep only control plots and those treatment plots that are the closest
+candidate.plots.paired <- candidate.plots.paired %>% filter(type == "control" | not.closest == "no")
+
+# remove treatment plots that don't have a pair
+candidate.plots.paired <- candidate.plots.paired  %>% filter(type == "control" | ctl.id != -1)
+
+candidate.plots.paired$pair.id <- "-1"
+
+
+
+## add "pair ids" to easily locate the two plots of a pair
+# start by looking up the treatment plot id of the control plots
+trt.plot.ids <- candidate.plots.paired[candidate.plots.paired$type=="treatment",]$id
+for(trt.plot.id in trt.plot.ids) {
+  
+  # get control id of that treated plot
+  ctl.id <- candidate.plots.paired[candidate.plots.paired$id == trt.plot.id,]$ctl.id
+  
+  
+  
+  # look up the corresponding control plot and give it the treated plot id
+  candidate.plots.paired[candidate.plots.paired$id == ctl.id,"pair.id"] <- trt.plot.id
+}
+
+
+# now for all treated plots, add its own ID to the pair ID column (because the treated plot ID will be the ID for the pair)
+candidate.plots.paired[candidate.plots.paired$type == "treatment","pair.id"] <- candidate.plots.paired[candidate.plots.paired$type == "treatment",]$id
+
+
+# remove control plots that don't have a pair
+candidate.plots.paired <- candidate.plots.paired %>% filter(pair.id != -1)
+
+# remove columns that are meaningul only in filtering code
+candidate.plots.paired <- candidate.plots.paired %>% select(-index,-ownership,-not.closest)
+
+st_write(candidate.plots.paired,"temp_test/candidate_plots_paired.shp",delete_dsn=TRUE)
+
 
 # summarize the planting pairs: planted-conttrol both salvaged or not, or different? replanted, shrub control, etc?
 
-##!! if multiple treated plots claim the same control, choose the one that is the closest to its control
 
 
