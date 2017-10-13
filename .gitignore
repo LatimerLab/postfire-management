@@ -1,8 +1,3 @@
-/data/non-synced/
-
-
-## Below this line is github default .gitignore for R files
-
 # History files
 .Rhistory
 .Rapp.history
@@ -48,6 +43,3 @@ vignettes/*.pdf
 
 # Directories with files too large to sync
 /data/non-synced/
-
-# Directories with archived code
-/scripts/data-carpentry/archived-old-versions/
