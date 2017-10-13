@@ -5,6 +5,7 @@ library(rgdal)
 library(raster)
 library(dplyr)
 library(sp)
+library(units)
 
 crs <- 3310 # CA albers
 
@@ -57,8 +58,8 @@ dem <- crop(dem,as(fires.focal,"Spatial"))
 slope.aspect <- terrain(dem,opt=c("slope","aspect"),unit="degrees")
 
 # load USFS ownership
-ownership <- st_read("data/non-synced/existing-datasets/CPAD State Federal/CPAD_State_Federal.shp")
-ownership <- ownership[ownership$AGNCY_NAME == "United States Forest Service",]
+ownership <- st_read("data/non-synced/existing-datasets/CPAD/CPAD_2017a_SuperUnits.shp")
+ownership <- ownership[ownership$MNG_AGENCY == "United States Forest Service",]
 ownership <- st_transform(ownership,crs=crs)
 
 
@@ -144,7 +145,11 @@ candidate.plots$northness <- cos(deg2rad(candidate.plots$aspect))
 
 # Get the severity of the most recent overlapping focal fire(s) -- that is the fire that prompted the planting
 candidate.plots <- as(candidate.plots,"sf")
-sev.intersect <- st_intersects(candidate.plots,fire.sev)
+candidate.plots.buffer <- st_buffer(candidate.plots,40) # buffer out for 40m to make sure it's high-severity in the entire area surrounding
+fire.sev.buffer <- st_buffer(fire.sev,15)
+sev.intersect <- st_intersects(candidate.plots,fire.sev.buffer)
+
+#! export fire sev buffer to make sure it worked
 
 fire.sev.data <- as.data.frame(fire.sev) # remove spatial data to speed up the following function
 fire.sev.data <- fire.sev.data %>% select(-geometry)
@@ -156,7 +161,7 @@ get_mostrecent_severity <- function(x) { # function to get the severities of the
   overlap.years <- fire.sev.overlap$FIRE_YEAR
   max.yr.index <- which(overlap.years == max(overlap.years)) # indices of all overlap fires that were the most recent focal fire
   severities <- fire.sev.overlap[max.yr.index,"BURNSEV"]
-  severity.mostrecent <- max(severities) # in case there was more than one severity layer (e.g., two fires that burned in the same year)
+  severity.mostrecent <- min(severities) # in case there was more than one severity within the buffered area around each plot, take the minimum so we can later filter to plots for which the entire surrounding area was > X severity. Note that this can be foiled if there was more than one fire that burned over a given plot in the most-recent fire year (e.g. one fire burned at high severity and the second burned at low severity and then the site was planted). But that should be a very small number of candidate plots.
   
   return(severity.mostrecent)
   
@@ -397,7 +402,10 @@ candidate.plots.paired <- candidate.plots.paired %>% filter(pair.id != -1)
 # remove columns that are meaningul only in filtering code
 candidate.plots.paired <- candidate.plots.paired %>% select(-index,-ownership,-not.closest)
 
-st_write(candidate.plots.paired,"temp_test/candidate_plots_paired.shp",delete_dsn=TRUE)
+# add an empty column as a workaround to the fact that QGIS kml exoport needs to use a colum for feature display labels
+candidate.plots.paired$label <- " "
+
+st_write(candidate.plots.paired,"data/output-site-selection/candidate_plots_paired.gpkg",delete_dsn=TRUE)
 
 
 # summarize the planting pairs: planted-conttrol both salvaged or not, or different? replanted, shrub control, etc?
