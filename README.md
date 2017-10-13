@@ -1,6 +1,8 @@
-# postfire-management
+# Evaluating post-fire forest management
+A project to evaluate the outcomes of post-fire forest management (particularly tree planting) under different scenarios and relative to natural forest regeneration patterns
 
-## Repo file structure:
+### Description of repository file structure file structure
+The list below describes how files are organized in this repo, with **_bold, italic_** text indicating folders and **bold** text indicating files.
 
   * **_data_**: data files used by and produced by scripts/analysis
   
