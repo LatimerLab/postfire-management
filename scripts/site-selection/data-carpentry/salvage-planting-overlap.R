@@ -72,11 +72,11 @@ overlapping.salvage.polygons <- facts.salvage[facts.salvage$id %in% all.overlap.
 
 
 ## Save the planting and salvage polygons
-st_write(facts.planting,dsn="data/output-exploratory/salvage-overlap-planting/planting.shp",delete_dsn=TRUE)
-st_write(overlapping.salvage.polygons,dsn="data/output-exploratory/salvage-overlap-planting/salvage_that_overlaps.shp",delete_dsn=TRUE)
+st_write(facts.planting,dsn="data/site-selection/output/salvage-overlap-planting/planting.shp",delete_dsn=TRUE)
+st_write(overlapping.salvage.polygons,dsn="data/site-selection/output/salvage-overlap-planting/salvage_that_overlaps.shp",delete_dsn=TRUE)
 #st_write(facts.salvage,dsn="data/output-exploratory/salvage-overlap-planting/salvage_all.shp") # for testing
 
 ## Load them out again
 
-facts.planting <- st_read(dsn="data/output-exploratory/salvage-overlap-planting/planting.shp")
+facts.planting <- st_read(dsn="data/site-selection/output/salvage-overlap-planting/planting.shp")
 

@@ -4,7 +4,7 @@ library(dplyr)
 library(stringr)
 library(tidyr)
 
-d <- read.csv("data/output-exploratory/aggregated-management-history/aggregated_management_history.csv",header=TRUE,stringsAsFactors = FALSE)
+d <- read.csv("data/site-selection/output/aggregated-management-history/aggregated_management_history.csv",header=TRUE,stringsAsFactors = FALSE)
 
 d$salvaged <- d$salvage.nyears > 0
 d$planted <- d$planting.nyears > 0
@@ -71,7 +71,7 @@ salvage.x.plant.simp <- salvage.x.plant %>%
 names(salvage.x.plant.simp) <- gsub("_area_tot","",names(salvage.x.plant.simp))
   
  
-write.csv(salvage.x.plant.simp,"data/output-exploratory/aggregated-management-history/aggregated_management_history_summarized.csv",row.names=FALSE)
+write.csv(salvage.x.plant.simp,"data/site-selection/output/aggregated-management-history/aggregated_management_history_summarized.csv",row.names=FALSE)
 
 
 

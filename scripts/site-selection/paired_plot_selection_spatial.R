@@ -19,14 +19,14 @@ deg2rad <- function(x) {
 #### Load necessary layers ####
 
 # load FACTS planting history slices of focal fires
-planting.slices <- readOGR("data/output-exploratory/aggregated-management-history/shapefiles/management_history.gpkg",stringsAsFactors = FALSE)
+planting.slices <- readOGR("data/site-selection/output/aggregated-management-history/shapefiles/management_history.gpkg",stringsAsFactors = FALSE)
 planting.slices <- as(planting.slices,"sf")
 planting.slices <- st_transform(planting.slices,crs=crs)
 planting.slices <- planting.slices[planting.slices$planting.nyears > 0,]
 
 
 # load names of focal fires
-focal.fires.input <- read.csv("data/analysis-parameters/focal_fires.csv",stringsAsFactors=FALSE)
+focal.fires.input <- read.csv("data/site-selection/analysis-parameters/focal_fires.csv",stringsAsFactors=FALSE)
 fires.focal.names <- unique(focal.fires.input$VB_ID)
 
 
@@ -405,10 +405,25 @@ candidate.plots.paired <- candidate.plots.paired %>% select(-index,-ownership,-n
 # add an empty column as a workaround to the fact that QGIS kml exoport needs to use a colum for feature display labels
 candidate.plots.paired$label <- " "
 
-st_write(candidate.plots.paired,"data/output-site-selection/candidate_plots_paired.gpkg",delete_dsn=TRUE)
+st_write(candidate.plots.paired,"data/site-selection/output/candidate-plots/candidate_plots_paired.gpkg",delete_dsn=TRUE)
 
 
 # summarize the planting pairs: planted-conttrol both salvaged or not, or different? replanted, shrub control, etc?
+
+
+
+
+#### export to other file formats ####
+p <- st_read("data/site-selection/output/candidate-plots/candidate_plots_paired.gpkg",stringsAsFactors=FALSE)
+p$name <- p$id
+
+st_write(p,"data/site-selection/output/candidate-plots/candidate_plots_paired_5.kml")
+
+
+p <- select(p,c(name))
+p <- st_transform(p,crs=4326)
+
+st_write(p,"data/site-selection/output/candidate-plots/candidate_plots_paired_5.gpx",driver="GPX") #! write gpx
 
 
 

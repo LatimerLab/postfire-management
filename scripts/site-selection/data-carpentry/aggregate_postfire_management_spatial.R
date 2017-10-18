@@ -5,6 +5,7 @@ library(rgeos)
 library(sp)
 library(rgdal)
 library(raster)
+library(dplyr)
 
 
 planting <- c("Plant Trees")
@@ -37,7 +38,7 @@ fires <- fires[fires$FIRE_YEAR > 1984,] # only fires since 1984
 #write.csv(as.data.frame(fires)[,c("FIRE_YEAR","FIRE_NAME","VB_ID","NUM_ASSESS","NIFMID_LNK","AGENCY","ICS_CODE","EDIT_DATE")],"data/output-exploratory/fire-names/veg_severity_perimeters.csv",row.names=FALSE)
 
 # read in focal fires
-focal.fires.input <- read.csv("data/analysis-parameters/focal_fires.csv",stringsAsFactors=FALSE)
+focal.fires.input <- read.csv("data/site-selection/analysis-parameters/focal_fires.csv",stringsAsFactors=FALSE)
 fires.focal.names <- unique(focal.fires.input$VB_ID)
 
 fires.focal <- fires[fires$VB_ID %in% fires.focal.names,]
@@ -315,11 +316,11 @@ planting.management <- planting.management[-errors,]
 out <- as(planting.management,"sf")
 out$id <- paste0(out$fire.year,out$fire.name,out$slice.id)
 
-st_write(out,dsn="data/output-exploratory/aggregated-management-history/shapefiles/management_history.gpkg",driver="GPKG",delete_dsn=TRUE)
+st_write(out,dsn="data/site-selection/output/aggregated-management-history/shapefiles/management_history.gpkg",driver="GPKG",delete_dsn=TRUE)
 
 # remove geometry columns
 out.nogeom <- out %>%
   as.data.frame() %>%
   select(-geometry)
   
-write.csv(out.nogeom,"data/output-exploratory/aggregated-management-history/aggregated_management_history.csv",row.names=FALSE)
+write.csv(out.nogeom,"data/site-selection/output/aggregated-management-history/aggregated_management_history.csv",row.names=FALSE)
