@@ -1,5 +1,5 @@
 # Post-fire forest management
-A project to evaluate the outcomes of management practices (particularly tree planting) on post-fire forest recovery
+A project to evaluate the effects of management practices (particularly tree planting) on post-fire forest recovery.
 
 This repository contains the code and data associated with the quantitative aspects of the project (currently, selection of candidate study sites). Large data files that cannot be synced to this repository are located here: https://ucdavis.box.com/v/pfm-non-synced. Once the GitHub repo is cloned to a local computer, the "non-synced" Box folder can simply be copied into the "data" folder.
 
@@ -22,7 +22,7 @@ The list below describes how files are organized in this repo, with **_bold ital
       
         * **_aggregated-management-history_**: summaries of management history based on FACTS data (including text-based and geospatial)
         
-          * **_shapefiles_**: geospatial representation of management historu
+          * **_shapefiles_**: geospatial representation of management history
             
             * **management_history.gpkg**: FACTS management for focal fires summarized in a flattened layer of management "slices" in which the entire area had the same management history and no features (polygons) overlap. This allows evaluation of the management applied to a given area without having to look at all FACTS polygons that overlap the area. For example, two FACTS polygons (planting and salvage) that partially overlap would be converted in to three "slices": one that is planting-only, one that is salvage-only, and on that is planting-and-slavage. Created by script aggregate_postfire_management_spatial.R
             
