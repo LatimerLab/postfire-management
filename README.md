@@ -1,8 +1,12 @@
-# Evaluating post-fire forest management
-A project to evaluate the outcomes of post-fire forest management (particularly tree planting) under different scenarios and relative to natural forest regeneration patterns
+# Post-fire forest management
+A project to evaluate the outcomes of management practices (particularly tree planting) on post-fire forest recovery
 
-### Description of repository file structure
-The list below describes how files are organized in this repo, with **_bold, italic_** text indicating folders and **bold** text indicating files.
+This repository contains the code and data associated with the quantitative aspects of the project (currently, selection of candidate study sites). Large data files that cannot be synced to this repository are located here: https://ucdavis.box.com/v/pfm-non-synced. Once the GitHub repo is cloned to a local computer, the "non-synced" Box folder can simply be copied into the "data" folder.
+
+Files not related to analytical components of the project (e.g., field visit notes and presentations) are stored in the project Box folder: https://ucdavis.box.com/v/postfire-management. Contact me for access.
+
+### Description of GitHub repository file structure
+The list below describes how files are organized in this repo, with **_bold italic_** text indicating folders and **bold** text indicating files.
 
   * **_data_**: data files used by and produced by scripts/analysis
   
