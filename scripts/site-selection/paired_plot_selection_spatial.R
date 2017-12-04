@@ -144,9 +144,10 @@ candidate.plots$northness <- cos(deg2rad(candidate.plots$aspect))
 
 
 # Get the severity of the most recent overlapping focal fire(s) -- that is the fire that prompted the planting
+#!!!!!!!!! Need to reconcile this with needing plots to be close to seed sources !!!!! As written currently, plots will be >= 55m from non-high severity
 candidate.plots <- as(candidate.plots,"sf")
 candidate.plots.buffer <- st_buffer(candidate.plots,40) # buffer out for 40m to make sure it's high-severity in the entire area surrounding
-fire.sev.buffer <- st_buffer(fire.sev,15)
+fire.sev.buffer <- st_buffer(fire.sev,15) # buffer fire severity out for 15 m in case there were inaccuracies in measuring fire severity
 sev.intersect <- st_intersects(candidate.plots,fire.sev.buffer)
 
 #! export fire sev buffer to make sure it worked
@@ -413,7 +414,7 @@ st_write(candidate.plots.paired,"data/site-selection/output/candidate-plots/cand
 
 
 
-#### export to other file formats ####
+#### Export to other file formats ####
 p <- st_read("data/site-selection/output/candidate-plots/candidate_plots_paired.gpkg",stringsAsFactors=FALSE)
 p$name <- p$id
 
@@ -425,5 +426,11 @@ p <- st_transform(p,crs=4326)
 
 st_write(p,"data/site-selection/output/candidate-plots/candidate_plots_paired_5.gpx",driver="GPX") #! write gpx
 
-
-
+##
+##
+##
+##
+##
+#### Explore range of environment and management at paired plots ####
+#### for narrowing to the most common type of factorial management, and for identifying fires with sufficient environmental variation
+##
