@@ -1,19 +1,43 @@
 setwd("~/UC Davis/Research Projects/Post-fire management/postfire-management")
 
+library(tidyverse)
 library(sf)
 library(rgdal)
 library(raster)
-library(dplyr)
 library(sp)
 library(units)
+library(gridExtra)
 
 crs <- 3310 # CA albers
+
+
+
+
 
 
 #### Convenience functions ####
 
 deg2rad <- function(x) {
   x*pi/180
+}
+
+st_drop_geometry <- function(x) {
+  if(inherits(x,"sf")) {
+    x <- st_set_geometry(x, NULL)
+    class(x) <- 'data.frame'
+  }
+  return(x)
+}
+
+tf_to_yn <- function(x) {
+
+  a <- rep(NA,length(x))
+  
+  a[x==TRUE] <- "YES"
+  a[x==FALSE] <- "no"
+  
+  return(a)
+  
 }
 
 #### Load necessary layers ####
@@ -216,23 +240,56 @@ facts.all.intersect <- st_intersects(candidate.plots,facts.all.fires)
 facts.data <- as.data.frame(facts.all.fires) # remove spatial data to speed up the following function
 facts.data <- facts.data %>% select(-geometry)
 
-get_all_facts_management <- function(x) { # function to get the VB_ID of all overlapping historical fires (since 1984) to make sure that treated and control plots have the same fire history
+get_all_facts_management <- function(x,type) { # function to get the VB_ID of all overlapping historical fires (since 1984) to make sure that treated and control plots have the same fire history
   overlaps <- x
   activity <- facts.data[overlaps,"ACTIV"]
+  fire.year <- facts.data[overlaps,"FIRE_YEAR"]
   completed_date <- facts.data[overlaps,"DATE_C"]
   completed_date[which(is.na(completed_date))] <- "nodate"
+  
   
   order.by.date <- order(completed_date)
   activity <- activity[order.by.date]
   completed_date <- completed_date[order.by.date]
+  completed_year <- substr(completed_date,1,4)
+  completed_year[which(completed_year == "noda")] <- "1800" # assume activities with no date were from very early
+  completed_year <- as.numeric(completed_year)
+  fire.year <- as.numeric(fire.year)
   
   act.date <- paste(activity,completed_date,sep="-")
   act.date.concatenate <- paste(act.date,collapse="; ")
-  return(act.date.concatenate)
+  
+  prefire.activity.indeces <- which(completed_year < fire.year)
+  postfire.activity.indeces <- which(completed_year > fire.year)
+  
+  prefire.act.date <- act.date[prefire.activity.indeces]
+  prefire.act.date.concatenate <- paste(prefire.act.date,collapse="; ")
+  
+  postfire.act.date <- act.date[postfire.activity.indeces]
+  postfire.act.date.concatenate <- paste(postfire.act.date,collapse="; ")
+  
+  if(type=="pre") {
+    return(prefire.act.date.concatenate)
+  }
+  
+  if(type=="all") {
+    return(act.date.concatenate)
+  }
+  
+  if(type=="post") {
+    return(postfire.act.date.concatenate)
+  }
+  
 }
 
-activity.date <- lapply(facts.all.intersect,FUN=get_all_facts_management)
+activity.date <- lapply(facts.all.intersect,FUN=get_all_facts_management,type="all")
 candidate.plots$management.history <- unlist(activity.date)
+
+activity.date <- lapply(facts.all.intersect,FUN=get_all_facts_management,type="pre")
+candidate.plots$prefire.management.history <- unlist(activity.date)
+
+activity.date <- lapply(facts.all.intersect,FUN=get_all_facts_management,type="post")
+candidate.plots$postfire.management.history <- unlist(activity.date)
 
 
 #### Filter out candidate plots to find those meeting criteria ####
@@ -264,7 +321,7 @@ trt.data <- as.data.frame(trt) %>% select(-geometry)
 ctl.data <- as.data.frame(ctl) %>% select(-geometry)
 
 
-
+#### Identify treated and nearby comparable untreated plots ####
 ## for each treated plot
 for(i in 1:nrow(trt)) {
   
@@ -289,7 +346,10 @@ for(i in 1:nrow(trt)) {
                            ctl.close$fire.history == trt.focal$fire.history &
                            near(ctl.close$slope,trt.focal$slope,10) &
                            near(ctl.close$elev,trt.focal$elev,100) &
-                           near(ctl.close$northness,trt.focal$northness,0.5),]
+                           near(ctl.close$northness,trt.focal$northness,0.5) &
+                           ctl.close$prefire.management.history == trt.focal$prefire.management.history # pre-fire management in control plot same as in planted plot
+                           ,] # removed a line to exclude control plots with no post-fire management, because want to allow for salvage
+  
   
 
   
@@ -409,22 +469,17 @@ candidate.plots.paired$label <- " "
 st_write(candidate.plots.paired,"data/site-selection/output/candidate-plots/candidate_plots_paired.gpkg",delete_dsn=TRUE)
 
 
-# summarize the planting pairs: planted-conttrol both salvaged or not, or different? replanted, shrub control, etc?
-
-
-
-
 #### Export to other file formats ####
 p <- st_read("data/site-selection/output/candidate-plots/candidate_plots_paired.gpkg",stringsAsFactors=FALSE)
 p$name <- p$id
 
-st_write(p,"data/site-selection/output/candidate-plots/candidate_plots_paired_5.kml")
+st_write(p,"data/site-selection/output/candidate-plots/candidate_plots_paired_5.kml",delete_dsn=TRUE)
 
 
 p <- select(p,c(name))
 p <- st_transform(p,crs=4326)
 
-st_write(p,"data/site-selection/output/candidate-plots/candidate_plots_paired_5.gpx",driver="GPX") #! write gpx
+st_write(p,"data/site-selection/output/candidate-plots/candidate_plots_paired_5.gpx",driver="GPX",delete_dsn=TRUE) #! write gpx
 
 ##
 ##
@@ -434,3 +489,157 @@ st_write(p,"data/site-selection/output/candidate-plots/candidate_plots_paired_5.
 #### Explore range of environment and management at paired plots ####
 #### for narrowing to the most common type of factorial management, and for identifying fires with sufficient environmental variation
 ##
+
+## summarize the candidate plot pairs: planted-conttrol both salvaged or not, or different? replanted, shrub control, etc?
+
+# Read in candidate plots
+p <- st_read("data/site-selection/output/candidate-plots/candidate_plots_paired.gpkg",stringsAsFactors=FALSE)
+
+# read in summarized FACTS slices
+crs <- 3310 # CA albers
+facts.slices <- st_read("data/site-selection/output/aggregated-management-history/shapefiles/management_history_summarized.gpkg",stringsAsFactors = FALSE)
+facts.slices <- st_transform(facts.slices,crs=crs)
+
+#give these columns unique names so we know where they came from when we extract values at candidate points
+names(facts.slices)[names(facts.slices) != "geom"] <- paste0("f.s.",names(facts.slices)[names(facts.slices) != "geom"])
+
+# load and extract solar radiation data
+#! for now, use aspect
+p$rad <- p$northness
+
+## for each treated plot, get the management done and determine whether the control plot was salvaged
+p.trt <- p[p$type=="treatment",]
+p.trt <- st_intersection(p.trt,facts.slices) # get management done
+
+p.ctl <- p[p$type=="control",]
+p.ctl.salvage <- st_intersection(p.ctl,facts.slices)
+p.ctl.salvage <- p.ctl.salvage %>%
+  st_drop_geometry() %>%
+  dplyr::select(id,f.s.salvage) %>%
+  rename(id.ctl=id,f.s.salvage.ctl=f.s.salvage)
+
+p.ctl <- p.ctl %>%
+  st_drop_geometry() %>%
+  dplyr::select(id,slope,aspect,elev,northness,rad)
+names(p.ctl) <- paste0(names(p.ctl),".ctl")
+
+
+p.dat <- left_join(p.trt,p.ctl.salvage,by=c("ctl.id" = "id.ctl"))
+p.dat <- left_join(p.dat,p.ctl,by=c("ctl.id" = "id.ctl"))
+
+p.dat$f.s.salvage.ctl[is.na(p.dat$f.s.salvage.ctl)] <- "no"
+
+## Salvage cat: trt only, both, none
+p.dat$salv.cat <- NA
+
+p.dat$salv.cat[p.dat$f.s.salvage == "yes" & p.dat$f.s.salvage.ctl == "yes"] <- "both"
+p.dat$salv.cat[p.dat$f.s.salvage == "yes" & p.dat$f.s.salvage.ctl == "no"] <- "planted"
+p.dat$salv.cat[p.dat$f.s.salvage == "no" & p.dat$f.s.salvage.ctl == "no"] <- "neither"
+
+
+## Summarize: early planting (TF; 0-2), site prepped,  late planting (TF; 3-4), times planted incl. replanted (#), released (y/n), thinned (y/n)
+
+# Compute year first planted
+p.dat <- p.dat %>%
+  separate(f.s.planting.years.post,"first.pltd.yr",sep=", ",remove=FALSE,extra="drop")
+
+p.dat <- p.dat %>%
+  mutate(
+    pltd.yr12 = (as.numeric(first.pltd.yr) < 3),
+    pltd.yr34 = (as.numeric(first.pltd.yr) >2),
+    site.prepped = f.s.prep.n.unique.years > 0,
+    released = f.s.release.n.unique.years > 0,
+    # released.1x = release.nyears == 1,
+    # released.2x = release.nyears == 2,
+    # released.morex = release.nyears > 2,
+    replanted = ((as.numeric(f.s.replant.n.unique.years) + as.numeric(f.s.planting.n.unique.years)) > 1),
+    # replanted.1x = replant.nyears == 1,
+    # replanted.morex = replant.nyears == 2,
+    # thinned.0x = thin.nyears == 0,
+    # thinned.1x = thin.nyears == 1,
+    thinned = f.s.thin.n.unique.years > 0)
+
+p.dat$plant.timing <- NA
+p.dat$plant.timing[p.dat$pltd.yr12 == TRUE & p.dat$pltd.yr34 == FALSE] <- "early"
+p.dat$plant.timing[p.dat$pltd.yr12 == FALSE & p.dat$pltd.yr34 == TRUE] <- "late"
+
+## the important columns are: salv.cat, plant.timing, site.prepped, released, replanted, thinned
+
+# change logical to y/n
+p.dat <- p.dat %>%
+  mutate_at(vars(site.prepped,released,replanted,thinned),tf_to_yn)
+
+
+# revalue the important columns to something intelligible
+p.dat$fire2 <- p.dat$most.recent.focal.fire
+p.dat$salv.cat2 <- paste0("salv: ",p.dat$salv.cat)
+p.dat$plant.timing2 <- paste0("plt: ",p.dat$plant.timing)
+p.dat$site.prepped2 <- paste0("prp: ",p.dat$site.prepped)
+p.dat$released2 <- paste0("rel: ",p.dat$released)
+p.dat$replanted2 <- paste0("replt: ",p.dat$replanted)
+p.dat$thinned2 <- paste0("thn: ",p.dat$thinned)
+p.dat <- p.dat %>%
+  mutate(mgmt.factorial = paste(fire2,salv.cat2,plant.timing2,site.prepped2,released2,replanted2,thinned2,sep=", ")) # make a column with factorial management
+
+
+
+## OK, now for each fire, sum the number of plots in each factorial combination of each of the important treatment columns
+p.dat.agg <- p.dat %>%
+  group_by(fire2,salv.cat2,plant.timing2,site.prepped2,released2,replanted2,thinned2) %>%
+  summarize(nplots = n()) %>%
+  arrange(fire2,-nplots) %>%
+  mutate(mgmt.factorial = paste(fire2,salv.cat2,plant.timing2,site.prepped2,released2,replanted2,thinned2,sep=", ")) %>% # make a column with factorial management
+  ungroup()
+  
+# keep only the ones with enough candidate plots
+p.dat.agg.many <- p.dat.agg[p.dat.agg$nplots >= 20,]
+
+# filter the full plot database to only those plots from the factorial management categories that have enough member plots
+p.dat.many <- p.dat[p.dat$mgmt.factorial %in% p.dat.agg.many$mgmt.factorial,]
+
+## Plot environmental range of each factorial management type
+mgmt.cats <- unique(p.dat.many$mgmt.factorial)
+fires <- unique(p.dat.many$fire2)
+
+
+p.dat.many$mgmt.factorial.nofire <- str_split(p.dat.many$mgmt.factorial,", ",n=2) %>%
+  map_chr(2)
+
+
+p <- list()
+
+for(i in 1:length(fires)) {
+  
+  fire <- fires[i]
+    
+    type <- mgmt.cats[i]
+    d <- p.dat.many[p.dat.many$fire2 == fire,]
+    
+    p[[i]] <- ggplot(d,aes(x=elev,y=northness)) +
+      geom_point(size=3) +
+      ggtitle(d[1,]$fire2) +
+      theme_bw(8) +
+      theme(plot.title = element_text(size=8)) +
+      facet_wrap(~mgmt.factorial.nofire) +
+      theme(strip.text.x = element_text(size = 6))
+  
+
+}
+
+
+
+pdf("data/site-selection/output/candidate-plots/candidate_plot_management_environment_stratification.pdf")
+for(i in seq_along(p)) {
+  print(p[[i]])
+}
+dev.off()
+
+
+
+
+
+
+
+
+
+
