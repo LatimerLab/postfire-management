@@ -30,9 +30,9 @@ The list below describes how files are organized in this repo, with **_bold ital
             
           * **aggregated_management_history.csv**: Summaries of each management "slice" (e.g., number of times and years planted, slavaged, released, etc.). Management "slices" are defined above. Created by script aggregate_postfire_management_spatial.R
           
-          * **_aggregated_management_history_summarized_**: Summaries of management history at the fire level. Created by script "summarize_aggregated_postfire_management.R"
+          * **aggregated_management_history_summarized.csv**: Summaries of management history at the fire level. Created by script "summarize_aggregated_postfire_management.R"
         
-        * **_candidate-plots_**: geospatial layers of candidate study plots
+        * **_candidate-plots_**: geospatial layers and statistical summaries of candidate study plots
         
         * **_fire-names_**: exported list of fire names in the USFS R5 fire perimeter database
         
