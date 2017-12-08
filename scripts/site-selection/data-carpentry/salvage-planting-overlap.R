@@ -28,8 +28,10 @@ salvage.years <- (min(planting.years)-salvage.prior):(max(planting.years))
 facts.salvage <- facts.salvage[facts.salvage$year %in% salvage.years,]
 
 ## Optionally thin to a focal region
+
+focal.rd <- c("Lassen National Forest","Plumas National Forest","Tahoe National Forest","Eldorado National Forest","Stanislaus National Forest","Sierra National Forest","Sequoia National Forest","Shasta-Trinity National Forest","Klamath National Forest","Mendocino National Forest")
 rd <- st_read(dsn = "data/non-synced/existing-datasets/ranger-districts/S_USA.RangerDistrict.shp", stringsAsFactors = FALSE)
-rd <- rd[rd$FORESTNAME == "Tahoe National Forest",]
+rd <- rd[rd$FORESTNAME %in% focal.rd,]
 rd <- st_transform(rd,crs=3310)
 rd <- st_buffer(rd,0)
 
@@ -40,33 +42,45 @@ facts.planting <- st_intersection(facts.planting,rd)
 ## For each planted polygon, get all touching salvage polygons from up to 6 years prior to the planting
 all.overlap.ids <- NULL #just add first row as an example
 
-for(i in 1:nrow(facts.planting)) {
+for(j in 1:length(focal.rd)) {
   
-  if(i == 318) next()
+  rd.focal.name <- focal.rd[j]
   
-  facts.planting.polygon <- facts.planting[i,]
-  planting.year <- as.numeric(facts.planting.polygon$year)
-  salvage.year.range <- (planting.year-10):planting.year #this includes salvage that happened in the same year as planting
-  facts.salvage.matchyears <- facts.salvage[facts.salvage$year %in% salvage.year.range,]
-  
-  if(nrow(facts.salvage.matchyears) == 0) {
-    next()
-  }
-  
-  # see which salvage polygons (rows) at least partially overlap the planted areas
-  salvage.overlap <- st_intersects(facts.planting.polygon,facts.salvage.matchyears)
-  
-  overlap.ids <- facts.salvage.matchyears[unlist(salvage.overlap),]$id
-  
-  all.overlap.ids <- c(all.overlap.ids,overlap.ids)
-  
-  cat("\r ",i)
-  
-  ##! here we could add IDs to the saved salvage polygons to reference the planting polygons they are associated with
-  
-  
-}
+  cat(paste0("\nRunning for ", rd.focal.name,"\n"))
+  rd.focal <- rd[rd$FORESTNAME == rd.focal.name,]
+  facts.planting.rd <- st_intersection(facts.planting,rd.focal)
+  facts.salvage.rd <- st_intersection(facts.salvage,rd.focal)
 
+  
+
+  for(i in 1:nrow(facts.planting.rd)) {
+    
+    facts.planting.polygon <- facts.planting.rd[i,]
+    planting.year <- as.numeric(facts.planting.polygon$year)
+    if(is.na(planting.year)) next()
+    salvage.year.range <- (planting.year-7):planting.year #this includes salvage that happened in the same year as planting
+    facts.salvage.matchyears <- facts.salvage.rd[facts.salvage.rd$year %in% salvage.year.range,]
+    
+    if(nrow(facts.salvage.matchyears) == 0) {
+      next()
+    }
+    
+    # see which salvage polygons (rows) at least partially overlap the planted areas
+    salvage.overlap <- st_intersects(facts.planting.polygon,facts.salvage.matchyears)
+    
+    overlap.ids <- facts.salvage.matchyears[unlist(salvage.overlap),]$id
+    
+    all.overlap.ids <- c(all.overlap.ids,overlap.ids)
+    
+    cat("\r ",i)
+    
+    ##! here we could add IDs to the saved salvage polygons to reference the planting polygons they are associated with
+    
+    
+  }
+
+}
+  
 all.overlap.ids <- unique(all.overlap.ids)
 overlapping.salvage.polygons <- facts.salvage[facts.salvage$id %in% all.overlap.ids,]
 

@@ -23,16 +23,16 @@
     <layer-tree-layer expanded="1" providerKey="gdal" checked="Qt::Unchecked" id="enf9720170807105925579" source="C:/Users/DYoung/Documents/UC Davis/GIS/CA abiotic layers/NF maps/ENF map/enf97.jpg" name="enf97">
       <customproperties/>
     </layer-tree-layer>
-    <layer-tree-layer expanded="1" providerKey="gdal" checked="Qt::Unchecked" id="tnf_0820170913102728232" source="C:/Users/DYoung/Documents/UC Davis/GIS/CA abiotic layers/NF visitor maps/TNF/tnf_08.jpg" name="tnf_08">
+    <layer-tree-layer expanded="1" providerKey="gdal" checked="Qt::Checked" id="tnf_0820170913102728232" source="C:/Users/DYoung/Documents/UC Davis/GIS/CA abiotic layers/NF visitor maps/TNF/tnf_08.jpg" name="tnf_08">
       <customproperties/>
     </layer-tree-layer>
-    <layer-tree-layer expanded="1" providerKey="" checked="Qt::Unchecked" id="OpenLayers_plugin_layer20170913105206583" source="C:/Users/DYoung/Documents/UC Davis/Research Projects/Post-fire management/postfire-management/QGIS-projects" name="Bing Aerial">
+    <layer-tree-layer expanded="1" providerKey="" checked="Qt::Checked" id="OpenLayers_plugin_layer20170913105206583" source="C:/Users/DYoung/Documents/UC Davis/Research Projects/Post-fire management/postfire-management/QGIS-projects" name="Bing Aerial">
       <customproperties/>
     </layer-tree-layer>
     <layer-tree-layer expanded="1" providerKey="" checked="Qt::Unchecked" id="OpenLayers_plugin_layer20170813083021619" source="C:/Users/DYoung/Documents/UC Davis/Research Projects/Post-fire management/postfire-management/QGIS-projects" name="Google Physical">
       <customproperties/>
     </layer-tree-layer>
-    <layer-tree-layer expanded="1" providerKey="ogr" checked="Qt::Checked" id="S_USA_RangerDistrict20170913103721651" source="C:/Users/DYoung/Documents/UC Davis/GIS/CA abiotic layers/ranger districts2/S_USA.RangerDistrict/S_USA.RangerDistrict.shp" name="S_USA.RangerDistrict">
+    <layer-tree-layer expanded="1" providerKey="ogr" checked="Qt::Unchecked" id="S_USA_RangerDistrict20170913103721651" source="C:/Users/DYoung/Documents/UC Davis/GIS/CA abiotic layers/ranger districts2/S_USA.RangerDistrict/S_USA.RangerDistrict.shp" name="S_USA.RangerDistrict">
       <customproperties/>
     </layer-tree-layer>
   </layer-tree-group>
@@ -40,10 +40,10 @@
   <mapcanvas>
     <units>meters</units>
     <extent>
-      <xmin>-13653933.81807026267051697</xmin>
-      <ymin>4969033.77972224541008472</ymin>
-      <xmax>-13433721.64402279257774353</xmax>
-      <ymax>5094442.40969756431877613</ymax>
+      <xmin>-13493619.22938931547105312</xmin>
+      <ymin>4723877.78886645007878542</ymin>
+      <xmax>-13370037.73707676492631435</xmax>
+      <ymax>4793814.58194365072995424</ymax>
     </extent>
     <rotation>0</rotation>
     <projections>1</projections>
@@ -120,14 +120,14 @@
         <legendlayerfile isInOverview="0" layerid="enf9720170807105925579" visible="0"/>
       </filegroup>
     </legendlayer>
-    <legendlayer drawingOrder="-1" open="true" checked="Qt::Unchecked" name="tnf_08" showFeatureCount="0">
+    <legendlayer drawingOrder="-1" open="true" checked="Qt::Checked" name="tnf_08" showFeatureCount="0">
       <filegroup open="true" hidden="false">
-        <legendlayerfile isInOverview="0" layerid="tnf_0820170913102728232" visible="0"/>
+        <legendlayerfile isInOverview="0" layerid="tnf_0820170913102728232" visible="1"/>
       </filegroup>
     </legendlayer>
-    <legendlayer drawingOrder="-1" open="true" checked="Qt::Unchecked" name="Bing Aerial" showFeatureCount="0">
+    <legendlayer drawingOrder="-1" open="true" checked="Qt::Checked" name="Bing Aerial" showFeatureCount="0">
       <filegroup open="true" hidden="false">
-        <legendlayerfile isInOverview="0" layerid="OpenLayers_plugin_layer20170913105206583" visible="0"/>
+        <legendlayerfile isInOverview="0" layerid="OpenLayers_plugin_layer20170913105206583" visible="1"/>
       </filegroup>
     </legendlayer>
     <legendlayer drawingOrder="-1" open="true" checked="Qt::Unchecked" name="Google Physical" showFeatureCount="0">
@@ -135,9 +135,9 @@
         <legendlayerfile isInOverview="0" layerid="OpenLayers_plugin_layer20170813083021619" visible="0"/>
       </filegroup>
     </legendlayer>
-    <legendlayer drawingOrder="-1" open="true" checked="Qt::Checked" name="S_USA.RangerDistrict" showFeatureCount="0">
+    <legendlayer drawingOrder="-1" open="true" checked="Qt::Unchecked" name="S_USA.RangerDistrict" showFeatureCount="0">
       <filegroup open="true" hidden="false">
-        <legendlayerfile isInOverview="0" layerid="S_USA_RangerDistrict20170913103721651" visible="1"/>
+        <legendlayerfile isInOverview="0" layerid="S_USA_RangerDistrict20170913103721651" visible="0"/>
       </filegroup>
     </legendlayer>
   </legend>
