@@ -170,7 +170,7 @@ candidate.plots$northness <- cos(deg2rad(candidate.plots$aspect))
 # Get the severity of the most recent overlapping focal fire(s) -- that is the fire that prompted the planting
 #!!!!!!!!! Need to reconcile this with needing plots to be close to seed sources !!!!! As written currently, plots will be >= 55m from non-high severity
 candidate.plots <- as(candidate.plots,"sf")
-candidate.plots.buffer <- st_buffer(candidate.plots,40) # buffer out for 40m to make sure it's high-severity in the entire area surrounding
+candidate.plots.buffer <- st_buffer(candidate.plots,20) # buffer out for 40m to make sure it's high-severity in the entire area surrounding
 fire.sev.buffer <- st_buffer(fire.sev,15) # buffer fire severity out for 15 m in case there were inaccuracies in measuring fire severity
 sev.intersect <- st_intersects(candidate.plots,fire.sev.buffer)
 
@@ -292,6 +292,11 @@ activity.date <- lapply(facts.all.intersect,FUN=get_all_facts_management,type="p
 candidate.plots$postfire.management.history <- unlist(activity.date)
 
 
+### Save the unfiltered set of candidate plots to shapefile
+st_write(candidate.plots,"data/site-selection/output/candidate-plots/candidate_plots_unpaired_unfiltered.gpkg")
+
+
+
 #### Filter out candidate plots to find those meeting criteria ####
 
 candidate.plots.backup <- candidate.plots
@@ -317,8 +322,8 @@ close.pairs <- which(a < radius,arr.ind=T)
 colnames(close.pairs) <- c("trt","ctl")
 close.pairs <- as.data.frame(close.pairs)
 
-trt.data <- as.data.frame(trt) %>% select(-geometry)
-ctl.data <- as.data.frame(ctl) %>% select(-geometry)
+trt.data <- as.data.frame(trt) %>% dplyr::select(-geometry)
+ctl.data <- as.data.frame(ctl) %>% dplyr::select(-geometry)
 
 
 #### Identify treated and nearby comparable untreated plots ####
@@ -461,7 +466,7 @@ candidate.plots.paired[candidate.plots.paired$type == "treatment","pair.id"] <- 
 candidate.plots.paired <- candidate.plots.paired %>% filter(pair.id != -1)
 
 # remove columns that are meaningul only in filtering code
-candidate.plots.paired <- candidate.plots.paired %>% select(-index,-ownership,-not.closest)
+candidate.plots.paired <- candidate.plots.paired %>% dplyr::select(-index,-ownership,-not.closest)
 
 # add an empty column as a workaround to the fact that QGIS kml exoport needs to use a colum for feature display labels
 candidate.plots.paired$label <- " "
@@ -476,10 +481,10 @@ p$name <- p$id
 st_write(p,"data/site-selection/output/candidate-plots/candidate_plots_paired_5.kml",delete_dsn=TRUE)
 
 
-p <- select(p,c(name))
+p <- dplyr::select(p,c(name))
 p <- st_transform(p,crs=4326)
 
-st_write(p,"data/site-selection/output/candidate-plots/candidate_plots_paired_5.gpx",driver="GPX",delete_dsn=TRUE) #! write gpx
+#st_write(p,"data/site-selection/output/candidate-plots/candidate_plots_paired_6.gpx",driver="GPX",delete_dsn=TRUE) #! write gpx
 
 ##
 ##
@@ -592,10 +597,19 @@ p.dat.agg <- p.dat %>%
   ungroup()
   
 # keep only the ones with enough candidate plots
-p.dat.agg.many <- p.dat.agg[p.dat.agg$nplots >= 20,]
+p.dat.agg.many <- p.dat.agg[p.dat.agg$nplots >= 20,] %>%
+  as.data.frame() %>%
+  st_drop_geometry()
+
+## save to csv
+write.csv(p.dat.agg.many,"data/site-selection/output/candidate-plots/candidate_plots_management_stratification.csv",row.names=FALSE)
+
+
 
 # filter the full plot database to only those plots from the factorial management categories that have enough member plots
 p.dat.many <- p.dat[p.dat$mgmt.factorial %in% p.dat.agg.many$mgmt.factorial,]
+
+
 
 ## Plot environmental range of each factorial management type
 mgmt.cats <- unique(p.dat.many$mgmt.factorial)
