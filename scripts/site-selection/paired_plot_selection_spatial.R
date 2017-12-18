@@ -7,12 +7,10 @@ library(raster)
 library(sp)
 library(units)
 library(gridExtra)
+library(stringr)
+library(rgeos)
 
 crs <- 3310 # CA albers
-
-
-
-
 
 
 #### Convenience functions ####
@@ -43,6 +41,7 @@ tf_to_yn <- function(x) {
 #### Load necessary layers ####
 
 # load FACTS planting history slices of focal fires
+# this layer already excludes management that burned after it was managed
 planting.slices <- readOGR("data/site-selection/output/aggregated-management-history/shapefiles/management_history.gpkg",stringsAsFactors = FALSE)
 planting.slices <- as(planting.slices,"sf")
 planting.slices <- st_transform(planting.slices,crs=crs)
@@ -58,6 +57,7 @@ fires.focal.names <- unique(focal.fires.input$VB_ID)
 fires <- readOGR("data/non-synced/existing-datasets/veg_severity_perimeters16_1.gdb",stringsAsFactors=FALSE)
 fires <- as(fires,"sf")
 fires <- st_transform(fires,crs=crs)
+fires <- st_set_crs(fires,crs)
 fires <- fires[fires$FIRE_YEAR > 1983,]
 fires.focal <- fires[fires$VB_ID %in% fires.focal.names,]
 
@@ -70,10 +70,18 @@ facts.all.fires <- st_intersection(facts.all,fires.focal)
 
 # load fire severity layers and thin to focal fires
 fire.sev <- st_read("data/non-synced/existing-datasets/VegBurnSeverity_shp/veg_burn_severity.shp",stringsAsFactors=FALSE)
-fire.sev <- fire.sev[fire.sev$VB_ID %in% fires.focal.names,]
-fire.sev <- fire.sev[fire.sev$BEST_ASSES == "YES",]
 fire.sev <- st_transform(fire.sev,crs=crs)
 
+## Only need to run once
+# fire.sev.high.1980 <- fire.sev[fire.sev$FIRE_YEAR > 1980 & fire.sev$BURNSEV == 4 & fire.sev$BEST_ASSES == "YES",]
+# fire.sev.high.1980 <- st_buffer(fire.sev.high.1980,0)
+# st_write(fire.sev.high.1980,"data/non-synced/existing-datasets/VegBurnSeverity_shp/veg_burn_severity_high_1980.shp",delete_dsn=TRUE)
+
+fire.sev <- fire.sev[fire.sev$VB_ID %in% fires.focal.names,]
+fire.sev <- fire.sev[fire.sev$BEST_ASSES == "YES",]
+
+#disabled using all fire severities (this was only for distance to seed source):
+#fire.sev.high.1980 <- st_read("data/non-synced/existing-datasets/VegBurnSeverity_shp/veg_burn_severity_high_1980.shp")
 
 # load DEM and compute slope and aspect
 dem <- raster("data/non-synced/existing-datasets/DEM/CAmerged12_albers2.tif")
@@ -97,8 +105,8 @@ planting.zone <- st_union(planting.zone)
 
 
 
-# Buffer in by 20 m and out by 20 m and place points along the resulting perimeters to establish the candidate set of "treated" and "control" plots
-treated.plot.perim <- st_buffer(planting.zone,dist=-30)
+# Buffer in by 25 m and out by 25 m and place points along the resulting perimeters to establish the candidate set of "treated" and "control" plots
+treated.plot.perim <- st_buffer(planting.zone,dist=-15)
 treated.plot.perim <- st_cast(treated.plot.perim,"MULTILINESTRING")
 treated.perim.length <- st_length(treated.plot.perim) %>% sum() %>% as.numeric()
 treated.plot.perim <- as(treated.plot.perim,"Spatial")
@@ -106,7 +114,7 @@ trt.candidate.plots <- spsample(treated.plot.perim,n=treated.perim.length/100,ty
 trt.candidate.plots <- as(trt.candidate.plots,"sf")
 
 
-control.plot.perim <- st_buffer(planting.zone,dist=30)
+control.plot.perim <- st_buffer(planting.zone,dist=15)
 control.plot.perim <- st_cast(control.plot.perim,"MULTILINESTRING")
 control.perim.length <- st_length(control.plot.perim) %>% sum() %>% as.numeric()
 control.plot.perim <- as(control.plot.perim,"Spatial")
@@ -129,7 +137,7 @@ candidate.plots$id <- seq(1,nrow(candidate.plots))
 # Find the most recent focal fire that each plot burned in so we can make sure treated and control are from the same fire
 fire.intersect <- st_intersects(candidate.plots,fires.focal)
 fires.focal.data <- as.data.frame(fires.focal) # remove spatial data to speed up the following function
-fires.focal.data <- fires.focal.data %>% select(-geometry)
+fires.focal.data <- fires.focal.data %>% dplyr::select(-geometry)
 
 get_mostrecent_VB_ID <- function(x) { # function to get the fire name and year from the most recent overlapping fire, given row indeces of all fires that overlap (from above)
 
@@ -170,14 +178,14 @@ candidate.plots$northness <- cos(deg2rad(candidate.plots$aspect))
 # Get the severity of the most recent overlapping focal fire(s) -- that is the fire that prompted the planting
 #!!!!!!!!! Need to reconcile this with needing plots to be close to seed sources !!!!! As written currently, plots will be >= 55m from non-high severity
 candidate.plots <- as(candidate.plots,"sf")
-candidate.plots.buffer <- st_buffer(candidate.plots,20) # buffer out for 40m to make sure it's high-severity in the entire area surrounding
-fire.sev.buffer <- st_buffer(fire.sev,15) # buffer fire severity out for 15 m in case there were inaccuracies in measuring fire severity
+candidate.plots.buffer <- st_buffer(candidate.plots,15) # buffer out for 40m to make sure it's high-severity in the entire area surrounding
+fire.sev.buffer <- st_buffer(fire.sev,10) # buffer fire severity out for 15 m in case there were inaccuracies in measuring fire severity
 sev.intersect <- st_intersects(candidate.plots,fire.sev.buffer)
 
 #! export fire sev buffer to make sure it worked
 
 fire.sev.data <- as.data.frame(fire.sev) # remove spatial data to speed up the following function
-fire.sev.data <- fire.sev.data %>% select(-geometry)
+fire.sev.data <- fire.sev.data %>% dplyr::select(-geometry)
 
 get_mostrecent_severity <- function(x) { # function to get the severities of the overlapping severity layers. if multiple overlapping, concatenate into a string listing all.
   
@@ -201,7 +209,7 @@ candidate.plots$focal.fire.sev <- unlist(most.recent.focal.fire.sev)
 fire.perim.intersect <- st_intersects(candidate.plots,fires)
 
 fires.data <- as.data.frame(fires) # remove spatial data to speed up the following function
-fires.data <- fires.data %>% select(-geometry)
+fires.data <- fires.data %>% dplyr::select(-geometry)
 
 get_all_VB_IDs <- function(x) { # function to get the VB_ID of all overlapping historical fires (since 1984) to make sure that treated and control plots have the same fire history
   overlaps <- x
@@ -238,7 +246,7 @@ candidate.plots$ownership <- e
 facts.all.intersect <- st_intersects(candidate.plots,facts.all.fires)
 
 facts.data <- as.data.frame(facts.all.fires) # remove spatial data to speed up the following function
-facts.data <- facts.data %>% select(-geometry)
+facts.data <- facts.data %>% dplyr::select(-geometry)
 
 get_all_facts_management <- function(x,type) { # function to get the VB_ID of all overlapping historical fires (since 1984) to make sure that treated and control plots have the same fire history
   overlaps <- x
@@ -292,9 +300,55 @@ activity.date <- lapply(facts.all.intersect,FUN=get_all_facts_management,type="p
 candidate.plots$postfire.management.history <- unlist(activity.date)
 
 
-### Save the unfiltered set of candidate plots to shapefile
-st_write(candidate.plots,"data/site-selection/output/candidate-plots/candidate_plots_unpaired_unfiltered.gpkg")
 
+### Get distance to non-high-sev
+
+## first, make a band of unburned around each fire (in case the nearest non-high-sev area is outside the fire)
+fires.focal.buffer <- st_buffer(fires.focal,dist=50)
+#now remove the high-severity from all fires in the last 25 years
+# and clip the severity layer to the focal fires
+
+# if want to use all fires to get non-high sev (but this ignores that fires that happened later would not have affected seed sources for earlier fires), use this:
+#fire.sev.high <- st_intersection(fire.sev.high.1980,fires.focal.buffer)
+
+# otherwise, use this:
+fire.sev.high <- fire.sev[fire.sev$BURNSEV == 4,]
+fire.sev.high <- st_buffer(fire.sev.high,0)
+fire.sev.high.union <- st_union(fire.sev.high)
+
+# in case there was non-high-sev assessment overlapping high-sev, cut out the non-high-sev
+fire.non.sev <- fire.sev[fire.sev$BURNSEV < 4,]
+fire.non.sev <- st_buffer(fire.non.sev,0)
+fire.non.sev.union <- st_union(fire.non.sev)
+
+# need to compute the difference in rgeos because st_difference is not working for some reason
+f.s.h.sp <- as(fire.sev.high.union,"Spatial")
+f.f.b.sp <- as(fires.focal.buffer,"Spatial")
+f.n.h.sp <- gDifference(f.f.b.sp,f.s.h.sp)
+fires.non.high <- as(f.n.h.sp,"sf")
+
+#fires.non.high <- st_difference(fires.focal.buffer,fire.sev.high)
+#fires.non.high <- st_union(fires.non.high)
+
+
+# get distance to non-high-sev for each point
+plots.dist.non.high <- st_distance(candidate.plots,fires.non.high)
+plots.dist.low.mod <- st_distance(candidate.plots,fire.non.sev.union)
+candidate.plots$dist.non.high.sev <- plots.dist.non.high
+candidate.plots$dist.low.mod <- plots.dist.low.mod
+candidate.plots$dist.non.high <- as.numeric(pmin(plots.dist.non.high,plots.dist.low.mod))
+
+#because before, this was not an acceptable data type
+candidate.plots$ownership <- as.character(candidate.plots$ownership)
+candidate.plots$dist.non.high <- as.numeric(candidate.plots$dist.non.high)
+candidate.plots$dist.non.high.sev <- as.numeric(candidate.plots$dist.non.high.sev)
+candidate.plots$dist.low.mod <- as.numeric(candidate.plots$dist.low.mod)
+
+### Save the unfiltered set of candidate plots to shapefile
+st_write(candidate.plots[,],"data/site-selection/output/candidate-plots/candidate_plots_unpaired_unfiltered.gpkg",delete_dsn=TRUE)
+
+## resume here if necessary (but it loses ownership)
+#candidate.plots <- st_read("data/site-selection/output/candidate-plots/candidate_plots_unpaired_unfiltered.gpkg")
 
 
 #### Filter out candidate plots to find those meeting criteria ####
@@ -351,7 +405,7 @@ for(i in 1:nrow(trt)) {
                            ctl.close$fire.history == trt.focal$fire.history &
                            near(ctl.close$slope,trt.focal$slope,10) &
                            near(ctl.close$elev,trt.focal$elev,100) &
-                           near(ctl.close$northness,trt.focal$northness,0.5) &
+                           (near(ctl.close$northness,trt.focal$northness,0.5) | (min(ctl.close$slope,trt.focal$slope) < 5)) & # either (a) there is little difference in aspect between the paired plots, or (b) at least one of the plots is quite flat (so aspect is not very relevant)
                            ctl.close$prefire.management.history == trt.focal$prefire.management.history # pre-fire management in control plot same as in planted plot
                            ,] # removed a line to exclude control plots with no post-fire management, because want to allow for salvage
   
@@ -471,18 +525,20 @@ candidate.plots.paired <- candidate.plots.paired %>% dplyr::select(-index,-owner
 # add an empty column as a workaround to the fact that QGIS kml exoport needs to use a colum for feature display labels
 candidate.plots.paired$label <- " "
 
+candidate.plots.paired$dist.nonhigh <- ifelse(candidate.plots.paired$dist.low.mod < 100,"< 100 m","> 100 m")
+
 st_write(candidate.plots.paired,"data/site-selection/output/candidate-plots/candidate_plots_paired.gpkg",delete_dsn=TRUE)
 
 
 #### Export to other file formats ####
-p <- st_read("data/site-selection/output/candidate-plots/candidate_plots_paired.gpkg",stringsAsFactors=FALSE)
-p$name <- p$id
-
-st_write(p,"data/site-selection/output/candidate-plots/candidate_plots_paired_5.kml",delete_dsn=TRUE)
-
-
-p <- dplyr::select(p,c(name))
-p <- st_transform(p,crs=4326)
+# p <- st_read("data/site-selection/output/candidate-plots/candidate_plots_paired.gpkg",stringsAsFactors=FALSE)
+# p$name <- p$id
+# 
+# st_write(p,"data/site-selection/output/candidate-plots/candidate_plots_paired_5.kml",delete_dsn=TRUE)
+# 
+# 
+# p <- dplyr::select(p,c(name))
+# p <- st_transform(p,crs=4326)
 
 #st_write(p,"data/site-selection/output/candidate-plots/candidate_plots_paired_6.gpx",driver="GPX",delete_dsn=TRUE) #! write gpx
 
@@ -509,8 +565,8 @@ facts.slices <- st_transform(facts.slices,crs=crs)
 names(facts.slices)[names(facts.slices) != "geom"] <- paste0("f.s.",names(facts.slices)[names(facts.slices) != "geom"])
 
 # load and extract solar radiation data
-#! for now, use aspect
-p$rad <- p$northness
+rad <- raster("data/non-synced/existing-datasets/solar radiation/march_rad.tif")
+p$rad <- raster::extract(rad,p,method="bilinear")
 
 ## for each treated plot, get the management done and determine whether the control plot was salvaged
 p.trt <- p[p$type=="treatment",]
@@ -584,16 +640,20 @@ p.dat$released2 <- paste0("rel: ",p.dat$released)
 p.dat$replanted2 <- paste0("replt: ",p.dat$replanted)
 p.dat$thinned2 <- paste0("thn: ",p.dat$thinned)
 p.dat <- p.dat %>%
-  mutate(mgmt.factorial = paste(fire2,salv.cat2,plant.timing2,site.prepped2,released2,replanted2,thinned2,sep=", ")) # make a column with factorial management
+  mutate(mgmt.factorial = paste(fire2,salv.cat2,site.prepped2,released2,thinned2,sep=", ")) # make a column with factorial management
+  # original: mutate(mgmt.factorial = paste(fire2,salv.cat2,plant.timing2,site.prepped2,released2,replanted2,thinned2,sep=", ")) # make a column with factorial management
 
 
 
 ## OK, now for each fire, sum the number of plots in each factorial combination of each of the important treatment columns
 p.dat.agg <- p.dat %>%
-  group_by(fire2,salv.cat2,plant.timing2,site.prepped2,released2,replanted2,thinned2) %>%
+  # formerly before reduced number of factorial vars: group_by(fire2,salv.cat2,plant.timing2,site.prepped2,released2,replanted2,thinned2) %>%
+  group_by(fire2,salv.cat2,site.prepped2,released2,thinned2) %>%
+  #! could we just do group_by the mgmt.factorial col?
   summarize(nplots = n()) %>%
   arrange(fire2,-nplots) %>%
-  mutate(mgmt.factorial = paste(fire2,salv.cat2,plant.timing2,site.prepped2,released2,replanted2,thinned2,sep=", ")) %>% # make a column with factorial management
+  # formerly before reduced number of factorial vars: mutate(mgmt.factorial = paste(fire2,salv.cat2,plant.timing2,site.prepped2,released2,replanted2,thinned2,sep=", ")) %>% # make a column with factorial management
+  mutate(mgmt.factorial = paste(fire2,salv.cat2,site.prepped2,released2,thinned2,sep=", ")) %>% # make a column with factorial management
   ungroup()
   
 # keep only the ones with enough candidate plots
@@ -619,8 +679,16 @@ fires <- unique(p.dat.many$fire2)
 p.dat.many$mgmt.factorial.nofire <- str_split(p.dat.many$mgmt.factorial,", ",n=2) %>%
   map_chr(2)
 
+p.dat.many <- p.dat.many %>%
+  mutate(yr.pltd = as.numeric(first.pltd.yr)) %>%
+  mutate(yr.pltd = ifelse(yr.pltd > 4,4,yr.pltd)) %>%
+  mutate(yr.pltd = as.character(yr.pltd)) %>%
+  mutate(yr.pltd = ifelse(yr.pltd == "4","4+",yr.pltd))
+
 
 p <- list()
+
+yr.colors <- c("0" = "black","1" = "darkolivegreen3", "2" = "cornflowerblue", "3" = "darkorange1", "4+" = "brown3")
 
 for(i in 1:length(fires)) {
   
@@ -629,20 +697,24 @@ for(i in 1:length(fires)) {
     type <- mgmt.cats[i]
     d <- p.dat.many[p.dat.many$fire2 == fire,]
     
-    p[[i]] <- ggplot(d,aes(x=elev,y=northness)) +
-      geom_point(size=3) +
+    #! would like to add a symbology (shape? for whether it was replanted)
+    p[[i]] <- ggplot(d,aes(x=elev,y=rad,color=yr.pltd,shape=dist.nonhigh)) +
+      geom_point(size=2) +
       ggtitle(d[1,]$fire2) +
       theme_bw(8) +
       theme(plot.title = element_text(size=8)) +
       facet_wrap(~mgmt.factorial.nofire) +
-      theme(strip.text.x = element_text(size = 6))
+      scale_shape_manual(values=c(16,1)) +
+      scale_colour_manual(values=yr.colors) +
+      theme(strip.text.x = element_text(size = 8)) +
+      labs(color="Yr planted",shape="Seed dist")
   
 
 }
 
 
 
-pdf("data/site-selection/output/candidate-plots/candidate_plot_management_environment_stratification.pdf")
+pdf("data/site-selection/output/candidate-plots/candidate_plot_management_environment_stratification_v2.pdf")
 for(i in seq_along(p)) {
   print(p[[i]])
 }

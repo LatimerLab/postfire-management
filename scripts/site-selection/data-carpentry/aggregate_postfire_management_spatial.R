@@ -22,7 +22,13 @@ manage <- c(planting,manage.except.plant)
 facts <- st_read(dsn = "data/non-synced/existing-datasets/CA_Activity_merged.shp", stringsAsFactors = FALSE)
 st_precision(facts) <- 100000 #this seems to translate to about one meter. make number larger for more precision
 facts$year <- as.numeric(substr(facts$DATE_COMPL,1,4)) #! or do we want accomplished?
-facts$year <- ifelse(is.na(facts$year),3000,facts$year)
+
+#remove management that was not actually performed (e.g., just put up for contract but never logged)
+facts <- facts[!is.na(facts$year),]
+
+# previously we were assigning anything with no date a code that means "no date", but really we should just remove them.
+#facts$year <- ifelse(is.na(facts$year),3000,facts$year)
+
 facts <- st_transform(facts,crs=3310)
 facts$id <- 1:nrow(facts)
 facts <- st_buffer(facts,0)
