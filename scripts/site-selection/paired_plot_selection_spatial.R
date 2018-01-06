@@ -9,9 +9,11 @@ library(units)
 library(gridExtra)
 library(stringr)
 library(rgeos)
+library(DT)
 
 crs <- 3310 # CA albers
 
+release <- c("Tree Release and Weed","Control of Understory Vegetation")
 
 #### Convenience functions ####
 
@@ -282,6 +284,11 @@ get_all_facts_management <- function(x,type) { # function to get the VB_ID of al
   postfire.act.date <- act.date[postfire.activity.indeces]
   postfire.act.date.concatenate <- paste(postfire.act.date,collapse="; ")
   
+  facts.data.overlaps <- facts.data[overlaps,] # select management that's overlapping
+  activity.release <- facts.data.overlaps[facts.data.overlaps$ACTIV %in% release & completed_year > fire.year,] # select management that's release and that happened after the fire
+  release.method.year <- activity.release$METHOD #previously had: paste(activity.release$TREATMENT_,activity.release$METHOD,activity.release$DATE_C,sep="-")
+  release.concatenate <- paste(release.method.year,collapse=", ")
+  
   if(type=="pre") {
     return(prefire.act.date.concatenate)
   }
@@ -292,6 +299,10 @@ get_all_facts_management <- function(x,type) { # function to get the VB_ID of al
   
   if(type=="post") {
     return(postfire.act.date.concatenate)
+  }
+  
+  if(type=="post.release.method") {
+    return(release.concatenate)
   }
   
 }
@@ -305,6 +316,8 @@ candidate.plots$prefire.management.history <- unlist(activity.date)
 activity.date <- lapply(facts.all.intersect,FUN=get_all_facts_management,type="post")
 candidate.plots$postfire.management.history <- unlist(activity.date)
 
+release.method <- lapply(facts.all.intersect,FUN=get_all_facts_management,type="post.release.method")
+candidate.plots$postfire.release.methods <- unlist(release.method)
 
 
 ### Get distance to non-high-sev
@@ -670,12 +683,16 @@ p.dat.agg <- p.dat %>%
 # keep only the ones with enough candidate plots
 p.dat.agg.many <- p.dat.agg[p.dat.agg$nplots >= 20,] %>%
   as.data.frame() %>%
-  st_drop_geometry()
+  st_drop_geometry() %>%
+  select(-geom)
 
 ## save to csv
 write.csv(p.dat.agg.many,"data/site-selection/output/candidate-plots/candidate_plots_management_stratification.csv",row.names=FALSE)
 
-
+# save as an HTML widget
+path <- file.path(getwd(),"data/site-selection/output/candidate-plots/","candidate_plots_management_stratification.html")
+datatable(p.dat.agg.many,options=list(pageLength=100)) %>%
+  saveWidget(file=path)
 
 # filter the full plot database to only those plots from the factorial management categories that have enough member plots
 p.dat.many <- p.dat[p.dat$mgmt.factorial %in% p.dat.agg.many$mgmt.factorial,]
@@ -733,10 +750,29 @@ dev.off()
 
 
 
-###!!! Now explore on the star what the different treatment (release) types were
+###!!! Now explore on each fire what the major treatment (release) types were
 
+## for each row, replicate it with each entry in f.s.release.methods as a separate row
+d.simp <- p.dat.many %>%
+  select(fire.dist2,f.s.release.methods) %>%
+  st_drop_geometry
 
+d.simp.long <- d.simp %>%
+  mutate(f.s.release.methods = strsplit(as.character(f.s.release.methods),", ")) %>%
+  unnest(f.s.release.methods)
 
+release.method.summary <- d.simp.long %>%
+  group_by(fire.dist2,f.s.release.methods) %>%
+  summarize(frequency = n()) %>%
+  ungroup() %>%
+  arrange(fire.dist2,-frequency)
 
+names(release.method.summary) <- c("fire.forest","release.method","frequency")
 
+write.csv(release.method.summary,"data/site-selection/output/candidate-plots/candidate_plots_release_methods_summary.csv",row.names=FALSE)
+
+# save as an HTML widget
+path <- file.path(getwd(),"data/site-selection/output/candidate-plots/","candidate_plots_release_methods_summary.html")
+datatable(release.method.summary,options=list(pageLength=100)) %>%
+  saveWidget(file=path)
 
