@@ -168,16 +168,22 @@ candidate.plots$most.recent.focal.fire <- unlist(most.recent.focal.fire)
 
 # Get slope, aspect, elevation, of all control and treated plots
 candidate.plots <- as(candidate.plots,"Spatial") # change the plots to SpatialPointsDF because raster package doesn't work with them yet
-candidate.plots$slope <- extract(slope.aspect[["slope"]],candidate.plots)
-candidate.plots$aspect <- extract(slope.aspect[["aspect"]],candidate.plots)
-candidate.plots$elev <- extract(dem,candidate.plots)
+candidate.plots$slope <- raster::extract(slope.aspect[["slope"]],candidate.plots)
+candidate.plots$aspect <- raster::extract(slope.aspect[["aspect"]],candidate.plots)
+candidate.plots$elev <- raster::extract(dem,candidate.plots)
 
 candidate.plots$northness <- cos(deg2rad(candidate.plots$aspect))
 
 
+# Get the name of the forest each plot falls on (or NA for no forest)
+candidate.plots <- as(candidate.plots,"sf")
+ownership_intersects <- st_intersects(candidate.plots,ownership)
+ownership.intersect.first <- map_int(ownership_intersects,1,.default=NA) # get the first element of each list element (first public land unit it intersects--there should be only 1 but do it this way to be safe
+candidate.plots$forest <- ownership[ownership.intersect.first,]$LABEL_NAME
+
 # Get the severity of the most recent overlapping focal fire(s) -- that is the fire that prompted the planting
 #!!!!!!!!! Need to reconcile this with needing plots to be close to seed sources !!!!! As written currently, plots will be >= 55m from non-high severity
-candidate.plots <- as(candidate.plots,"sf")
+
 candidate.plots.buffer <- st_buffer(candidate.plots,15) # buffer out for 40m to make sure it's high-severity in the entire area surrounding
 fire.sev.buffer <- st_buffer(fire.sev,10) # buffer fire severity out for 15 m in case there were inaccuracies in measuring fire severity
 sev.intersect <- st_intersects(candidate.plots,fire.sev.buffer)
@@ -406,8 +412,9 @@ for(i in 1:nrow(trt)) {
                            near(ctl.close$slope,trt.focal$slope,10) &
                            near(ctl.close$elev,trt.focal$elev,100) &
                            (near(ctl.close$northness,trt.focal$northness,0.5) | (min(ctl.close$slope,trt.focal$slope) < 5)) & # either (a) there is little difference in aspect between the paired plots, or (b) at least one of the plots is quite flat (so aspect is not very relevant)
-                           ctl.close$prefire.management.history == trt.focal$prefire.management.history # pre-fire management in control plot same as in planted plot
-                           ,] # removed a line to exclude control plots with no post-fire management, because want to allow for salvage
+                           ctl.close$prefire.management.history == trt.focal$prefire.management.history & # pre-fire management in control plot same as in planted plot
+                           ctl.close$forest == trt.focal$forest  
+                          ,] # removed a line to exclude control plots with no post-fire management, because want to allow for salvage
   
   
 
@@ -630,9 +637,13 @@ p.dat$plant.timing[p.dat$pltd.yr12 == FALSE & p.dat$pltd.yr34 == TRUE] <- "late"
 p.dat <- p.dat %>%
   mutate_at(vars(site.prepped,released,replanted,thinned),tf_to_yn)
 
+# make fire the name of the fire and the name of the forest
+p.dat$fire.dist <- paste(p.dat$most.recent.focal.fire,p.dat$forest,sep=" - ")
+
 
 # revalue the important columns to something intelligible
 p.dat$fire2 <- p.dat$most.recent.focal.fire
+p.dat$fire.dist2 <- p.dat$fire.dist
 p.dat$salv.cat2 <- paste0("salv: ",p.dat$salv.cat)
 p.dat$plant.timing2 <- paste0("plt: ",p.dat$plant.timing)
 p.dat$site.prepped2 <- paste0("prp: ",p.dat$site.prepped)
@@ -640,7 +651,7 @@ p.dat$released2 <- paste0("rel: ",p.dat$released)
 p.dat$replanted2 <- paste0("replt: ",p.dat$replanted)
 p.dat$thinned2 <- paste0("thn: ",p.dat$thinned)
 p.dat <- p.dat %>%
-  mutate(mgmt.factorial = paste(fire2,salv.cat2,site.prepped2,released2,thinned2,sep=", ")) # make a column with factorial management
+  mutate(mgmt.factorial = paste(fire.dist2,salv.cat2,site.prepped2,released2,thinned2,sep=", ")) # make a column with factorial management
   # original: mutate(mgmt.factorial = paste(fire2,salv.cat2,plant.timing2,site.prepped2,released2,replanted2,thinned2,sep=", ")) # make a column with factorial management
 
 
@@ -648,12 +659,12 @@ p.dat <- p.dat %>%
 ## OK, now for each fire, sum the number of plots in each factorial combination of each of the important treatment columns
 p.dat.agg <- p.dat %>%
   # formerly before reduced number of factorial vars: group_by(fire2,salv.cat2,plant.timing2,site.prepped2,released2,replanted2,thinned2) %>%
-  group_by(fire2,salv.cat2,site.prepped2,released2,thinned2) %>%
+  group_by(fire.dist2,salv.cat2,site.prepped2,released2,thinned2) %>%
   #! could we just do group_by the mgmt.factorial col?
   summarize(nplots = n()) %>%
-  arrange(fire2,-nplots) %>%
+  arrange(fire.dist2,-nplots) %>%
   # formerly before reduced number of factorial vars: mutate(mgmt.factorial = paste(fire2,salv.cat2,plant.timing2,site.prepped2,released2,replanted2,thinned2,sep=", ")) %>% # make a column with factorial management
-  mutate(mgmt.factorial = paste(fire2,salv.cat2,site.prepped2,released2,thinned2,sep=", ")) %>% # make a column with factorial management
+  mutate(mgmt.factorial = paste(fire.dist2,salv.cat2,site.prepped2,released2,thinned2,sep=", ")) %>% # make a column with factorial management
   ungroup()
   
 # keep only the ones with enough candidate plots
@@ -673,7 +684,7 @@ p.dat.many <- p.dat[p.dat$mgmt.factorial %in% p.dat.agg.many$mgmt.factorial,]
 
 ## Plot environmental range of each factorial management type
 mgmt.cats <- unique(p.dat.many$mgmt.factorial)
-fires <- unique(p.dat.many$fire2)
+fires <- unique(p.dat.many$fire.dist2)
 
 
 p.dat.many$mgmt.factorial.nofire <- str_split(p.dat.many$mgmt.factorial,", ",n=2) %>%
@@ -695,12 +706,12 @@ for(i in 1:length(fires)) {
   fire <- fires[i]
     
     type <- mgmt.cats[i]
-    d <- p.dat.many[p.dat.many$fire2 == fire,]
+    d <- p.dat.many[p.dat.many$fire.dist2 == fire,]
     
     #! would like to add a symbology (shape? for whether it was replanted)
     p[[i]] <- ggplot(d,aes(x=elev,y=rad,color=yr.pltd,shape=dist.nonhigh)) +
       geom_point(size=2) +
-      ggtitle(d[1,]$fire2) +
+      ggtitle(d[1,]$fire.dist2) +
       theme_bw(8) +
       theme(plot.title = element_text(size=8)) +
       facet_wrap(~mgmt.factorial.nofire) +
@@ -722,7 +733,7 @@ dev.off()
 
 
 
-
+###!!! Now explore on the star what the different treatment (release) types were
 
 
 
