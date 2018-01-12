@@ -610,6 +610,7 @@ p.dat <- left_join(p.dat,p.ctl,by=c("ctl.id" = "id.ctl"))
 
 p.dat$f.s.salvage.ctl[is.na(p.dat$f.s.salvage.ctl)] <- "no"
 
+
 ## Salvage cat: trt only, both, none
 p.dat$salv.cat <- NA
 
@@ -667,10 +668,12 @@ p.dat <- p.dat %>%
   mutate(mgmt.factorial = paste(fire.dist2,salv.cat2,site.prepped2,released2,thinned2,sep=", ")) # make a column with factorial management
   # original: mutate(mgmt.factorial = paste(fire2,salv.cat2,plant.timing2,site.prepped2,released2,replanted2,thinned2,sep=", ")) # make a column with factorial management
 
+# only look a plots close to seed source
+p.dat.close <- p.dat[p.dat$dist.nonhigh == "< 100 m",]
 
 
 ## OK, now for each fire, sum the number of plots in each factorial combination of each of the important treatment columns
-p.dat.agg <- p.dat %>%
+p.dat.agg <- p.dat.close %>%
   # formerly before reduced number of factorial vars: group_by(fire2,salv.cat2,plant.timing2,site.prepped2,released2,replanted2,thinned2) %>%
   group_by(fire.dist2,salv.cat2,site.prepped2,released2,thinned2) %>%
   #! could we just do group_by the mgmt.factorial col?
@@ -684,7 +687,7 @@ p.dat.agg <- p.dat %>%
 p.dat.agg.many <- p.dat.agg[p.dat.agg$nplots >= 20,] %>%
   as.data.frame() %>%
   st_drop_geometry() %>%
-  select(-geom)
+  dplyr::select(-geom)
 
 ## save to csv
 write.csv(p.dat.agg.many,"data/site-selection/output/candidate-plots/candidate_plots_management_stratification.csv",row.names=FALSE)
@@ -742,7 +745,7 @@ for(i in 1:length(fires)) {
 
 
 
-pdf("data/site-selection/output/candidate-plots/candidate_plot_management_environment_stratification_v2.pdf")
+pdf("data/site-selection/output/candidate-plots/candidate_plot_management_environment_stratification_v3.pdf")
 for(i in seq_along(p)) {
   print(p[[i]])
 }
@@ -750,7 +753,7 @@ dev.off()
 
 
 
-###!!! Now explore on each fire what the major treatment (release) types were
+### Now explore on each fire what the major treatment (release) types were
 
 ## for each row, replicate it with each entry in f.s.release.methods as a separate row
 d.simp <- p.dat.many %>%
