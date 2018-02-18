@@ -44,6 +44,7 @@ tf_to_yn <- function(x) {
 
 # load FACTS planting history slices of focal fires
 # this layer already excludes management that burned after it was managed
+# it also excludes management that was not completed (no assigned completed date)
 planting.slices <- readOGR("data/site-selection/output/aggregated-management-history/shapefiles/management_history.gpkg",stringsAsFactors = FALSE)
 planting.slices <- as(planting.slices,"sf")
 planting.slices <- st_transform(planting.slices,crs=crs)
@@ -69,6 +70,9 @@ fires.focal <- fires[fires$VB_ID %in% fires.focal.names,]
 facts.all <- st_read("data/non-synced/existing-datasets/pseudo-FACTS/CA clips/CA_Activity_merged.shp",stringsAsFactors=FALSE)
 facts.all <- st_transform(facts.all,crs=crs)
 facts.all.fires <- st_intersection(facts.all,fires.focal)
+# remove facts units that were not completed (no completed date)
+facts.all.fires <- facts.all.fires[!is.na(facts.all.fires$DATE_C),]
+
 
 # load fire severity layers and thin to focal fires
 fire.sev <- st_read("data/non-synced/existing-datasets/VegBurnSeverity_shp/veg_burn_severity.shp",stringsAsFactors=FALSE)
@@ -672,6 +676,36 @@ p.dat <- p.dat %>%
 p.dat.close <- p.dat[p.dat$dist.nonhigh == "< 100 m",]
 
 
+### First-pass summary of breakdown of abundance by fire of: salvage, released, thinned
+p.dat.plt <- p.dat %>%
+  dplyr::filter(type=="treatment") %>%
+  mutate(salv.tf = (f.s.salvage == "yes"),
+         rel.tf = (f.s.release.nyears > 0),
+         replt.tf = (f.s.replant.nyears > 0),
+         thin.tf = (f.s.thin.nyears > 0))
+
+p.dat.plt.summ <- p.dat.plt %>%
+  st_drop_geometry %>%
+  group_by(fire.dist2) %>%
+  summarize(salv.perc = sum(salv.tf)/n(),
+            replt.perc = sum(replt.tf)/n(),
+            rel.perc = sum(rel.tf)/n(),
+            thin.perc = sum(thin.tf)/n())
+
+prop_to_perc <- function(x) {
+  return(round(x*100))
+}
+
+p.dat.plt.summ <- p.dat.plt.summ %>%
+  mutate_at(.vars=vars(salv.perc,rel.perc,replt.perc,thin.perc),
+            .funs = prop_to_perc)
+
+
+write.csv(p.dat.plt.summ,row.names=FALSE,"data/site-selection/output/candidate-plots/plot_summ_for_workshop.csv")
+
+
+## resuming main code
+
 ## OK, now for each fire, sum the number of plots in each factorial combination of each of the important treatment columns
 p.dat.agg <- p.dat.close %>%
   # formerly before reduced number of factorial vars: group_by(fire2,salv.cat2,plant.timing2,site.prepped2,released2,replanted2,thinned2) %>%
@@ -690,10 +724,10 @@ p.dat.agg.many <- p.dat.agg[p.dat.agg$nplots >= 20,] %>%
   dplyr::select(-geom)
 
 ## save to csv
-write.csv(p.dat.agg.many,"data/site-selection/output/candidate-plots/candidate_plots_management_stratification.csv",row.names=FALSE)
+write.csv(p.dat.agg.many,"data/site-selection/output/candidate-plots/candidate_plots_management_stratification_v2.csv",row.names=FALSE)
 
 # save as an HTML widget
-path <- file.path(getwd(),"data/site-selection/output/candidate-plots/","candidate_plots_management_stratification.html")
+path <- file.path(getwd(),"data/site-selection/output/candidate-plots/","candidate_plots_management_stratification_v2.html")
 datatable(p.dat.agg.many,options=list(pageLength=100)) %>%
   saveWidget(file=path)
 
@@ -745,7 +779,7 @@ for(i in 1:length(fires)) {
 
 
 
-pdf("data/site-selection/output/candidate-plots/candidate_plot_management_environment_stratification_v3.pdf")
+pdf("data/site-selection/output/candidate-plots/candidate_plot_management_environment_stratification_v4.pdf")
 for(i in seq_along(p)) {
   print(p[[i]])
 }
