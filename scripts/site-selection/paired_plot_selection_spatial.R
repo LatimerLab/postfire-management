@@ -14,6 +14,8 @@ library(DT)
 crs <- 3310 # CA albers
 
 release <- c("Tree Release and Weed","Control of Understory Vegetation")
+salvage <- c("Salvage Cut (intermediate treatment, not regeneration)","Stand Clearcut (EA/RH/FH)","Patch Clearcut (EA/RH/FH)","Overstory Removal Cut (from advanced regeneration) (EA/RH/FH)","Sanitation Cut","Group Selection Cut (UA/RH/FH)","Overstory Removal Cut (from advanced regeneration) (EA/RH/FH)","Seed-tree Seed Cut (with and without leave trees) (EA/RH/NFH)","Shelterwood Removal Cut (EA/NRH/FH)")
+
 
 #### Convenience functions ####
 
@@ -193,6 +195,8 @@ candidate.plots$forest <- ownership[ownership.intersect.first,]$LABEL_NAME
 candidate.plots.buffer <- st_buffer(candidate.plots,15) # buffer out for 40m to make sure it's high-severity in the entire area surrounding
 fire.sev.buffer <- st_buffer(fire.sev,10) # buffer fire severity out for 15 m in case there were inaccuracies in measuring fire severity
 sev.intersect <- st_intersects(candidate.plots,fire.sev.buffer)
+rm(fire.sev.buffer)
+rm(candidate.plots.buffer)
 
 #! export fire sev buffer to make sure it worked
 
@@ -253,28 +257,36 @@ e <- d %>% lapply(FUN=function(x) {ifelse(length(x)==0,"non-fs","fs")}) # conver
 
 candidate.plots$ownership <- e
 
+candidate.plots.backup2 <- candidate.plots
+
 
 # get all management that happened in planted and control plots (one concatenated string); one purpose is to later see if most control plots had management of some sort--need to decide if that shoudl be included or excluded
 facts.all.intersect <- st_intersects(candidate.plots,facts.all.fires)
 
-facts.data <- as.data.frame(facts.all.fires) # remove spatial data to speed up the following function
-facts.data <- facts.data %>% dplyr::select(-geometry)
+#facts.data <- as.data.frame(facts.all.fires) # remove spatial data to speed up the following function
+facts.data <- facts.all.fires %>% st_drop_geometry()
+
+chem.release <- c("Manual Chemical","Chemical")
 
 get_all_facts_management <- function(x,type) { # function to get the VB_ID of all overlapping historical fires (since 1984) to make sure that treated and control plots have the same fire history
   overlaps <- x
-  activity <- facts.data[overlaps,"ACTIV"]
-  fire.year <- facts.data[overlaps,"FIRE_YEAR"]
-  completed_date <- facts.data[overlaps,"DATE_C"]
+  facts.data.overlaps <- facts.data[overlaps,] # select management that's overlapping
+
+  completed_date <- facts.data.overlaps[,"DATE_C"]
   completed_date[which(is.na(completed_date))] <- "nodate"
-  
-  
   order.by.date <- order(completed_date)
-  activity <- activity[order.by.date]
-  completed_date <- completed_date[order.by.date]
+  facts.data.overlaps <- facts.data.overlaps[order.by.date,]
+
+  completed_date <- facts.data.overlaps[,"DATE_C"]    
+  activity <- facts.data.overlaps[,"ACTIV"]
+  fire.year <- facts.data.overlaps[,"FIRE_YEAR"]
+
   completed_year <- substr(completed_date,1,4)
   completed_year[which(completed_year == "noda")] <- "1800" # assume activities with no date were from very early
   completed_year <- as.numeric(completed_year)
   fire.year <- as.numeric(fire.year)
+  
+  fire.year.single <- max(fire.year)
   
   act.date <- paste(activity,completed_date,sep="-")
   act.date.concatenate <- paste(act.date,collapse="; ")
@@ -288,41 +300,67 @@ get_all_facts_management <- function(x,type) { # function to get the VB_ID of al
   postfire.act.date <- act.date[postfire.activity.indeces]
   postfire.act.date.concatenate <- paste(postfire.act.date,collapse="; ")
   
-  facts.data.overlaps <- facts.data[overlaps,] # select management that's overlapping
-  activity.release <- facts.data.overlaps[facts.data.overlaps$ACTIV %in% release & completed_year > fire.year,] # select management that's release and that happened after the fire
+  facts.data.overlaps$fire.year <- fire.year
+  facts.data.overlaps$completed.year <- completed_year
+  
+  activity.release <- facts.data.overlaps[facts.data.overlaps$ACTIV %in% release & facts.data.overlaps$completed.year > facts.data.overlaps$fire.year,] # select management that's release and that happened after the fire
   release.method.year <- activity.release$METHOD #previously had: paste(activity.release$TREATMENT_,activity.release$METHOD,activity.release$DATE_C,sep="-")
   release.concatenate <- paste(release.method.year,collapse=", ")
   
-  if(type=="pre") {
-    return(prefire.act.date.concatenate)
+  #get the first year of planting post-fire
+  plant.tree.post <- facts.data.overlaps[facts.data.overlaps$ACTIV == "Plant Trees" & facts.data.overlaps$completed.year > facts.data.overlaps$fire.year,]
+  if(nrow(plant.tree.post)==0) {
+    first.year.plant <- 2018
+  } else {
+    first.year.plant <- min(as.numeric(plant.tree.post$completed.year))
   }
   
-  if(type=="all") {
-    return(act.date.concatenate)
-  }
+  #compute years post-planting that release done
+  release.method.cat <- ifelse(release.method.year %in% chem.release,"C","M") #classify as chemical (C) or mechanical (M), which is really everything that is not explicitly chemical
+  release.year <- as.numeric(substr(activity.release$DATE_C,1,4))
+  fire.year <- as.numeric(activity.release$fire.year)
+  release.year.post <- release.year-first.year.plant
+  release.year.post <- str_pad(release.year.post,width=2,pad="0")
+  release.cat.post <- paste(release.year.post,release.method.cat,sep="")
+  release.cat.post <- unique(release.cat.post)
+  release.summ <- paste(release.cat.post,collapse=",")
   
-  if(type=="post") {
-    return(postfire.act.date.concatenate)
-  }
   
-  if(type=="post.release.method") {
-    return(release.concatenate)
-  }
+  activity.salvage <- facts.data.overlaps[facts.data.overlaps$ACTIV %in% salvage & facts.data.overlaps$completed.year >= facts.data.overlaps$fire.year,] # select management that's release and that happened after the fire
+  salvage.method.year <- activity.salvage$METHOD #previously had: paste(activity.release$TREATMENT_,activity.release$METHOD,activity.release$DATE_C,sep="-")
+  
+  #are there any salvage?
+  salvage.bool <- nrow(activity.salvage) > 0
+  
+  #are any of the salvage methods helicopter?
+  heli <- salvage.method.year == "Helicopter"
+  heli.logical <- sum(heli) > 0
+  salvage.heli <- heli.logical
+  salvage.heli <- ifelse(salvage.heli,"YES","no")
+  
+  
+  return.var <- list(prefire.management.history=prefire.act.date.concatenate,management.history=act.date.concatenate,postfire.management.history=postfire.act.date.concatenate,
+                     postfire.release.methods=release.concatenate,postfire.salvage=salvage.bool,postfire.salvage.heli=salvage.heli,post.release.summ=release.summ)
+  
+  return(return.var)
   
 }
 
-activity.date <- lapply(facts.all.intersect,FUN=get_all_facts_management,type="all")
-candidate.plots$management.history <- unlist(activity.date)
 
-activity.date <- lapply(facts.all.intersect,FUN=get_all_facts_management,type="pre")
-candidate.plots$prefire.management.history <- unlist(activity.date)
+# candidate.plots <- candidate.plots %>%
+#   dplyr::select(1:14)
 
-activity.date <- lapply(facts.all.intersect,FUN=get_all_facts_management,type="post")
-candidate.plots$postfire.management.history <- unlist(activity.date)
+facts.management <- lapply(facts.all.intersect,FUN=get_all_facts_management)
+q <- do.call(rbind.data.frame,facts.management)
+candidate.plots2 <- bind_cols(candidate.plots,q)
+candidate.plots <- candidate.plots2
 
-release.method <- lapply(facts.all.intersect,FUN=get_all_facts_management,type="post.release.method")
-candidate.plots$postfire.release.methods <- unlist(release.method)
-
+rm(facts.all)
+rm(candidate.plots2)
+gc()
+## store image
+save.image("../image_1.Rimg")
+#load("../image_1.Rimg")
 
 ### Get distance to non-high-sev
 
@@ -378,11 +416,11 @@ st_write(candidate.plots[,],"data/site-selection/output/candidate-plots/candidat
 
 candidate.plots.backup <- candidate.plots
 
-# filter based on severity, ownership
+# filter based on severity, ownership, salvage methods
 candidate.plots <- candidate.plots %>%
   filter(focal.fire.sev == 4) %>%  # include only candidate plots that have high severity surrounding them #! in the future, may want to look out to a wider surrounding area
   filter(ownership == "fs") # include only candidate plots that are on (buffered in) FS land
-
+  
 # break back into treated and control
 trt <- candidate.plots %>% filter(type=="treatment")
 ctl <- candidate.plots %>% filter(type=="control")
@@ -430,8 +468,9 @@ for(i in 1:nrow(trt)) {
                            near(ctl.close$elev,trt.focal$elev,100) &
                            (near(ctl.close$northness,trt.focal$northness,0.5) | (min(ctl.close$slope,trt.focal$slope) < 5)) & # either (a) there is little difference in aspect between the paired plots, or (b) at least one of the plots is quite flat (so aspect is not very relevant)
                            ctl.close$prefire.management.history == trt.focal$prefire.management.history & # pre-fire management in control plot same as in planted plot
-                           ctl.close$forest == trt.focal$forest  
-                          ,] # removed a line to exclude control plots with no post-fire management, because want to allow for salvage
+                           ctl.close$forest == trt.focal$forest &
+                           ((trt.focal$postfire.salvage.heli==ctl.close$postfire.salvage.heli) | (ctl.close$postfire.salvage==FALSE)) # either they are both heli salvage, both not heli salvage, or the control is not salvaged at all
+                         ,] # removed a line to exclude control plots with no post-fire management, because want to allow for salvage
   
   
 
@@ -546,6 +585,7 @@ candidate.plots.paired <- candidate.plots.paired %>% filter(pair.id != -1)
 # remove columns that are meaningul only in filtering code
 candidate.plots.paired <- candidate.plots.paired %>% dplyr::select(-index,-ownership,-not.closest)
 
+
 # add an empty column as a workaround to the fact that QGIS kml exoport needs to use a colum for feature display labels
 candidate.plots.paired$label <- " "
 
@@ -579,6 +619,12 @@ st_write(candidate.plots.paired,"data/site-selection/output/candidate-plots/cand
 
 # Read in candidate plots
 p <- st_read("data/site-selection/output/candidate-plots/candidate_plots_paired.gpkg",stringsAsFactors=FALSE)
+
+# Set Moonlight and antelope to same name
+moontelope <- c("2007ANTELOPE_CMPLX","2007MOONLIGHT")
+p <- p %>%
+  mutate(fire.name = ifelse(most.recent.focal.fire %in% moontelope,"2007MOONTELOPE",most.recent.focal.fire))
+
 
 # read in summarized FACTS slices
 crs <- 3310 # CA albers
@@ -656,21 +702,65 @@ p.dat <- p.dat %>%
   mutate_at(vars(site.prepped,released,replanted,thinned),tf_to_yn)
 
 # make fire the name of the fire and the name of the forest
-p.dat$fire.dist <- paste(p.dat$most.recent.focal.fire,p.dat$forest,sep=" - ")
+p.dat$fire.dist <- paste(p.dat$fire.name,p.dat$forest,sep=" - ")
+
+
+
+
+##classify release treatment more broadly: at least one release in yrs 1-2, 3-5, 6-12
+release.classify <- function(release.code) {
+  
+  release.sep <- unlist(str_split(release.code,","))
+  release.yrs <- str_sub(release.sep,1,-2) %>% as.numeric()
+  release.mthd <- str_sub(release.sep,-1,-1)
+  
+  
+  
+  yrs.e <- 1:2 # early
+  yrs.m <- 3:5 # mid
+  yrs.l <- 6:10 # late
+  
+  yrs.e.txt <- ifelse(any(release.yrs %in% yrs.e),"e","")
+  yrs.m.txt <- ifelse(any(release.yrs %in% yrs.m),"m","")
+  yrs.l.txt <- ifelse(any(release.yrs %in% yrs.l),"l","")
+  
+  release.txt <- paste0(yrs.e.txt,yrs.m.txt,yrs.l.txt)
+  
+  #if chem used on any treatment
+  if(any(release.mthd =="C")) {
+    release.txt <- paste0(release.txt,"C")
+  }
+  
+  
+  if(release.txt == "") {
+    release.txt <- "no"
+  }
+  
+  return(release.txt)
+  
+  
+}
+
+p.dat$release.txt <- sapply(p.dat$post.release.summ,FUN=release.classify)
+
+
 
 
 # revalue the important columns to something intelligible
-p.dat$fire2 <- p.dat$most.recent.focal.fire
+p.dat$fire2 <- p.dat$fire.name
 p.dat$fire.dist2 <- p.dat$fire.dist
 p.dat$salv.cat2 <- paste0("salv: ",p.dat$salv.cat)
 p.dat$plant.timing2 <- paste0("plt: ",p.dat$plant.timing)
 p.dat$site.prepped2 <- paste0("prp: ",p.dat$site.prepped)
-p.dat$released2 <- paste0("rel: ",p.dat$released)
+p.dat$released2 <- paste0("rel: ",p.dat$release.txt)
 p.dat$replanted2 <- paste0("replt: ",p.dat$replanted)
 p.dat$thinned2 <- paste0("thn: ",p.dat$thinned)
+p.dat$heli2 <- paste0("heli: ",p.dat$postfire.salvage.heli)
 p.dat <- p.dat %>%
-  mutate(mgmt.factorial = paste(fire.dist2,salv.cat2,site.prepped2,released2,thinned2,sep=", ")) # make a column with factorial management
+  mutate(mgmt.factorial = paste(fire.dist2,salv.cat2,site.prepped2,released2,thinned2,heli2,sep=", ")) # make a column with factorial management
   # original: mutate(mgmt.factorial = paste(fire2,salv.cat2,plant.timing2,site.prepped2,released2,replanted2,thinned2,sep=", ")) # make a column with factorial management
+
+
 
 # only look a plots close to seed source
 p.dat.close <- p.dat[p.dat$dist.nonhigh == "< 100 m",]
@@ -709,25 +799,25 @@ write.csv(p.dat.plt.summ,row.names=FALSE,"data/site-selection/output/candidate-p
 ## OK, now for each fire, sum the number of plots in each factorial combination of each of the important treatment columns
 p.dat.agg <- p.dat.close %>%
   # formerly before reduced number of factorial vars: group_by(fire2,salv.cat2,plant.timing2,site.prepped2,released2,replanted2,thinned2) %>%
-  group_by(fire.dist2,salv.cat2,site.prepped2,released2,thinned2) %>%
+  group_by(fire.dist2,salv.cat2,site.prepped2,released2,thinned2,heli2) %>%
   #! could we just do group_by the mgmt.factorial col?
   summarize(nplots = n()) %>%
   arrange(fire.dist2,-nplots) %>%
   # formerly before reduced number of factorial vars: mutate(mgmt.factorial = paste(fire2,salv.cat2,plant.timing2,site.prepped2,released2,replanted2,thinned2,sep=", ")) %>% # make a column with factorial management
-  mutate(mgmt.factorial = paste(fire.dist2,salv.cat2,site.prepped2,released2,thinned2,sep=", ")) %>% # make a column with factorial management
+  mutate(mgmt.factorial = paste(fire.dist2,salv.cat2,site.prepped2,released2,thinned2,heli2,sep=", ")) %>% # make a column with factorial management
   ungroup()
   
 # keep only the ones with enough candidate plots
-p.dat.agg.many <- p.dat.agg[p.dat.agg$nplots >= 20,] %>%
+p.dat.agg.many <- p.dat.agg[p.dat.agg$nplots >= 10,] %>% 
   as.data.frame() %>%
   st_drop_geometry() %>%
   dplyr::select(-geom)
 
 ## save to csv
-write.csv(p.dat.agg.many,"data/site-selection/output/candidate-plots/candidate_plots_management_stratification_v2.csv",row.names=FALSE)
+write.csv(p.dat.agg.many,"data/site-selection/output/candidate-plots/candidate_plots_management_stratification_v3allrelease.csv",row.names=FALSE)
 
 # save as an HTML widget
-path <- file.path(getwd(),"data/site-selection/output/candidate-plots/","candidate_plots_management_stratification_v2.html")
+path <- file.path(getwd(),"data/site-selection/output/candidate-plots/","candidate_plots_management_stratification_v3allrelease.html")
 datatable(p.dat.agg.many,options=list(pageLength=100)) %>%
   saveWidget(file=path)
 
@@ -755,20 +845,31 @@ p <- list()
 
 yr.colors <- c("0" = "black","1" = "darkolivegreen3", "2" = "cornflowerblue", "3" = "darkorange1", "4+" = "brown3")
 
+p.plot <- p.dat.many
+#make the management category text have a newline (after the 3rd comma)
+
+comma.locs <- str_locate(p.plot$mgmt.factorial.nofire,fixed(" thn:"))
+
+p.plot <- p.plot %>%
+  mutate(splitpos = str_locate(mgmt.factorial.nofire,fixed(" thn:"))[,"start"]) %>%
+  mutate(first.part = str_sub(mgmt.factorial.nofire,1,splitpos),
+         second.part = str_sub(mgmt.factorial.nofire,splitpos,-1)) %>%
+  mutate(mgmt.w.newline = paste0(first.part,"\n",second.part))
+
 for(i in 1:length(fires)) {
   
   fire <- fires[i]
     
     type <- mgmt.cats[i]
-    d <- p.dat.many[p.dat.many$fire.dist2 == fire,]
+    d <- p.plot[p.plot$fire.dist2 == fire,]
     
     #! would like to add a symbology (shape? for whether it was replanted)
     p[[i]] <- ggplot(d,aes(x=elev,y=rad,color=yr.pltd,shape=dist.nonhigh)) +
-      geom_point(size=2) +
+      geom_point(size=1.5) +
       ggtitle(d[1,]$fire.dist2) +
       theme_bw(8) +
       theme(plot.title = element_text(size=8)) +
-      facet_wrap(~mgmt.factorial.nofire) +
+      facet_wrap(~mgmt.w.newline) +
       scale_shape_manual(values=c(16,1)) +
       scale_colour_manual(values=yr.colors) +
       theme(strip.text.x = element_text(size = 8)) +
@@ -779,7 +880,7 @@ for(i in 1:length(fires)) {
 
 
 
-pdf("data/site-selection/output/candidate-plots/candidate_plot_management_environment_stratification_v4.pdf")
+pdf("data/site-selection/output/candidate-plots/candidate_plot_management_environment_stratification_v7helisep.pdf")
 for(i in seq_along(p)) {
   print(p[[i]])
 }
