@@ -13,6 +13,8 @@ library(DT)
 
 crs <- 3310 # CA albers
 
+set.seed(1)
+
 release <- c("Tree Release and Weed","Control of Understory Vegetation")
 salvage <- c("Salvage Cut (intermediate treatment, not regeneration)","Stand Clearcut (EA/RH/FH)","Patch Clearcut (EA/RH/FH)","Overstory Removal Cut (from advanced regeneration) (EA/RH/FH)","Sanitation Cut","Group Selection Cut (UA/RH/FH)","Overstory Removal Cut (from advanced regeneration) (EA/RH/FH)","Seed-tree Seed Cut (with and without leave trees) (EA/RH/NFH)","Shelterwood Removal Cut (EA/NRH/FH)")
 
@@ -112,6 +114,7 @@ planting.zone <- st_buffer(planting.slices,dist=1)
 planting.zone <- st_union(planting.zone)
 
 
+## Perimeter points
 
 # Buffer in by 25 m and out by 25 m and place points along the resulting perimeters to establish the candidate set of "treated" and "control" plots
 treated.plot.perim <- st_buffer(planting.zone,dist=-15)
@@ -121,7 +124,6 @@ treated.plot.perim <- as(treated.plot.perim,"Spatial")
 trt.candidate.plots <- spsample(treated.plot.perim,n=treated.perim.length/100,type="regular")
 trt.candidate.plots <- as(trt.candidate.plots,"sf")
 
-
 control.plot.perim <- st_buffer(planting.zone,dist=15)
 control.plot.perim <- st_cast(control.plot.perim,"MULTILINESTRING")
 control.perim.length <- st_length(control.plot.perim) %>% sum() %>% as.numeric()
@@ -129,12 +131,39 @@ control.plot.perim <- as(control.plot.perim,"Spatial")
 ctrl.candidate.plots <- spsample(control.plot.perim,n=control.perim.length/50,type="regular")
 ctrl.candidate.plots <- as(ctrl.candidate.plots,"sf")
 
+## Internal points
+internal.poly <- st_buffer(planting.zone,dist=-100)
+# Must do fire-by-fire because it's too slow to do all at once
+internal.candidate.plots.list <- list()
+for(fire in fires.focal.names) {
+  
+  fire.focal.curr <- fires.focal[fires.focal$VB_ID==fire,]
+  plt.zone.curr <- st_intersection(internal.poly,fire.focal.curr)
+  area <- st_area(plt.zone.curr)
+  npts <- as.numeric(area)/(150*150) #200 m between points
+  plt.zone.curr.sp <- as(plt.zone.curr,"Spatial")
+  internal.candidate.plots.focal <- spsample(plt.zone.curr.sp,n=npts,type="regular")
+  internal.candidate.plots.focal <- as(internal.candidate.plots.focal,"sf")
+  internal.candidate.plots.list[[fire]] <- internal.candidate.plots.focal
+  
+  
+}
+
+int.candidate.plots<- do.call(rbind,internal.candidate.plots.list)
+
+
+st_write(internal.poly,"../internal.shp",delete_dsn=TRUE)
+st_write(planting.zone,"../planting.shp",delete_dsn=TRUE)
 
 trt.candidate.plots$type <- "treatment"
 ctrl.candidate.plots$type <- "control"
+int.candidate.plots$type <- "internal"
 
-candidate.plots <- rbind(trt.candidate.plots,ctrl.candidate.plots)
+candidate.plots.pre <- rbind(trt.candidate.plots,ctrl.candidate.plots)
+candidate.plots <- rbind(candidate.plots.pre,int.candidate.plots)
 candidate.plots$id <- seq(1,nrow(candidate.plots))
+
+
 
 
 #### Compile attributes of candidate plots ####
@@ -174,7 +203,7 @@ candidate.plots$most.recent.focal.fire <- unlist(most.recent.focal.fire)
 
 
 
-# Get slope, aspect, elevation, of all control and treated plots
+# Get slope, aspect, elevation, of all control and treated and internal plots
 candidate.plots <- as(candidate.plots,"Spatial") # change the plots to SpatialPointsDF because raster package doesn't work with them yet
 candidate.plots$slope <- raster::extract(slope.aspect[["slope"]],candidate.plots)
 candidate.plots$aspect <- raster::extract(slope.aspect[["aspect"]],candidate.plots)
@@ -424,9 +453,11 @@ candidate.plots <- candidate.plots %>%
 # break back into treated and control
 trt <- candidate.plots %>% filter(type=="treatment")
 ctl <- candidate.plots %>% filter(type=="control")
+int <- candidate.plots %>% filter(type=="internal")
 
 trt$index <- 1:nrow(trt)
 ctl$index <- 1:nrow(ctl)
+int$index <- 1:nrow(int)
 
 # get distances between each treated plot and each control
 a <- st_distance(trt,ctl) # takes 1-2 min. maybe do after narrowing
@@ -582,6 +613,14 @@ candidate.plots.paired[candidate.plots.paired$type == "treatment","pair.id"] <- 
 # remove control plots that don't have a pair
 candidate.plots.paired <- candidate.plots.paired %>% filter(pair.id != -1)
 
+# merge back in the internal plots (which don't get paired)
+#which columns in paired are not in int?
+newcols <- setdiff(names(candidate.plots.paired),names(int))
+int[,newcols] <- NA # add them
+int <- int[,names(candidate.plots.paired)] # order cols the same
+candidate.plots.paired <- candidate.plots.paired[,names(int)]
+candidate.plots.paired <- rbind(candidate.plots.paired,int)
+
 # remove columns that are meaningul only in filtering code
 candidate.plots.paired <- candidate.plots.paired %>% dplyr::select(-index,-ownership,-not.closest)
 
@@ -589,7 +628,9 @@ candidate.plots.paired <- candidate.plots.paired %>% dplyr::select(-index,-owner
 # add an empty column as a workaround to the fact that QGIS kml exoport needs to use a colum for feature display labels
 candidate.plots.paired$label <- " "
 
-candidate.plots.paired$dist.nonhigh <- ifelse(candidate.plots.paired$dist.low.mod < 100,"< 100 m","> 100 m")
+#candidate.plots.paired$dist.nonhigh <- ifelse(candidate.plots.paired$dist.non.high < 100,"< 100 m","> 100 m")
+candidate.plots.paired[candidate.plots.paired$dist.non.high < 80,"dist.nonhigh"] <- "< 80 m"
+candidate.plots.paired[candidate.plots.paired$dist.non.high > 120,"dist.nonhigh"] <- "> 120 m"
 
 st_write(candidate.plots.paired,"data/site-selection/output/candidate-plots/candidate_plots_paired.gpkg",delete_dsn=TRUE)
 
@@ -625,7 +666,6 @@ moontelope <- c("2007ANTELOPE_CMPLX","2007MOONLIGHT")
 p <- p %>%
   mutate(fire.name = ifelse(most.recent.focal.fire %in% moontelope,"2007MOONTELOPE",most.recent.focal.fire))
 
-
 # read in summarized FACTS slices
 crs <- 3310 # CA albers
 facts.slices <- st_read("data/site-selection/output/aggregated-management-history/shapefiles/management_history_summarized.gpkg",stringsAsFactors = FALSE)
@@ -641,6 +681,8 @@ p$rad <- raster::extract(rad,p,method="bilinear")
 ## for each treated plot, get the management done and determine whether the control plot was salvaged
 p.trt <- p[p$type=="treatment",]
 p.trt <- st_intersection(p.trt,facts.slices) # get management done
+p.int <- p[p$type=="internal",]
+p.int <- st_intersection(p.int,facts.slices)
 
 p.ctl <- p[p$type=="control",]
 p.ctl.salvage <- st_intersection(p.ctl,facts.slices)
@@ -667,6 +709,14 @@ p.dat$salv.cat <- NA
 p.dat$salv.cat[p.dat$f.s.salvage == "yes" & p.dat$f.s.salvage.ctl == "yes"] <- "both"
 p.dat$salv.cat[p.dat$f.s.salvage == "yes" & p.dat$f.s.salvage.ctl == "no"] <- "planted"
 p.dat$salv.cat[p.dat$f.s.salvage == "no" & p.dat$f.s.salvage.ctl == "no"] <- "neither"
+
+#add back the internal plots
+newcols <- setdiff(names(p.dat),names(p.int)) # which columns were added to the paired plots?
+p.int[,newcols] <- NA # add them
+p.int <- p.int[,names(p.dat)] # order cols the same
+p.dat <- p.dat[,names(p.int)]
+p.dat <- rbind(p.dat,p.int)
+
 
 
 ## Summarize: early planting (TF; 0-2), site prepped,  late planting (TF; 3-4), times planted incl. replanted (#), released (y/n), thinned (y/n)
@@ -744,6 +794,16 @@ release.classify <- function(release.code) {
 p.dat$release.txt <- sapply(p.dat$post.release.summ,FUN=release.classify)
 
 
+## For internal plots, if they were salvaged, replicate them, once classified as "both" and once classified as "planted". This is so that they appear as comparable plots along all relevant salvage categories of perimeter plots
+
+p.dat.int.salv.copy <- p.dat %>%
+  filter(type == "internal" & f.s.salvage == "yes")
+p.dat.int.salv.copy$salv.cat <- "both"
+
+p.dat[p.dat$type=="internal" & p.dat$f.s.salvage == "yes","salv.cat"] <- "planted"
+p.dat[p.dat$type=="internal" & p.dat$f.s.salvage == "no","salv.cat"] <- "neither"
+p.dat <- rbind(p.dat,p.dat.int.salv.copy)
+
 
 
 # revalue the important columns to something intelligible
@@ -762,8 +822,18 @@ p.dat <- p.dat %>%
 
 
 
-# only look a plots close to seed source
-p.dat.close <- p.dat[p.dat$dist.nonhigh == "< 100 m",]
+#classify as perimeter or internal
+p.dat <- p.dat %>%
+  mutate(class = ifelse(type=="internal","internal","perimeter"))
+
+# remove external plots close to seed source (the whole purpose of them is to provide additional plots far from seed source)
+p.dat <- p.dat %>%
+  filter(dist.non.high > 120 | class == "perimeter")
+
+# for computing if there's enough plots to justify study, only look at perimeter plots close to seed source (this also excludes internal plots because those were already filtered to >120 m)
+p.dat.close <- p.dat[p.dat$dist.non.high < 80,]
+
+
 
 
 ### First-pass summary of breakdown of abundance by fire of: salvage, released, thinned
@@ -796,8 +866,11 @@ write.csv(p.dat.plt.summ,row.names=FALSE,"data/site-selection/output/candidate-p
 
 ## resuming main code
 
+
 ## OK, now for each fire, sum the number of plots in each factorial combination of each of the important treatment columns
+# only consider perimeter plots when tallying if there are enough
 p.dat.agg <- p.dat.close %>%
+  filter(class=="perimeter") %>%
   # formerly before reduced number of factorial vars: group_by(fire2,salv.cat2,plant.timing2,site.prepped2,released2,replanted2,thinned2) %>%
   group_by(fire.dist2,salv.cat2,site.prepped2,released2,thinned2,heli2) %>%
   #! could we just do group_by the mgmt.factorial col?
@@ -808,7 +881,7 @@ p.dat.agg <- p.dat.close %>%
   ungroup()
   
 # keep only the ones with enough candidate plots
-p.dat.agg.many <- p.dat.agg[p.dat.agg$nplots >= 10,] %>% 
+p.dat.agg.many <- p.dat.agg[p.dat.agg$nplots >= 15,] %>% 
   as.data.frame() %>%
   st_drop_geometry() %>%
   dplyr::select(-geom)
@@ -821,9 +894,21 @@ path <- file.path(getwd(),"data/site-selection/output/candidate-plots/","candida
 datatable(p.dat.agg.many,options=list(pageLength=100)) %>%
   saveWidget(file=path)
 
-# filter the full plot database to only those plots from the factorial management categories that have enough member plots
+# filter the full plot database to only those fires and factorial management categories that have enough member plots
 p.dat.many <- p.dat[p.dat$mgmt.factorial %in% p.dat.agg.many$mgmt.factorial,]
 
+
+# need to restore the control plots back to the filtered candidate plots
+p.ctl <- p[p$type=="control",]
+p.ctl.match <- p.ctl[p.ctl$id %in% p.dat.many$ctl.id,]
+newcols <- setdiff(names(p.dat.many),names(p.ctl.match)) # which columns were added to the paired plots?
+p.ctl.match[,newcols] <- NA # add them
+p.dat.many <- p.dat.many[,names(p.ctl.match)] # order cols the same
+p.ctl.match <- p.ctl.match[,names(p.dat.many)]
+p.dat.many.w.ctl <- rbind(p.dat.many,p.ctl.match)
+
+# write the filtered candidate plot dataset
+st_write(p.dat.many.w.ctl,"data/site-selection/output/candidate-plots/candidate_plots_paired_filtered.gpkg",delete_dsn=TRUE)
 
 
 ## Plot environmental range of each factorial management type
@@ -841,7 +926,7 @@ p.dat.many <- p.dat.many %>%
   mutate(yr.pltd = ifelse(yr.pltd == "4","4+",yr.pltd))
 
 
-p <- list()
+plts <- list()
 
 yr.colors <- c("0" = "black","1" = "darkolivegreen3", "2" = "cornflowerblue", "3" = "darkorange1", "4+" = "brown3")
 
@@ -856,6 +941,11 @@ p.plot <- p.plot %>%
          second.part = str_sub(mgmt.factorial.nofire,splitpos,-1)) %>%
   mutate(mgmt.w.newline = paste0(first.part,"\n",second.part))
 
+#remove plots that are in between 80 and 120 m from seed source
+p.plot <- p.plot %>%
+  filter(!is.na(dist.nonhigh))
+
+
 for(i in 1:length(fires)) {
   
   fire <- fires[i]
@@ -863,8 +953,12 @@ for(i in 1:length(fires)) {
     type <- mgmt.cats[i]
     d <- p.plot[p.plot$fire.dist2 == fire,]
     
+    d.perim <- d[d$class=="perimeter",]
+    d.int <- d[d$class=="internal",]
+    
     #! would like to add a symbology (shape? for whether it was replanted)
-    p[[i]] <- ggplot(d,aes(x=elev,y=rad,color=yr.pltd,shape=dist.nonhigh)) +
+    plts[[i]] <- ggplot(d.perim,aes(x=elev,y=rad,color=yr.pltd,shape=dist.nonhigh)) +
+      geom_point(data=d.int,shape=3,size=0.7) +
       geom_point(size=1.5) +
       ggtitle(d[1,]$fire.dist2) +
       theme_bw(8) +
@@ -880,9 +974,9 @@ for(i in 1:length(fires)) {
 
 
 
-pdf("data/site-selection/output/candidate-plots/candidate_plot_management_environment_stratification_v7helisep.pdf")
-for(i in seq_along(p)) {
-  print(p[[i]])
+pdf("data/site-selection/output/candidate-plots/candidate_plot_management_environment_stratification_v8inclinternal.pdf")
+for(i in seq_along(plts)) {
+  print(plts[[i]])
 }
 dev.off()
 
