@@ -22,9 +22,21 @@ trees <- st_read("data/non-synced/uav-evaluation/freds-snag-high/manual-tree-ide
 #assign each tree a unique id
 trees$tree.id <- 1:nrow(trees)
 
-## load dn prep multispectral layers
+## load tree canopy perimeters (version that is aligned with rgb image)
+trees.rgb <- st_read("data/non-synced/uav-evaluation/freds-snag-high/manual-tree-identification/tree outlines_shifted_rgb.shp")
+#assign each tree a unique id
+trees.rgb$tree.id <- 1:nrow(trees.rgb)
+
+## load and prep multispectral layers
 ms.files <- list.files("data/non-synced/uav-evaluation/freds-snag-high/multispectral/individual-bands/",pattern="\\.tif$",full.names=TRUE)
 ms <- stack(ms.files)
+
+## load RGB image
+rgb <- stack("data/non-synced/uav-evaluation/freds-snag-high/rgb/ursell-young-latimer_snag-retention-5-ha_transparent_mosaic_group1.tif")
+rgb <- rgb[[1:3]]
+names(rgb) <- c("red","green","blue")
+
+
 
 # we only need the first layer from each file (they all have a second layer that is a coverage mask)
 ms <- ms[[seq(from=1,to=(nlayers(ms)-1),by=2)]]
@@ -38,12 +50,23 @@ ms <- raster::crop(ms,trees.sp)
 ms.full <- ms # save it before masking
 ms <- mask(ms,trees.sp)
 
+# and from RGB stack
+trees.rgb.sp <- as(trees.rgb,"Spatial")
+rgb <- raster::crop(rgb,trees.rgb.sp)
+rgb.full <- rgb # save it before masking
+rgb <- mask(rgb,trees.rgb.sp)
+rgb <- raster::aggregate(rgb,fact=2)
 
+##!! temporary hack: to run analysis for rgb data rather than multispectral, overwrite the objects
+# in the future, will want to create new generic variables for the steps that follow rather than using overwritten multispectral
+trees <- trees.rgb
+ms <- rgb
+ms.full <- rgb.full
 
 #### extract multispectral reflectance values at each tree canopy ####
 
-# make a grid of points, a point every 10 cm
-grid.sfc <- st_make_grid(trees,cellsize=0.1,what="centers")
+# make a grid of points, a point every 5 cm
+grid.sfc <- st_make_grid(trees,cellsize=0.05,what="centers")
 grid <- st_sf(data.frame(point.id=1:length(grid.sfc),geom=grid.sfc))
 
 # restrict grid to the tree canopies
@@ -63,14 +86,24 @@ d$tree.id.internal <- as.character(d$tree.id.internal)
 #### quality filtering of extracted reflectance values ####
 
 ## within each species and reflectance category (independent of individual trees), determine quantiles of reflectance (to filter out shade pixels)
+# # multispectral version
+# d <- d %>%
+#   group_by(species) %>%
+#   mutate(blue.percentile = cume_dist(blue)) %>%
+#   mutate(red.percentile = cume_dist(red)) %>%
+#   mutate(green.percentile = cume_dist(green)) %>%
+#   mutate(nir.percentile = cume_dist(nir)) %>%
+#   mutate(red_edge.percentile = cume_dist(red_edge)) %>%
+#   ungroup()
+
+# rgb version
 d <- d %>%
   group_by(species) %>%
   mutate(blue.percentile = cume_dist(blue)) %>%
   mutate(red.percentile = cume_dist(red)) %>%
   mutate(green.percentile = cume_dist(green)) %>%
-  mutate(nir.percentile = cume_dist(nir)) %>%
-  mutate(red_edge.percentile = cume_dist(red_edge)) %>%
   ungroup()
+
 
 # make sure the percentile-making was done properly--by species--(so percentile 0.1 reflectance for species A can be diff than for species B)
 ggplot(d,aes(y=blue,x=blue.percentile,color=species)) +
@@ -78,8 +111,14 @@ ggplot(d,aes(y=blue,x=blue.percentile,color=species)) +
 # it worked
 
 # compute the average percentile across all bands
+# # multispectral version
+# d <- d %>%
+#   mutate(mean.percentile = (blue.percentile+red.percentile+green.percentile+nir.percentile+red_edge.percentile)/5)
+
+#rgb version
 d <- d %>%
-  mutate(mean.percentile = (blue.percentile+red.percentile+green.percentile+nir.percentile+red_edge.percentile)/5)
+  mutate(mean.percentile = (blue.percentile+red.percentile+green.percentile)/3)
+
 
 # only keep the 25% of points with highest reflectance--thinking it might be a conservative (liberal?) way to remove all shade pixels (and then some)
 d <- d %>%
@@ -92,7 +131,12 @@ d <- d %>%
 # need to remove spatial columns from df
 d <- st_drop_geometry(d) ####
 
-refl.cols <- c("red","green","blue","nir","red_edge")
+# # multispectral version
+# refl.cols <- c("red","green","blue","nir","red_edge")
+
+# rgb version
+refl.cols <- c("red","green","blue")
+
 pc <- prcomp(as.matrix(d[,refl.cols]),center=TRUE,scale.=TRUE)
 # nice, the first two axes capture 92% of the variance
 
@@ -113,8 +157,8 @@ shape.names <- 1:length(shape.codes)
 shape.scale <- shape.codes
 names(shape.scale) <- shape.names
 
-# remove outlier
-d <- d[d$PC2>-7,]
+# remove outlier (multispectral only)
+# d <- d[d$PC2>-7,]
 
 library(viridis)
 ggplot(d,aes(x=PC1,y=PC2,color=species,fill=species,shape=tree.id.internal)) +
@@ -137,7 +181,11 @@ d.ord$index <- index
 d.train <- d.ord[d.ord$index == 1,]
 d.val <- d.ord[d.ord$index == 2,]
 
-rf.mod <- randomForest(species~blue+green+nir+red_edge+red,d.train,ntree=500,importance=TRUE)
+# multispectral version
+# rf.mod <- randomForest(species~blue+green+nir+red_edge+red,d.train,ntree=500,importance=TRUE)
+
+# rgb version
+rf.mod <- randomForest(species~blue+green+red,d.train,ntree=500,importance=TRUE)
 
 varImpPlot(rf.mod,sort=TRUE)
 
@@ -166,7 +214,10 @@ d.val <- d %>%
 
 d.train$species <- droplevels(d.train$species)
 
-rf.mod <- randomForest(species~blue+green+nir+red_edge+red,d.train,ntree=500,importance=TRUE)
+# multispectral version
+# rf.mod <- randomForest(species~blue+green+nir+red_edge+red,d.train,ntree=500,importance=TRUE)
+
+rf.mod <- randomForest(species~blue+green+red,d.train,ntree=500,importance=TRUE)
 
 varImpPlot(rf.mod,sort=TRUE)
 
@@ -199,7 +250,11 @@ d.val <- d.ord[d.ord$index == 2,]
 
 d.train$species <- droplevels(d.train$species)
 
-qda.mod <- qda(species~blue+green+nir+red_edge+red,d.train)
+# multispectral version
+# qda.mod <- qda(species~blue+green+nir+red_edge+red,d.train)
+
+# rgb version
+qda.mod <- qda(species~blue+green+red,d.train)
 
 # predict for validation data
 preds <- predict(qda.mod,d.val)
@@ -231,7 +286,12 @@ d.val <- d.qda %>%
 
 d.train$species <- droplevels(d.train$species)
 
-qda.mod <- qda(species~blue+green+nir+red_edge+red,d.train)
+# multispectral version
+# qda.mod <- qda(species~blue+green+nir+red_edge+red,d.train)
+
+# rgb version
+qda.mod <- qda(species~blue+green+red,d.train)
+
 
 # predict for validation data
 preds <- predict(qda.mod,d.val)
@@ -244,7 +304,6 @@ table(d.val$species,d.val$predicted.species)
 
 #### Apply a QDA model across the whole landscape to categorize pixels ####
 
-ms.full
 vals <- getValues(ms.full)
 vals.df <- as.data.frame(vals)
 preds <- predict(qda.mod,vals.df)
@@ -252,12 +311,15 @@ post <- as.data.frame(preds$post) # extract the posterior probabilities by class
 
 #compute the max posterior across all classes for each pixel to get a sense of how confident the model is of a classification
 post <- post %>%
-  mutate(max.post = pmax(CEIN,GRAM,PILA,PIPO,QUKE,SALIX))
+  mutate(max.post = pmax(CEIN,GRAM,PILA,PIPO,QUKE,SALIX,SHADOW))
 
 pred.class <- preds$class
 
+# # random forest version
+# pred.class <- preds
+
 # set all predictions that have low posterior to NA
- low.posterior <- which(post$max.post < 0.999)
+ low.posterior <- which(post$max.post < 0.8)
  pred.class[low.posterior] <- NA
 
 ms.full$preds <- pred.class
@@ -266,7 +328,12 @@ ms.full$preds <- pred.class
 ms.sg <- as(ms.full,"SpatialGridDataFrame") # for some reason we need to go to SGDF before we can coerce to SPDF
 ms.sp <- as(ms.sg,"SpatialPixelsDataFrame")
 ms.df <- as.data.frame(ms.sp)
-names(ms.df) <- c("blue","green","nir","red_edge","red","pred","x","y")
+
+# multispectral version
+# names(ms.df) <- c("blue","green","nir","red_edge","red","pred","x","y")
+
+# rgb version
+names(ms.df) <- c("red","green","blue","pred","x","y")
 
 ggplot(ms.df,aes(x=x,y=y,fill=pred)) +
   geom_tile() +
