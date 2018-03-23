@@ -15,9 +15,14 @@ release <- c("Tree Release and Weed","Control of Understory Vegetation")
 thin <- c("Precommercial Thin","Commercial Thin","Thinning for Hazardous Fuels Reduction","Single-tree Selection Cut (UA/RH/FH)")
 replant <- c("Fill-in or Replant Trees")
 prune <- c("Pruning to Raise Canopy Height and Discourage Crown Fire","Prune")
-manage.except.plant <- c(salvage,prep,release,thin,replant,prune)
+fuel <- c("Piling of Fuels, Hand or Machine","Burning of Piled Material","Yarding - Removal of Fuels by Carrying or Dragging","Rearrangement of Fuels","Chipping of Fuels","Compacting/Crushing of Fuels","Underburn - Low Intensity (Majority of Unit)","Broadcast Burning - Covers a majority of the unit")
+
+manage.except.plant <- c(salvage,prep,release,thin,replant,prune,fuel)
 manage <- c(planting,manage.except.plant)
 
+
+##!! prep only if done during/before the first planting
+##!! fuels only if done after the first planting
 
 
 
@@ -208,6 +213,10 @@ for(i in 1:nrow(fires.focal))  {
   facts.fire.prune <- facts.fire[facts.fire$ACTIV %in% prune,]
   facts.fire.prune <- facts.fire.prune[facts.fire.prune$year >= year.focal,] # management must have occurred the same year as the fire or later
 
+  ## pull out all fuel
+  facts.fire.fuel <- facts.fire[facts.fire$ACTIV %in% fuel,]
+  facts.fire.fuel <- facts.fire.fuel[facts.fire.fuel$year >= year.focal,] # management must have occurred the same year as the fire or later
+  
   ## split the planting units along the boundaries of the all management plygons (including planting, in case there were multiple overlapping plantings)
   facts.fire.management.lines <- as(facts.fire.management,"SpatialLines")
   facts.fire.management.lines.buffer <- gBuffer(facts.fire.management.lines,width=0.1,byid=TRUE)
@@ -242,10 +251,32 @@ for(i in 1:nrow(fires.focal))  {
   facts.fire.thin <- gBuffer(facts.fire.thin,width=0,byid=TRUE)
   facts.fire.replant <- gBuffer(facts.fire.replant,width=0,byid=TRUE)
   facts.fire.prune <- gBuffer(facts.fire.prune,width=0,byid=TRUE)
+  facts.fire.fuel <- gBuffer(facts.fire.fuel,width=0,byid=TRUE)
   
   facts.fire.planting <- gBuffer(facts.fire.planting,width=0,byid=TRUE)
   
-
+  
+  
+  ###!!! Identify split planting units that were in roadside stringers; later on, set first planting unit ID to blank so we do not consider it to be taking area away from the full planting unit
+  stringers <- facts.fire.management[facts.fire.management$sliver == "YES",]
+  stringers <- as(stringers,"sf")
+  stringers <- st_buffer(stringers,-0.1) # so when we intersect, it's because it's overlapping, not just touching
+  stringers <- st_union(stringers)
+  pl.spl <- as(pl.spl,"sf")
+  #st_crs(pl.spl) <- st_crs(stringers)
+  pl.spl <- st_buffer(pl.spl,0)
+  stringers <- st_buffer(stringers,0)
+  pl.spl.stringers <- st_intersection(pl.spl,stringers)
+  
+  #st_write(pl.spl.stringers,"../stringer_intersection.gpkg",delete_dsn=TRUE)
+  
+  #get the IDs of the stringers
+  stringer.ids <- unique(pl.spl.stringers$slice.id)
+  
+  #for the slices that intersected with stringers, call them stringers
+  pl.spl$stringer <- "no"
+  pl.spl[pl.spl$slice.id %in% stringer.ids,"stringer"] <- "YES"
+  pl.spl <- as(pl.spl,"Spatial")
   
   for(j in 1:nrow(pl.spl)) {
     
@@ -284,9 +315,7 @@ for(i in 1:nrow(fires.focal))  {
     
 
     # get all overlapping salvage units and their associated info
-    
 
-    
     if(is.null(facts.fire.salvage)) mgmt.over <- NULL else mgmt.over <- raster::intersect(facts.fire.salvage,planting.slice)
     mgmt.years <- mgmt.over$year
     mgmt.years.post <- mgmt.years - year.focal
@@ -315,6 +344,14 @@ for(i in 1:nrow(fires.focal))  {
 
     
     if(is.null(facts.fire.prep)) mgmt.over <- NULL else mgmt.over <- raster::intersect(facts.fire.prep,planting.slice)
+    
+    # only count prep that happened during or before the first year of planting
+    first.planting.year <- min(planting.over$year,na.rm=TRUE)
+    mgmt.over <- mgmt.over[mgmt.over$year <= first.planting.year,]
+    
+    ##NOTE that if this was not a planting unit (but rather a salvage unit), first planting year will be Inf so all prep will be counted. Doesn't really matter because it was not planted so we are not using that info.
+    
+    
     mgmt.years <- mgmt.over$year
     mgmt.years.post <- mgmt.years - year.focal
     years.order <- order(mgmt.years.post)
@@ -385,7 +422,6 @@ for(i in 1:nrow(fires.focal))  {
     pl.spl[j,"thin.suids.noslivers"] <-  paste(mgmt.suids.noslivers,collapse=", ")
     
     # get all overlapping replant units and their associated info
-    
 
     if(is.null(facts.fire.replant)) mgmt.over <- NULL else mgmt.over <- raster::intersect(facts.fire.replant,planting.slice)
     
@@ -421,7 +457,42 @@ for(i in 1:nrow(fires.focal))  {
     years.order <- order(mgmt.years.post)
     mgmt.suids.noslivers <- mgmt.over.noslivers$SUID[years.order]
     pl.spl[j,"replant.suids.noslivers"] <-  paste(mgmt.suids.noslivers,collapse=", ")
+  
     
+    # get all overlapping fuel units and their associated info
+    
+    if(is.null(facts.fire.fuel)) mgmt.over <- NULL else mgmt.over <- raster::intersect(facts.fire.fuel,planting.slice)
+    
+    # get the first planting year
+    first.planting.year <- min(planting.over$year,na.rm=TRUE)
+
+    # only count fuel treatment that happened at least the year after planting, or later
+    mgmt.over <- mgmt.over[mgmt.over$year > first.planting.year,]
+    
+    ##NOTE that if this was not a planting unit (but rather a salvage unit), first planting year will be Inf so no prescribed fire will be counted
+    
+    mgmt.years <- mgmt.over$year
+    mgmt.years.post <- mgmt.years - year.focal
+    years.order <- order(mgmt.years.post)
+    mgmt.years.post <- mgmt.years.post[years.order]
+    mgmt.suids <- mgmt.over$SUID[years.order]
+    mgmt.methods <- mgmt.over$METHOD[years.order]
+    mgmt.nyears <- length(mgmt.years)
+    mgmt.n.unique.years <- length(unique(mgmt.years))
+    pl.spl[j,"fuel.years.post"] <- paste(mgmt.years.post,collapse=", ")
+    pl.spl[j,"fuel.suids"] <- paste(mgmt.suids,collapse=", ")
+    pl.spl[j,"fuel.methods"] <- paste(mgmt.methods,collapse=", ")
+    pl.spl[j,"fuel.nyears"] <- paste(mgmt.nyears,collapse=", ")
+    pl.spl[j,"fuel.n.unique.years"] <- paste(mgmt.n.unique.years,collapse=", ")
+    # get suids excluding slivers (stringers)
+    mgmt.over.noslivers <- mgmt.over[mgmt.over$sliver=="no",]
+    mgmt.years <- mgmt.over.noslivers$year
+    mgmt.years.post <- mgmt.years - year.focal
+    years.order <- order(mgmt.years.post)
+    mgmt.suids.noslivers <- mgmt.over.noslivers$SUID[years.order]
+    pl.spl[j,"fuel.suids.noslivers"] <-  paste(mgmt.suids.noslivers,collapse=", ")
+    
+
     # get all overlapping prune units and their associated info
     
     if(is.null(facts.fire.prune)) mgmt.over <- NULL else mgmt.over <- raster::intersect(facts.fire.prune,planting.slice)
@@ -478,10 +549,16 @@ first.col.index <- which(names(a) == "planting.years.post")
 last.col.index <- which(names(a) == "fire.year")
 cols.to.group.by <- names(a)[first.col.index:last.col.index]
 
-# create a single column that is unique for each unique set of management
+## create a single column that is unique for each unique set of management
 #   must do it here because group_by.sf (used in pipeline below) only works when given a single column
-unique.id = group_indices(as.data.frame(planting.management),planting.suids.noslivers,salvage.suids.noslivers,prep.suids.noslivers,release.suids.noslivers,thin.suids.noslivers,replant.suids.noslivers,prune.suids.noslivers)
+
+#! first remove the planting suids for planting slices that are in a sliver so it is not considered the same as the part of the planting slice outside the sliver
+# planting.management[planting.management$sliver=="YES","planting.suids.noslivers"] <- ""
+unique.id = group_indices(as.data.frame(planting.management),planting.suids.noslivers,salvage.suids.noslivers,prep.suids.noslivers,release.suids.noslivers,thin.suids.noslivers,replant.suids.noslivers,prune.suids.noslivers,fuel.suids.noslivers)
 planting.management$unique.id <- unique.id
+
+
+####!!! resume here searching for how "first FACTS planting suid" is found and set it to null for planting slivers.
 
 pl.mgt.sf <- as(planting.management,"sf")
 pl.mgt.sf <- st_buffer(pl.mgt.sf,0)
@@ -511,9 +588,11 @@ planting.management.backup <- planting.management
 
 ####!!! here, for each planting suid, get all other suids and their unique ids
 
+library(tidyverse)
 # get the first planting SUID of each slice
 suids.split <- strsplit(planting.management$planting.suids,", ")
 planting.management$first.planting.suid <- map_chr(suids.split,1,.default=NA)
+
 planting.management$planting.slice.split <- "no"
 
 planting.management <- as(planting.management,"sf")
@@ -521,9 +600,11 @@ planting.management$area <- st_area(planting.management)
 
 for(i in 1:nrow(planting.management)) {
   
+  cat("\r Checking for split planting units: ",i,"of",nrow(planting.management),"      ")
+  
   planting.row <- planting.management[i,]
 
-  # if(planting.row$slice.id == 26) {
+  # if(planting.row$unique.id == 2181) {
   #   browser()
   # }
 
@@ -541,11 +622,12 @@ for(i in 1:nrow(planting.management)) {
   # if there are areas with the same suid but a different unique.id, it means the planting suid was split into multiple types of follow-up management
   if(length(non.matching.ids.with.same.suid) > 0) {
 
-    # get the total area of the non-matching ids (different management--but not considering salvage)
+    # get the total area of the non-matching ids (different management--but excluding polygons in stringers)
     non.matching.rows <- planting.management[non.matching.ids.with.same.suid,]
+    non.matching.rows <- non.matching.rows[non.matching.rows$stringer == "no",] # make sure the non-matching rows are not slivers
     area.other.management <- sum(non.matching.rows$area)
     
-    # get the total area of the matching ids (same management--but not considering salvage)
+    # get the total area of the matching ids (same management)
     matching.rows <- planting.management[matching.ids.with.same.suid,]
     area.focal.management <- sum(matching.rows$area) + focal.area
     

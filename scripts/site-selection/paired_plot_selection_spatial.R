@@ -49,9 +49,15 @@ tf_to_yn <- function(x) {
 # load FACTS planting history slices of focal fires
 # this layer already excludes management that burned after it was managed
 # it also excludes management that was not completed (no assigned completed date)
-planting.slices <- readOGR("data/site-selection/output/aggregated-management-history/shapefiles/management_history.gpkg",stringsAsFactors = FALSE)
-planting.slices <- as(planting.slices,"sf")
+# planting.slices <- readOGR("data/site-selection/output/aggregated-management-history/shapefiles/management_history.gpkg",stringsAsFactors = FALSE)
+# planting.slices <- as(planting.slices,"sf")
+
+planting.slices <- st_read("data/site-selection/output/aggregated-management-history/shapefiles/management_history.gpkg",stringsAsFactors=FALSE)
 planting.slices <- st_transform(planting.slices,crs=crs)
+planting.slices <- st_set_crs(planting.slices,value=crs)
+# st_write(planting.slices,"data/site-selection/output/aggregated-management-history/shapefiles/management_history.shp",delete_dsn=TRUE)
+# planting.slices <- st_read("data/site-selection/output/aggregated-management-history/shapefiles/management_history.shp",stringsAsFactors=FALSE)
+
 planting.slices <- planting.slices[planting.slices$planting.nyears > 0,]
 
 
@@ -74,6 +80,10 @@ fires.focal <- fires[fires$VB_ID %in% fires.focal.names,]
 facts.all <- st_read("data/non-synced/existing-datasets/pseudo-FACTS/CA clips/CA_Activity_merged.shp",stringsAsFactors=FALSE)
 facts.all <- st_transform(facts.all,crs=crs)
 facts.all.fires <- st_intersection(facts.all,fires.focal)
+facts.all.fires$DATE_A <- as.character(facts.all.fires$DATE_A)
+facts.all.fires$DATE_C <- as.character(facts.all.fires$DATE_C)
+facts.all.fires$DATE_P <- as.character(facts.all.fires$DATE_P)
+
 # remove facts units that were not completed (no completed date)
 facts.all.fires <- facts.all.fires[!is.na(facts.all.fires$DATE_C),]
 
@@ -118,14 +128,29 @@ planting.zone <- st_union(planting.zone)
 
 # Buffer in by 25 m and out by 25 m and place points along the resulting perimeters to establish the candidate set of "treated" and "control" plots
 treated.plot.perim <- st_buffer(planting.zone,dist=-15)
+treated.plot.perim <- st_set_crs(treated.plot.perim,3310)
+
+# st_write(treated.plot.perim,"../treated_plot_perim_precast.gpkg")
+
+precast.crs <- st_crs(treated.plot.perim)
+precast.precision <- st_precision(treated.plot.perim)
 treated.plot.perim <- st_cast(treated.plot.perim,"MULTILINESTRING")
+st_crs(treated.plot.perim) <- precast.crs
+st_precision(treated.plot.perim) <- precast.precision
+
+# st_write(treated.plot.perim,"../treated_plot_perim_postcast.gpkg")
+
 treated.perim.length <- st_length(treated.plot.perim) %>% sum() %>% as.numeric()
 treated.plot.perim <- as(treated.plot.perim,"Spatial")
 trt.candidate.plots <- spsample(treated.plot.perim,n=treated.perim.length/100,type="regular")
 trt.candidate.plots <- as(trt.candidate.plots,"sf")
 
 control.plot.perim <- st_buffer(planting.zone,dist=15)
+precast.crs <- st_crs(control.plot.perim)
+precast.precision <- st_precision(control.plot.perim)
 control.plot.perim <- st_cast(control.plot.perim,"MULTILINESTRING")
+st_crs(control.plot.perim) <- precast.crs
+st_precision(control.plot.perim) <- precast.precision
 control.perim.length <- st_length(control.plot.perim) %>% sum() %>% as.numeric()
 control.plot.perim <- as(control.plot.perim,"Spatial")
 ctrl.candidate.plots <- spsample(control.plot.perim,n=control.perim.length/50,type="regular")
@@ -652,7 +677,7 @@ st_write(candidate.plots.paired,"data/site-selection/output/candidate-plots/cand
 ##
 ##
 ##
-#### Explore range of environment and management at paired plots ####
+#### Explore range of environment and management at paired plots; further summarize them for plot selection ####
 #### for narrowing to the most common type of factorial management, and for identifying fires with sufficient environmental variation
 ##
 
@@ -678,14 +703,27 @@ names(facts.slices)[names(facts.slices) != "geom"] <- paste0("f.s.",names(facts.
 rad <- raster("data/non-synced/existing-datasets/solar radiation/march_rad.tif")
 p$rad <- raster::extract(rad,p,method="bilinear")
 
+
 ## for each treated plot, get the management done and determine whether the control plot was salvaged
 p.trt <- p[p$type=="treatment",]
 p.trt <- st_intersection(p.trt,facts.slices) # get management done
+# set helicopter salvage as not salvaged
+p.trt[p.trt$postfire.salvage.heli == "YES","f.s.salvage"] <- "no"
+
+
 p.int <- p[p$type=="internal",]
 p.int <- st_intersection(p.int,facts.slices)
+# set helicopter salvage as not salvaged
+p.int[p.int$postfire.salvage.heli == "YES","f.s.salvage"] <- "no"
+
+
 
 p.ctl <- p[p$type=="control",]
 p.ctl.salvage <- st_intersection(p.ctl,facts.slices)
+
+# set helicopter salvage as not salvaged
+p.ctl.salvage[p.ctl.salvage$postfire.salvage.heli == "YES","f.s.salvage"] <- "no"
+
 p.ctl.salvage <- p.ctl.salvage %>%
   st_drop_geometry() %>%
   dplyr::select(id,f.s.salvage) %>%
@@ -703,7 +741,8 @@ p.dat <- left_join(p.dat,p.ctl,by=c("ctl.id" = "id.ctl"))
 p.dat$f.s.salvage.ctl[is.na(p.dat$f.s.salvage.ctl)] <- "no"
 
 
-## Salvage cat: trt only, both, none
+### Salvage cat: trt only, both, none
+
 p.dat$salv.cat <- NA
 
 p.dat$salv.cat[p.dat$f.s.salvage == "yes" & p.dat$f.s.salvage.ctl == "yes"] <- "both"
@@ -817,16 +856,16 @@ p.dat$replanted2 <- paste0("replt: ",p.dat$replanted)
 p.dat$thinned2 <- paste0("thn: ",p.dat$thinned)
 p.dat$heli2 <- paste0("heli: ",p.dat$postfire.salvage.heli)
 p.dat <- p.dat %>%
-  mutate(mgmt.factorial = paste(fire.dist2,salv.cat2,site.prepped2,released2,thinned2,heli2,sep=", ")) # make a column with factorial management
+  mutate(mgmt.factorial = paste(fire.dist2,salv.cat2,site.prepped2,released2,thinned2,sep=", ")) # make a column with factorial management
   # original: mutate(mgmt.factorial = paste(fire2,salv.cat2,plant.timing2,site.prepped2,released2,replanted2,thinned2,sep=", ")) # make a column with factorial management
-
+  # also removed heli2 because now all helicopter slavage is considered unsalvaged.
 
 
 #classify as perimeter or internal
 p.dat <- p.dat %>%
   mutate(class = ifelse(type=="internal","internal","perimeter"))
 
-# remove external plots close to seed source (the whole purpose of them is to provide additional plots far from seed source)
+# remove internal plots close to seed source (the whole purpose of them is to provide additional plots far from seed source)
 p.dat <- p.dat %>%
   filter(dist.non.high > 120 | class == "perimeter")
 
@@ -877,11 +916,13 @@ p.dat.agg <- p.dat.close %>%
   summarize(nplots = n()) %>%
   arrange(fire.dist2,-nplots) %>%
   # formerly before reduced number of factorial vars: mutate(mgmt.factorial = paste(fire2,salv.cat2,plant.timing2,site.prepped2,released2,replanted2,thinned2,sep=", ")) %>% # make a column with factorial management
-  mutate(mgmt.factorial = paste(fire.dist2,salv.cat2,site.prepped2,released2,thinned2,heli2,sep=", ")) %>% # make a column with factorial management
+  mutate(mgmt.factorial = paste(fire.dist2,salv.cat2,site.prepped2,released2,thinned2,sep=", ")) %>% # make a column with factorial management
   ungroup()
+  #! removed heli2 from mgmt factorical because considering heli salvage to be unsalvaged
+
   
 # keep only the ones with enough candidate plots
-p.dat.agg.many <- p.dat.agg[p.dat.agg$nplots >= 15,] %>% 
+p.dat.agg.many <- p.dat.agg[p.dat.agg$nplots >= 10,] %>% 
   as.data.frame() %>%
   st_drop_geometry() %>%
   dplyr::select(-geom)
@@ -890,7 +931,7 @@ p.dat.agg.many <- p.dat.agg[p.dat.agg$nplots >= 15,] %>%
 write.csv(p.dat.agg.many,"data/site-selection/output/candidate-plots/candidate_plots_management_stratification_v3allrelease.csv",row.names=FALSE)
 
 # save as an HTML widget
-path <- file.path(getwd(),"data/site-selection/output/candidate-plots/","candidate_plots_management_stratification_v3allrelease.html")
+path <- file.path(getwd(),"data/site-selection/output/candidate-plots/","candidate_plots_management_stratification_v4allrelease.html")
 datatable(p.dat.agg.many,options=list(pageLength=100)) %>%
   saveWidget(file=path)
 
@@ -941,17 +982,28 @@ p.plot <- p.plot %>%
          second.part = str_sub(mgmt.factorial.nofire,splitpos,-1)) %>%
   mutate(mgmt.w.newline = paste0(first.part,"\n",second.part))
 
-#remove plots that are in between 80 and 120 m from seed source
+#remove plots that are in between 80 and 120 m from seed source (for them, no value stored for dist.nonhigh)
 p.plot <- p.plot %>%
   filter(!is.na(dist.nonhigh))
 
+# Remove plots that are from incomplete planting slices (had other management overlapping a portion of the planting unit)
+p.plot <- p.plot %>%
+  filter(f.s.planting.slice.split == "no")
 
+# Remove plots that are from roadside salvage+planting stringers
+p.plot <- p.plot %>%
+  filter(f.s.stringer == "no")
+
+
+plts <- NULL
 for(i in 1:length(fires)) {
   
   fire <- fires[i]
     
     type <- mgmt.cats[i]
     d <- p.plot[p.plot$fire.dist2 == fire,]
+    
+    if(nrow(d) < 10) next()
     
     d.perim <- d[d$class=="perimeter",]
     d.int <- d[d$class=="internal",]
@@ -974,19 +1026,18 @@ for(i in 1:length(fires)) {
 
 
 
-pdf("data/site-selection/output/candidate-plots/candidate_plot_management_environment_stratification_v8inclinternal.pdf")
+pdf("data/site-selection/output/candidate-plots/candidate_plot_management_environment_stratification_v11_nostringers.pdf")
 for(i in seq_along(plts)) {
   print(plts[[i]])
 }
 dev.off()
 
 
-
 ### Now explore on each fire what the major treatment (release) types were
 
 ## for each row, replicate it with each entry in f.s.release.methods as a separate row
 d.simp <- p.dat.many %>%
-  select(fire.dist2,f.s.release.methods) %>%
+  dplyr::select(fire.dist2,f.s.release.methods) %>%
   st_drop_geometry
 
 d.simp.long <- d.simp %>%

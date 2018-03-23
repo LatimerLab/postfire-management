@@ -1,44 +1,41 @@
 "fire.forest","release.method","frequency"
-"1987CLARK - Plumas NF","Manual",141
+"1987CLARK - Plumas NF","Manual",192
 "1987CLARK - Plumas NF","Mechanical",18
 "1987CLARK - Plumas NF","Not Applicable",8
-"1987HAMM_CMPLX - Stanislaus NF","Manual Chemical",140
-"1987HAMM_CMPLX - Stanislaus NF","Chemical",15
-"1987HAMM_CMPLX - Stanislaus NF","Mechanical",4
-"1987INDIAN - Tahoe NF","Manual",841
-"1987INDIAN - Tahoe NF","Not Applicable",261
-"1987INDIAN - Tahoe NF","Mechanical",12
-"1987LOST - Lassen NF","Mechanical",314
-"1987LOST - Lassen NF","Manual",91
-"1990STORMY - Sequoia NF","Manual",183
-"1990STORMY - Sequoia NF","Not Applicable",139
-"1992CLEVELAND - Eldorado NF","Manual",95
-"1992CLEVELAND - Eldorado NF","Chemical",5
-"1992RUBY - Stanislaus NF","Manual Chemical",97
-"1992RUBY - Stanislaus NF","Manual",11
-"1994BIG_CREEK - Sierra NF","Manual",97
-"1994BIG_CREEK - Sierra NF","Not Applicable",21
-"1994COTTONWOOD - Tahoe NF","Not Applicable",224
-"1994COTTONWOOD - Tahoe NF","Manual",200
-"1994COTTONWOOD - Tahoe NF","Cut trees and brush",60
-"1994COTTONWOOD - Tahoe NF","Mechanical",42
-"1999PENDOLA - Tahoe NF","Manual",43
-"1999PENDOLA - Tahoe NF","Not Applicable",34
-"2001STAR - Eldorado NF","Chemical",131
-"2001STAR - Eldorado NF","Manual",10
-"2001STAR - Tahoe NF","Manual",45
-"2004FREDS - Eldorado NF","Manual",75
-"2004FREDS - Eldorado NF","Chemical",74
-"2004POWER - Eldorado NF","Manual",97
+"1987HAMM_CMPLX - Stanislaus NF","Manual Chemical",161
+"1987HAMM_CMPLX - Stanislaus NF","Chemical",20
+"1987HAMM_CMPLX - Stanislaus NF","Mechanical",3
+"1987INDIAN - Tahoe NF","Manual",1067
+"1987INDIAN - Tahoe NF","Not Applicable",331
+"1987INDIAN - Tahoe NF","Mechanical",20
+"1987LOST - Lassen NF","Mechanical",420
+"1987LOST - Lassen NF","Manual",116
+"1989RACK - Plumas NF","Mechanical",34
+"1990STORMY - Sequoia NF","Not Applicable",376
+"1990STORMY - Sequoia NF","Manual",239
+"1992RUBY - Stanislaus NF","Manual Chemical",23
+"1992RUBY - Stanislaus NF","Manual",6
+"1994BIG_CREEK - Sierra NF","Manual",206
+"1994BIG_CREEK - Sierra NF","Not Applicable",50
+"1994COTTONWOOD - Tahoe NF","Not Applicable",267
+"1994COTTONWOOD - Tahoe NF","Manual",226
+"1994COTTONWOOD - Tahoe NF","Cut trees and brush",18
+"1999PENDOLA - Tahoe NF","Not Applicable",50
+"1999PENDOLA - Tahoe NF","Manual",39
+"2001STAR - Eldorado NF","Chemical",23
+"2001STAR - Tahoe NF","Manual",53
+"2004POWER - Eldorado NF","Manual",335
 "2004STRAYLOR - Lassen NF","Manual",238
-"2004STRAYLOR - Lassen NF","Not Applicable",34
-"2006BASSETTS - Tahoe NF","Manual",68
-"2006BASSETTS - Tahoe NF","Cut trees and brush",43
-"2007ANTELOPE_CMPLX - Plumas NF","Manual",28
-"2007MOONLIGHT - Plumas NF","Manual",144
-"2007MOONLIGHT - Plumas NF","Not Applicable",68
-"2008GOVERNMENT - Tahoe NF","Manual",116
-"2008GOVERNMENT - Tahoe NF","Grubbing or scalping",20
-"2008PIUTE - Sequoia NF","Manual",44
-"2012CHIPS - Plumas NF","Grubbing or scalping",178
-"2012CHIPS - Plumas NF","Manual",29
+"2004STRAYLOR - Lassen NF","Not Applicable",1
+"2006BASSETTS - Tahoe NF","Manual",66
+"2006BASSETTS - Tahoe NF","Cut trees and brush",45
+"2007MOONTELOPE - Plumas NF","Manual",161
+"2007MOONTELOPE - Plumas NF","Not Applicable",97
+"2008GOVERNMENT - Tahoe NF","Manual",132
+"2008GOVERNMENT - Tahoe NF","Grubbing or scalping",18
+"2008PIUTE - Sequoia NF","Manual",147
+"2009SUGARLOAF - Lassen NF","Manual",17
+"2012CHIPS - Lassen NF","Manual",11
+"2012CHIPS - Plumas NF","Grubbing or scalping",194
+"2012CHIPS - Plumas NF","Manual",39
+"2012READING - Lassen NF","Manual",39
