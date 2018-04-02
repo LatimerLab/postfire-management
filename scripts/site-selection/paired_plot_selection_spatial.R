@@ -157,7 +157,7 @@ ctrl.candidate.plots <- spsample(control.plot.perim,n=control.perim.length/50,ty
 ctrl.candidate.plots <- as(ctrl.candidate.plots,"sf")
 
 ## Internal points
-internal.poly <- st_buffer(planting.zone,dist=-100)
+internal.poly <- st_buffer(planting.zone,dist=-50)
 # Must do fire-by-fire because it's too slow to do all at once
 internal.candidate.plots.list <- list()
 for(fire in fires.focal.names) {
@@ -938,6 +938,17 @@ datatable(p.dat.agg.many,options=list(pageLength=100)) %>%
 # filter the full plot database to only those fires and factorial management categories that have enough member plots
 p.dat.many <- p.dat[p.dat$mgmt.factorial %in% p.dat.agg.many$mgmt.factorial,]
 
+# make some variables better for plotting
+p.dat.many$mgmt.factorial.nofire <- str_split(p.dat.many$mgmt.factorial,", ",n=2) %>%
+  map_chr(2)
+
+p.dat.many <- p.dat.many %>%
+  mutate(yr.pltd = as.numeric(first.pltd.yr)) %>%
+  mutate(yr.pltd = ifelse(yr.pltd > 4,4,yr.pltd)) %>%
+  mutate(yr.pltd = as.character(yr.pltd)) %>%
+  mutate(yr.pltd = ifelse(yr.pltd == "4","4+",yr.pltd))
+
+
 
 # need to restore the control plots back to the filtered candidate plots
 p.ctl <- p[p$type=="control",]
@@ -956,26 +967,14 @@ st_write(p.dat.many.w.ctl,"data/site-selection/output/candidate-plots/candidate_
 mgmt.cats <- unique(p.dat.many$mgmt.factorial)
 fires <- unique(p.dat.many$fire.dist2)
 
-
-p.dat.many$mgmt.factorial.nofire <- str_split(p.dat.many$mgmt.factorial,", ",n=2) %>%
-  map_chr(2)
-
-p.dat.many <- p.dat.many %>%
-  mutate(yr.pltd = as.numeric(first.pltd.yr)) %>%
-  mutate(yr.pltd = ifelse(yr.pltd > 4,4,yr.pltd)) %>%
-  mutate(yr.pltd = as.character(yr.pltd)) %>%
-  mutate(yr.pltd = ifelse(yr.pltd == "4","4+",yr.pltd))
-
-
 plts <- list()
 
 yr.colors <- c("0" = "black","1" = "darkolivegreen3", "2" = "cornflowerblue", "3" = "darkorange1", "4+" = "brown3")
 
 p.plot <- p.dat.many
-#make the management category text have a newline (after the 3rd comma)
 
+##make the management category text have a newline (after the 3rd comma)
 comma.locs <- str_locate(p.plot$mgmt.factorial.nofire,fixed(" thn:"))
-
 p.plot <- p.plot %>%
   mutate(splitpos = str_locate(mgmt.factorial.nofire,fixed(" thn:"))[,"start"]) %>%
   mutate(first.part = str_sub(mgmt.factorial.nofire,1,splitpos),
@@ -1026,7 +1025,7 @@ for(i in 1:length(fires)) {
 
 
 
-pdf("data/site-selection/output/candidate-plots/candidate_plot_management_environment_stratification_v11_nostringers.pdf")
+pdf("data/site-selection/output/candidate-plots/candidate_plot_management_environment_stratification_v12_nostringers.pdf")
 for(i in seq_along(plts)) {
   print(plts[[i]])
 }
