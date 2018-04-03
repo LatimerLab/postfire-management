@@ -843,8 +843,6 @@ p.dat[p.dat$type=="internal" & p.dat$f.s.salvage == "yes","salv.cat"] <- "plante
 p.dat[p.dat$type=="internal" & p.dat$f.s.salvage == "no","salv.cat"] <- "neither"
 p.dat <- rbind(p.dat,p.dat.int.salv.copy)
 
-
-
 # revalue the important columns to something intelligible
 p.dat$fire2 <- p.dat$fire.name
 p.dat$fire.dist2 <- p.dat$fire.dist
@@ -906,7 +904,7 @@ write.csv(p.dat.plt.summ,row.names=FALSE,"data/site-selection/output/candidate-p
 ## resuming main code
 
 
-## OK, now for each fire, sum the number of plots in each factorial combination of each of the important treatment columns
+## OK, now for each fire, sum the number of perimeter plots in each factorial combination of each of the important treatment columns
 # only consider perimeter plots when tallying if there are enough
 p.dat.agg <- p.dat.close %>%
   filter(class=="perimeter") %>%
