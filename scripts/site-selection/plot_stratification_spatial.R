@@ -252,18 +252,18 @@ ggplot(d.foc.yr,aes(x=elev,y=rad,color=f.s.first.planting.suid,shape=dist.nonhig
 sub.quads.df <- data.frame()
 
 # so for each quadrant
-for(j in 1:nrow(env.cats)) {
+for(j in 1:nrow(env.quads)) {
   
-  env.cat <- env.cats[j,]
+  env.quad <- env.quads[j,]
 
   #define sub-quadrants #! we can adjust the number of sub-quads here based on the desired number of survey plots
-  sub.quads <- define.quadrants(env.cat$rad.low,env.cat$rad.high,env.cat$elev.low,env.cat$elev.high,rad.cats.arg=2,elev.cats.arg=2)
+  sub.quads <- define.quadrants(env.quad$rad.low,env.quad$rad.high,env.quad$elev.low,env.quad$elev.high,rad.cats.arg=2,elev.cats.arg=2)
 
     for(k in 1:nrow(sub.quads)) {
     
     sub.quad <- sub.quads[k,]
     
-    sub.quad.df <- data.frame(quad.label=env.cat$label,
+    sub.quad.df <- data.frame(quad.label=env.quad$label,
                               subquad.label=paste0("s",sub.quad$label),
                               elev.low=sub.quad$elev.low,
                               elev.high=sub.quad$elev.high,
@@ -319,7 +319,7 @@ ggplot(d.foc.yr.classified,aes(x=elev,y=rad,color=quad.label,shape=subquad.label
   labs(title=d.foc$fire.dist2[1])
 
 
-## Summarize by suid and quadrant: what subquadrants were represented by each SUID
+## Summarize by suid and quadrant: what subquadrants are represented by each SUID
 concatenate.unique <- function(x) {
   
 }
@@ -335,33 +335,135 @@ suid.summ <- d.foc.yr.classified %>%
 
 ### Now the goal is to find the smallest number of SUIDS that can fill at least 2 subquads of every quad
 
+##function to compute the quality of stratification given a tally of how many plots are in each sub-quad
+score.stratif <- function(sub.quads.df,simp=FALSE) {
+  
+  # count the number of subquads filled
+  n.sub.quads.filled <- sum(sub.quads.df$nplots>0,na.rm=TRUE)
+  
+  # count the number of quadrants with 2+ subquads filled
+  quads <- sub.quads.df %>%
+    group_by(quad.label) %>%
+    summarize(n.subquads.full = sum(nplots >= 1,na.rm=TRUE)) %>%
+    mutate(two.plus.subquads.full = n.subquads.full >= 2) %>%
+    ungroup()
+  
+  n.quads.w.two.plus.subquads <- sum(quads$two.plus.subquads.full,na.rm=TRUE)
+  
+  ret <- list(n.sub.quads.filled=n.sub.quads.filled,quads=quads,n.quads.w.two.plus.subquads=n.quads.w.two.plus.subquads)
+  
+  if(simp==TRUE) {
+    #return only the "n.sub.quads.filled" and "n.quads.w.two.plus.subquads"
+    ret <- ret[c("n.sub.quads.filled","n.quads.w.two.plus.subquads")]
+    ret <- as.data.frame(ret)
+  }
+  
+  return(ret)
+  
+}
+
+
+### function to take a SUID and compute what the sub.quads.df (stratification records) would be if it were added
+add.suid <- function(suid,d.foc.yr.classified,sub.quads.df) {
+  
+  d.foc.yr.classified.suid <- d.foc.yr.classified %>%
+    filter(f.s.first.planting.suid == suid) %>% # look only at the SUID in question
+    group_by(overall.label) %>% 
+    summarize(nplots.added = n()) %>% # compute the number of plots within each subquadrant
+    ungroup()
+  
+  ##add the new counts to the stratification records: first as a new column
+  new.sub.quads.df <- left_join(sub.quads.df,d.foc.yr.classified.suid,by="overall.label")
+  new.sub.quads.df[is.na(new.sub.quads.df$nplots.added),"nplots.added"] <- 0
+  
+  # then replace the original "nplots" column
+  new.sub.quads.df <- new.sub.quads.df %>%
+    mutate(nplots = nplots + nplots.added) %>%
+    dplyr::select(-nplots.added)
+    
+  return(new.sub.quads.df)
+  
+}
+
+## function to take a SUID and calculate the new stratification scores (simplified) if it were added
+strat.scores.w.new.suid <- function(suid,sub.quads.df,d.foc.yr.classified) {
+  
+  #get the new sub quads DF if the SUID were added
+  new.sub.quads.df <- add.suid(suid,d.foc.yr.classified,sub.quads.df)
+  
+  #score it
+  strat.score <- score.stratif(new.sub.quads.df,simp=TRUE)
+  
+  return(strat.score)
+}
+
+
+
+
 # for keeping track of which SUIDs we still have as candidates to add
+# initialize it with all SUIDS that contain points of the focal management category
+suids.remaining <- unique(d.foc.yr.classified$f.s.first.planting.suid)
+
 suids.remaining <- suid.summ
 
 # for keeping track of which subquads have been filled, use the subquads DF
-sub.quads.df$nplots <- NA
+sub.quads.df$nplots <- 0
+
 
 ## start the loop here
 
-# count the number of subquads filled
-sub.quads.filled <- sum(sub.quads.df$nplots>0,na.rm=TRUE)
+#1. Compute the current stratification scores
+strat.scores <- score.stratif(sub.quads.df,simp=TRUE)
 
-# count the number of quadrants with 2+ subquads filled
-quads <- sub.quads.df %>%
-  group_by(quad.label) %>%
-  summarize(n.subquads.full = sum(nplots >= 1,na.rm=TRUE)) %>%
-  mutate(two.plus.subquads.full = n.subquads.full >= 2) %>%
-  ungroup()
+#2. Test all remaining suids to see which best improves the stratification scores
 
-n.quads.w.two.plus.subquads <- sum(quads$two.plus.subquads.full,na.rm=TRUE)
+remaining.suids <- unique(suids.remaining$f.s.first.planting.suid)
+
+new.strat.scores <- map(remaining.suids,.f=strat.scores.w.new.suid,sub.quads.df=sub.quads.df,d.foc.yr.classified=d.foc.yr.classified)
+new.strat.scores.df <- bind_rows(new.strat.scores)
+new.strat.scores.df$suid <- remaining.suids
+
+#find all the suids that achieve the greatest numver of quadrants that have at least 2+ subquadrants filled
+max.quads.filled <- max(new.strat.scores.df$n.quads.w.two.plus.subquads)
+best.scores <- new.strat.scores.df %>%
+  filter(n.quads.w.two.plus.subquads == max.quads.filled)
+
+#! here, we may want to first select the SUID that also has the greatest redundancy
+
+#among those, find the one that fills the greatest number of quads
+max.sub.quads.filled <- max(best.scores$n.sub.quads.filled)
+best.scores <- best.scores %>%
+  filter(n.sub.quads.filled == max.sub.quads.filled)
+
+#! here, we should take the SUID with the greatest number of plots total
+
+# now, in case there are still multiple tied, just take the first one (this should be rare)
+best.scores <- best.scores[1,]
+
+## compute the new strat scores with that suid, make sure they went up, and if so update the strat records, update the current strat scores, then see if we hit our goal (for first tier, then for second tier)
 
 
 
-## will need a way to make sure that we have second-tier plots in every quadrant, and if not, add more SUIDs, but make sure those SUIDS stay marked as required only for second-tier
+
+
+
+
+
+
+
+
+
+#! note that may want to have an addl scoring column that reflects the number of quads that have 2+ subquads with at least two (or three) plots (so we can have second and third tier)
+
+## will need a way to make sure that we have second-tier plots in every quadrant (i.e., two-to-three plots), and if not, add more SUIDs, but make sure those SUIDS stay marked as required only for second-tier
 
 ## when finding second-tier plots for each sub-quadrant, first draw upon the first-tier SUIDs
 
-## when possible, second-tier plots should be from the same quadrant as the first-tier plots
+## when possible, second-tier plots should be from the same quadrant as the first-tier plots. also, second-tier plots should be from first-tier SUIDS when avaialble
+
+
+
+
 
 
 
