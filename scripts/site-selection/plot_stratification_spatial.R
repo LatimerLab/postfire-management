@@ -48,6 +48,7 @@ d.trt <- d.trt %>%
   filter(f.s.stringer == "no")
 
 
+
 #### Perform fire-specific stratification ####
 ## NOTE that some internal plots that were salvaged are in the database twice if needed to match with the salvage categories "both" and "planted"
 
@@ -440,9 +441,13 @@ best.scores <- best.scores %>%
 # now, in case there are still multiple tied, just take the first one (this should be rare)
 best.scores <- best.scores[1,]
 
-## compute the new strat scores with that suid, make sure they went up, and if so update the strat records, update the current strat scores, then see if we hit our goal (for first tier, then for second tier)
+## compute the new strat scores with that suid
+#make sure they went up (if already hit the first tier goal, check for second tier goal instead)
+# and if so update the strat records
+# update the current strat scores
+# then see if we hit our goal (for first tier, then for second tier)
 
-
+# after meeting all tier goals, pick which sub-quads to be focal for plots: first all those that have 2-3 first tier plots, then add those where first-plus second-tier plots bring up to 2-3 plots, until we have enough subquadrants filled.
 
 
 

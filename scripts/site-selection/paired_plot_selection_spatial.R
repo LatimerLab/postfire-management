@@ -960,7 +960,6 @@ p.dat.many.w.ctl <- rbind(p.dat.many,p.ctl.match)
 # write the filtered candidate plot dataset
 st_write(p.dat.many.w.ctl,"data/site-selection/output/candidate-plots/candidate_plots_paired_filtered.gpkg",delete_dsn=TRUE)
 
-
 ## Plot environmental range of each factorial management type
 mgmt.cats <- unique(p.dat.many$mgmt.factorial)
 fires <- unique(p.dat.many$fire.dist2)
