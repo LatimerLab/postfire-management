@@ -11,7 +11,7 @@ library(stringr)
 library(rgeos)
 library(DT)
 
-source("scripts/site-selection/plot_stratification_spatial_functions.R")
+source("scripts/site-selection/plot_stratification_functions.R")
 
 crs <- 3310 # CA albers
 
@@ -128,7 +128,7 @@ env.quads <- define.quadrants(rad.low,rad.high,elev.low,elev.high,rad.cats,elev.
 ### For each planting year, select plots stratified across the focal environmental range, using as few FACTS units (first planting SUIDs) as possible ###
 
 # only look at plots that were planted in yr 1 and were treated
-plt.yr <- "1"
+plt.yr <- "2"
 
 #only look at plots in the focal planting year, and that were treated
 d.foc.yr <- d.foc %>%
