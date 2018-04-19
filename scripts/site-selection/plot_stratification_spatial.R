@@ -311,7 +311,7 @@ ggplot(d.foc.yr.classified,aes(x=elev,y=rad,color=quad.label,shape=subquad.label
   geom_point(size=2) +
   theme_bw(15) +
   scale_shape_manual(values=c(16,1,2,17)) +
-  labs(color="SUID",shape="Seed dist") +
+  labs(color="Quad",shape="Subquad") +
   geom_rect(xmin=plotting.range$elev.low,
             xmax=plotting.range$elev.high,
             ymin=plotting.range$rad.low,
@@ -348,14 +348,29 @@ score.stratif <- function(sub.quads.df,simp=FALSE) {
     summarize(n.subquads.full = sum(nplots >= 1,na.rm=TRUE)) %>%
     mutate(two.plus.subquads.full = n.subquads.full >= 2) %>%
     ungroup()
-  
   n.quads.w.two.plus.subquads <- sum(quads$two.plus.subquads.full,na.rm=TRUE)
   
-  ret <- list(n.sub.quads.filled=n.sub.quads.filled,quads=quads,n.quads.w.two.plus.subquads=n.quads.w.two.plus.subquads)
+  # count the number of quadrants with 2+ subquads double-filled
+  quads <- sub.quads.df %>%
+    group_by(quad.label) %>%
+    summarize(n.subquads.full = sum(nplots >= 2,na.rm=TRUE)) %>%
+    mutate(two.plus.subquads.full = n.subquads.full >= 2) %>%
+    ungroup()
+  n.quads.w.two.plus.subquads.double <- sum(quads$two.plus.subquads.full,na.rm=TRUE)
+  
+  # count the number of quadrants with 2+ subquads triple-filled
+  quads <- sub.quads.df %>%
+    group_by(quad.label) %>%
+    summarize(n.subquads.full = sum(nplots >= 3,na.rm=TRUE)) %>%
+    mutate(two.plus.subquads.full = n.subquads.full >= 2) %>%
+    ungroup()
+  n.quads.w.two.plus.subquads.triple <- sum(quads$two.plus.subquads.full,na.rm=TRUE)
+  
+  ret <- list(n.sub.quads.filled=n.sub.quads.filled,quads=quads,n.quads.w.two.plus.subquads=n.quads.w.two.plus.subquads,n.quads.w.two.plus.subquads.double=n.quads.w.two.plus.subquads.double,n.quads.w.two.plus.subquads.triple=n.quads.w.two.plus.subquads.triple)
   
   if(simp==TRUE) {
     #return only the "n.sub.quads.filled" and "n.quads.w.two.plus.subquads"
-    ret <- ret[c("n.sub.quads.filled","n.quads.w.two.plus.subquads")]
+    ret <- ret[c("n.sub.quads.filled","n.quads.w.two.plus.subquads","n.quads.w.two.plus.subquads.double","n.quads.w.two.plus.subquads.triple")]
     ret <- as.data.frame(ret)
   }
   
@@ -365,7 +380,7 @@ score.stratif <- function(sub.quads.df,simp=FALSE) {
 
 
 ### function to take a SUID and compute what the sub.quads.df (stratification records) would be if it were added
-add.suid <- function(suid,d.foc.yr.classified,sub.quads.df) {
+add.suid <- function(suid,d.foc.yr.classified,sub.quads.df,tier=0) {
   
   d.foc.yr.classified.suid <- d.foc.yr.classified %>%
     filter(f.s.first.planting.suid == suid) %>% # look only at the SUID in question
@@ -379,7 +394,28 @@ add.suid <- function(suid,d.foc.yr.classified,sub.quads.df) {
   
   # then replace the original "nplots" column
   new.sub.quads.df <- new.sub.quads.df %>%
-    mutate(nplots = nplots + nplots.added) %>%
+    mutate(nplots = nplots + nplots.added)
+    
+  # then if tier is 1, add to nplots.tier1
+  if(tier==1) {
+    new.sub.quads.df <- new.sub.quads.df %>%
+      mutate(nplots.tier1 = nplots.tier1 + nplots.added)
+  }
+  
+  # then if tier is 2, add to nplots.tier2
+  if(tier==2) {
+    new.sub.quads.df <- new.sub.quads.df %>%
+      mutate(nplots.tier2 = nplots.tier2 + nplots.added)
+  }
+  
+  # then if tier is 3, add to nplots.tier3
+  if(tier==3) {
+    new.sub.quads.df <- new.sub.quads.df %>%
+      mutate(nplots.tier3 = nplots.tier3 + nplots.added)
+  }
+  
+  # finally, remove the temporary "nplots.added" column
+  new.sub.quads.df <- new.sub.quads.df %>%
     dplyr::select(-nplots.added)
     
   return(new.sub.quads.df)
@@ -403,46 +439,208 @@ strat.scores.w.new.suid <- function(suid,sub.quads.df,d.foc.yr.classified) {
 
 # for keeping track of which SUIDs we still have as candidates to add
 # initialize it with all SUIDS that contain points of the focal management category
-suids.remaining <- unique(d.foc.yr.classified$f.s.first.planting.suid)
+suids.remaining <- unique(suid.summ$f.s.first.planting.suid)
 
-suids.remaining <- suid.summ
+# for keeping track of which SUIDS we've already added
+suids.selected <- NULL
 
 # for keeping track of which subquads have been filled, use the subquads DF
 sub.quads.df$nplots <- 0
+sub.quads.df$nplots.tier1 <- 0
+sub.quads.df$nplots.tier2 <- 0
+sub.quads.df$nplots.tier3 <- 0
+
+# for keeping track of which tier of the search we are in
+current.tier <- 1
+current.iteration <- 1
+iteration.when.1st.tier.reached <- 0
+iteration.when.2nd.tier.reached <- 0
+iteration.when.3rd.tier.reached <- 0
 
 
 ## start the loop here
+while((current.tier < 4) & (length(suids.remaining) != 0)) {  
+ 
+   tier.just.completed <- FALSE
+  
+  #1. Compute the current stratification scores
+  strat.scores <- score.stratif(sub.quads.df,simp=TRUE)
+  
+  #2. Test all remaining suids to see which best improves the stratification scores
+  suids.remaining ##! need to remove the SUIDS that were added in the last iteration
+  
+  
+  new.strat.scores <- map(suids.remaining,.f=strat.scores.w.new.suid,sub.quads.df=sub.quads.df,d.foc.yr.classified=d.foc.yr.classified)
+  new.strat.scores.df <- bind_rows(new.strat.scores)
+  new.strat.scores.df$suid <- suids.remaining
+  
+  #find all the suids that achieve the greatest numver of quadrants that have at least 2+ subquadrants with at least one plot  ###!!! might want to reverse this to start looking for subquads with at least 3 plots? but then that deprioritizes SUIDs that fill lots of quadrants with one plot
+  max.quads.filled <- max(new.strat.scores.df$n.quads.w.two.plus.subquads)
+  best.scores <- new.strat.scores.df %>%
+    filter(n.quads.w.two.plus.subquads == max.quads.filled)
+  
+  #among those, find the one that achieve the greatest number of quadrants that have at least 2+ subquadrants with at least 2 plots
+  max.quads.filled.double <- max(best.scores$n.quads.w.two.plus.subquads.double)
+  best.scores <- best.scores %>%
+    filter(n.quads.w.two.plus.subquads.double == max.quads.filled.double)
+  
+  #among those, find the one that achieve the greatest number of quadrants that have at least 2+ subquadrants with at least 3 plots
+  max.quads.filled.triple <- max(best.scores$n.quads.w.two.plus.subquads.triple)
+  best.scores <- best.scores %>%
+    filter(n.quads.w.two.plus.subquads.triple == max.quads.filled.triple)
+  
+  #among those, find the one that fills the greatest number of subquads
+  max.sub.quads.filled <- max(best.scores$n.sub.quads.filled)
+  best.scores <- best.scores %>%
+    filter(n.sub.quads.filled == max.sub.quads.filled)
+  
+  #! here, we should take the SUID with the greatest number of plots total: #amont those, find the one that has the greatest number of plots total
+  
+  # now, in case there are still multiple tied, just take the first one (this should be rare)
+  best.scores <- best.scores[1,]
+  
+  ## compute the new strat scores with that suid
+  new.strat.scores <- strat.scores.w.new.suid(best.scores$suid,sub.quads.df,d.foc.yr.classified)
+  
+  
+  #make sure they went up (if already hit the first tier goal, check for increase in second tier goal instead, then third tier)
+  scores.increased <- FALSE
+  if(current.tier == 1) {
+    if(new.strat.scores$n.quads.w.two.plus.subquads > strat.scores$n.quads.w.two.plus.subquads) {
+      scores.increased <- TRUE
+    } else {
+      scores.increased <- FALSE
+    }
+  } else if (current.tier == 2) {
+    if(new.strat.scores$n.quads.w.two.plus.subquads.double > strat.scores$n.quads.w.two.plus.subquads.double) {
+      scores.increased <- TRUE
+    } else {
+      scores.increased <- FALSE
+    }
+  } else if (current.tier == 3) {
+    if(new.strat.scores$n.quads.w.two.plus.subquads.triple > strat.scores$n.quads.w.two.plus.subquads.triple) {
+      scores.increased <- TRUE
+    } else {
+      scores.increased <- FALSE
+    }
+  }
+  
+  ## if we were looking to increase first tier scoring, did we meet the goal?
+  if(current.tier == 1 & new.strat.scores$n.quads.w.two.plus.subquads == 4) {
+    
+    # add the new selected SUID to the list of selected SUIDs
+    new.suid <- best.scores$suid
+    suids.selected.new <- data.frame(suid=new.suid,tier=current.tier)
+    suids.selected <- rbind(suids.selected,suids.selected.new)
+    sub.quads.df <- add.suid(new.suid,d.foc.yr.classified,sub.quads.df,tier=1)
+    suids.remaining <- dplyr::setdiff(suids.remaining,new.suid)
+    
+    # go on to try to achieve tier 2 goal
+    tier.just.completed <- TRUE
+    iteration.when.1st.tier.reached <- current.iteration
+    
+  } else if (current.tier == 1 & scores.increased == TRUE) { # score increased but did not meet goal
+    
+    # add the new selected SUID to the list of selected SUIDS, but keep searching to meet goal
+    new.suid <- best.scores$suid
+    suids.selected.new <- data.frame(suid=new.suid,tier=current.tier)
+    suids.selected <- rbind(suids.selected,suids.selected.new)
+    sub.quads.df <- add.suid(new.suid,d.foc.yr.classified,sub.quads.df,tier=1)
+    suids.remaining <- dplyr::setdiff(suids.remaining,new.suid)
+    
+    
+  } else if(current.tier == 1 & scores.increased == FALSE) { # if we were looking to increase first tier scoring (n quads with 2+ subquads filled once), but we didn't manage to increase it, print message, then go on to search for second tier goal
+  
+    cat("\nFirst tier strat goal not reached for:",foc.fire.name,", Plant year:",plt.yr)
+    cat("\n   Filled",new.strat.scores$n.quads.w.two.plus.subquads,"quadrants suitably.")
+    tier.just.completed <- TRUE
+    iteration.when.1st.tier.reached <- current.iteration
+  
+  } else if(current.tier == 2 & new.strat.scores$n.quads.w.two.plus.subquads.double == 4) { # if we were looking to increase second tier scoring, did we meet goal?
+    
+    # add the new selected SUID to the list of selected SUIDs
+    new.suid <- best.scores$suid
+    suids.selected.new <- data.frame(suid=new.suid,tier=current.tier)
+    suids.selected <- rbind(suids.selected,suids.selected.new)
+    sub.quads.df <- add.suid(new.suid,d.foc.yr.classified,sub.quads.df,tier=2)
+    suids.remaining <- dplyr::setdiff(suids.remaining,new.suid)
+    
+    
+    # go on to try to achieve tier 3 goal
+    tier.just.completed <- TRUE
+    iteration.when.2st.tier.reached <- current.iteration
+    
+  } else if (current.tier == 2 & scores.increased == TRUE) { # score increased but did not meet goal
+    
+    # add the new selected SUID to the list of selected SUIDS, but keep searching to meet goal
+    new.suid <- best.scores$suid
+    suids.selected.new <- data.frame(suid=new.suid,tier=current.tier)
+    suids.selected <- rbind(suids.selected,suids.selected.new)
+    sub.quads.df <- add.suid(new.suid,d.foc.yr.classified,sub.quads.df,tier=2)
+    suids.remaining <- dplyr::setdiff(suids.remaining,new.suid)
+    
+    
+  } else if(current.tier == 2 & scores.increased == FALSE) { # if we were looking to increase second tier scoring (n quads w/ 2+ subquads filled twice), but we didn't manage to increase it, print message, then go on to search for third tier goal
+    
+    cat("\nSecond tier strat goal not reached for:",foc.fire.name,", Plant year:",plt.yr)
+    cat("\n   Filled",new.strat.scores$n.quads.w.two.plus.subquads.double,"quadrants suitably.")
+    tier.just.completed <- TRUE
+    iteration.when.2nd.tier.reached <- current.iteration
+  
+  } else if(current.tier == 3 & new.strat.scores$n.quads.w.two.plus.subquads.triple == 4) { # if we were looking to increase third tier scoring, did we meet goal?
+    
+    # add the new selected SUID to the list of selected SUIDs
+    new.suid <- best.scores$suid
+    suids.selected.new <- data.frame(suid=new.suid,tier=current.tier)
+    suids.selected <- rbind(suids.selected,suids.selected.new)
+    sub.quads.df <- add.suid(new.suid,d.foc.yr.classified,sub.quads.df,tier=3)
+    suids.remaining <- dplyr::setdiff(suids.remaining,new.suid)
+    
+    
+    # completed tier 3 goal
+    tier.just.completed <- TRUE
+    iteration.when.3rd.tier.reached <- current.iteration
+    
+  } else if (current.tier == 3 & scores.increased == TRUE) { # score increased but did not meet goal
+    
+    # add the new selected SUID to the list of selected SUIDS, but keep searching to meet goal
+    new.suid <- best.scores$suid
+    suids.selected.new <- data.frame(suid=new.suid,tier=current.tier)
+    suids.selected <- rbind(suids.selected,suids.selected.new)
+    sub.quads.df <- add.suid(new.suid,d.foc.yr.classified,sub.quads.df,tier=3)
+    suids.remaining <- dplyr::setdiff(suids.remaining,new.suid)
+    
+    
+  } else if(current.tier == 3 & scores.increased == FALSE) { # if we were looking to increase third tier scoring (n quads w/ 2+ subquads filled triply), but we didn't manage to increase it, print message, then consider tier complete
+    
+    cat("\nThird tier strat goal not reached for:",foc.fire.name,", Plant year:",plt.yr)
+    cat("\n   Filled",new.strat.scores$n.quads.w.two.plus.subquads.triple,"quadrants suitably.")
+    tier.just.completed <- TRUE
+    iteration.when.3rd.tier.reached <- current.iteration
+  }
+    
+  current.iteration <- current.iteration + 1
+  
+  # if we complieted a tier (even if it was incomplete but there was no way to improve it), print a message
+  if(tier.just.completed) {
+    cat("\nFire:",foc.fire.name,", Plant year:",plt.yr,"-- Tier",current.tier," completed")
+    current.tier <- current.tier + 1 ## if this goes up to 4, the loop will exit upon starting the next iteration
+  }
+  
+  # if we used up all the suid options, print a message that we did not achieve all tier goals
+  if(length(suids.remaining) == 0 & (current.tier != 4)) {
+    cat("\nFire:",foc.fire.name,", Plant year:",plt.yr,"-- All SUID options exhausted without completing three tiers")
+  }
+}
 
-#1. Compute the current stratification scores
-strat.scores <- score.stratif(sub.quads.df,simp=TRUE)
 
-#2. Test all remaining suids to see which best improves the stratification scores
+suids.remaining
+sub.quads.df
+suids.selected
 
-remaining.suids <- unique(suids.remaining$f.s.first.planting.suid)
+####$$$ In sub.quads.df, nplots.tier1 is the number of plots within that subquad that were selected in the first tier of stratifiction (that is, finding SUIDS that filled at lesat 2 subquads of every quad at least once). In order to minimize the number of SUIDs we survey: In each quad, our candidates are subquads that have a least 3 nplots. If none have at least 3 nplots, 2 nplots is OK. Then, for each of those, choose the top two subquads in terms of nplots.tier1. If none of those has at least 3 plots, select those that would maximize the total sum of nplots tier1 + tier2. then if not that, tier1 + tier2 + tier3
 
-new.strat.scores <- map(remaining.suids,.f=strat.scores.w.new.suid,sub.quads.df=sub.quads.df,d.foc.yr.classified=d.foc.yr.classified)
-new.strat.scores.df <- bind_rows(new.strat.scores)
-new.strat.scores.df$suid <- remaining.suids
 
-#find all the suids that achieve the greatest numver of quadrants that have at least 2+ subquadrants filled
-max.quads.filled <- max(new.strat.scores.df$n.quads.w.two.plus.subquads)
-best.scores <- new.strat.scores.df %>%
-  filter(n.quads.w.two.plus.subquads == max.quads.filled)
-
-#! here, we may want to first select the SUID that also has the greatest redundancy
-
-#among those, find the one that fills the greatest number of quads
-max.sub.quads.filled <- max(best.scores$n.sub.quads.filled)
-best.scores <- best.scores %>%
-  filter(n.sub.quads.filled == max.sub.quads.filled)
-
-#! here, we should take the SUID with the greatest number of plots total
-
-# now, in case there are still multiple tied, just take the first one (this should be rare)
-best.scores <- best.scores[1,]
-
-## compute the new strat scores with that suid
-#make sure they went up (if already hit the first tier goal, check for second tier goal instead)
 # and if so update the strat records
 # update the current strat scores
 # then see if we hit our goal (for first tier, then for second tier)
@@ -489,7 +687,9 @@ best.scores <- best.scores[1,]
 # P = priority (which tier)
 
 
-
+########~~~~~ For each subquad, figure out in which in which tier of suids it was filled once, twice, three times
+  
+  ### And for each quad, prioritize the subquads that were triply fileld in tier 1, then doubly filled in tier 1, then triply filled in tier 2, then doubly in 2, then triply in tier 3, then doubly in 3
 
 
 
