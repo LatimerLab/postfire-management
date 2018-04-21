@@ -67,3 +67,24 @@ pwr.focal.slices <- planting.slices %>%
   filter(first.planting.suid %in% pwr.focal.suids &
            planting.slice.split == "no")
 
+
+
+#### Identify AmRiveR focal planting SUIDs
+
+d.gvt <- d.trt %>%
+  filter(most.recent.focal.fire == "2008GOVERNMENT" &
+           mgmt.factorial.nofire == "salv: neither, prp: no, rel: e, thn: no" &
+           yr.pltd %in% c(1,2) &
+           dist.nonhigh == "< 80 m")
+gvt.focal.suids <- unique(d.gvt$f.s.first.planting.suid)
+
+# see if there were important follow-up SUIDs
+gvt.focal.slices <- planting.slices %>%
+  filter(first.planting.suid %in% gvt.focal.suids &
+           planting.slice.split == "no")
+
+
+
+
+
+

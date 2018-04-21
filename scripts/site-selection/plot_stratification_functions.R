@@ -58,7 +58,7 @@ plt.yr.env.range <- function(plt.yr,plots) {
     cat("\nOn",fire,"planting year",plt.yr,"removed rad outliers:",rads.outliers)
   }
   
-  env.range.yr <- data.frame(plt.yr,elev.low,elev.high,rad.low,rad.high)
+  env.range.yr <- data.frame(plt.yr=as.character(plt.yr),elev.low,elev.high,rad.low,rad.high)
   row.names(env.range.yr) <- NULL
   
   return(env.range.yr)
@@ -102,7 +102,7 @@ define.quadrants <- function(rad.low.arg,rad.high.arg,elev.low.arg,elev.high.arg
 #### SUID selection/stratification/scoring ####
 
 ##function to compute the quality of stratification given a tally of how many plots are in each sub-quad
-score.stratif <- function(sub.quads.df,simp=FALSE) {
+score.stratif <- function(sub.quads.df,simp=FALSE,subquads.goal=2) {
   
   # count the number of subquads filled
   n.sub.quads.filled <- sum(sub.quads.df$nplots>0,na.rm=TRUE)
@@ -111,7 +111,7 @@ score.stratif <- function(sub.quads.df,simp=FALSE) {
   quads <- sub.quads.df %>%
     group_by(quad.label) %>%
     summarize(n.subquads.full = sum(nplots >= 1,na.rm=TRUE)) %>%
-    mutate(two.plus.subquads.full = n.subquads.full >= 2) %>%
+    mutate(two.plus.subquads.full = n.subquads.full >= subquads.goal) %>%
     ungroup()
   n.quads.w.two.plus.subquads <- sum(quads$two.plus.subquads.full,na.rm=TRUE)
   
@@ -119,7 +119,7 @@ score.stratif <- function(sub.quads.df,simp=FALSE) {
   quads <- sub.quads.df %>%
     group_by(quad.label) %>%
     summarize(n.subquads.full = sum(nplots >= 2,na.rm=TRUE)) %>%
-    mutate(two.plus.subquads.full = n.subquads.full >= 2) %>%
+    mutate(two.plus.subquads.full = n.subquads.full >= subquads.goal) %>%
     ungroup()
   n.quads.w.two.plus.subquads.double <- sum(quads$two.plus.subquads.full,na.rm=TRUE)
   
@@ -127,7 +127,7 @@ score.stratif <- function(sub.quads.df,simp=FALSE) {
   quads <- sub.quads.df %>%
     group_by(quad.label) %>%
     summarize(n.subquads.full = sum(nplots >= 3,na.rm=TRUE)) %>%
-    mutate(two.plus.subquads.full = n.subquads.full >= 2) %>%
+    mutate(two.plus.subquads.full = n.subquads.full >= subquads.goal) %>%
     ungroup()
   n.quads.w.two.plus.subquads.triple <- sum(quads$two.plus.subquads.full,na.rm=TRUE)
   
@@ -188,13 +188,13 @@ add.suid <- function(suid,d.foc.yr.classified,sub.quads.df,tier=0) {
 }
 
 ## function to take a SUID and calculate the new stratification scores (simplified) if it were added
-strat.scores.w.new.suid <- function(suid,sub.quads.df,d.foc.yr.classified) {
+strat.scores.w.new.suid <- function(suid,sub.quads.df,d.foc.yr.classified,subquads.goal=2) {
   
   #get the new sub quads DF if the SUID were added
   new.sub.quads.df <- add.suid(suid,d.foc.yr.classified,sub.quads.df)
   
   #score it
-  strat.score <- score.stratif(new.sub.quads.df,simp=TRUE)
+  strat.score <- score.stratif(new.sub.quads.df,simp=TRUE,subquads.goal)
   
   return(strat.score)
 }
