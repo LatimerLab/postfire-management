@@ -71,6 +71,7 @@ custom.elev.low <- NA
 custom.elev.high <- NA
 mgmt.cats.df.row <- data.frame(foc.fire.name,rad.cats,elev.cats,foc.salv.cat,foc.site.prepped,foc.released,foc.thinned,subquads.goal,custom.rad.low,custom.rad.high,custom.elev.low,custom.elev.high,mgmt.cat.string)
 mgmt.cats.df.row$foc.yrs.pltd <- list(c("1","2","3"))
+mgmt.cats.df.row$default.suids <- NULL #list(c("0511022080104000000","0511022080102000001","0511022080100000000"))
 mgmt.cats.df <- rbind(mgmt.cats.df,mgmt.cats.df.row)
 
 ## Second category: planted salvage, no prep, no release, no thin
@@ -140,6 +141,7 @@ for(k in 1:nrow(mgmt.cats.df)) {
   #foc.replanted <- mgmt.cats.df.row$foc.replanted
   foc.thinned <- mgmt.cats.df.row$foc.thinned
   foc.yrs.pltd <- mgmt.cats.df.row$foc.yrs.pltd[[1]]
+  foc.default.suids <- mgmt.cats.df.row$default.suids[[1]]
 
   
   
@@ -218,7 +220,7 @@ for(k in 1:nrow(mgmt.cats.df)) {
   env.quads <- define.quadrants(rad.low,rad.high,elev.low,elev.high,rad.cats,elev.cats)
   
   
-  ###!!! resume testing here the loop
+  
   ### For each planting year
   for(plt.yr in plt.yrs) {
     
@@ -232,7 +234,7 @@ for(k in 1:nrow(mgmt.cats.df)) {
     
     ## What first planting SUIDS are we working with?
     
-    suids <- unique(d.foc.yr$f.s.first.planting.suid)
+    suids <- unique(c(d.foc.yr$f.s.first.planting.suid,default.suids))
     
     ## Plot what we are working with
     
@@ -248,6 +250,8 @@ for(k in 1:nrow(mgmt.cats.df)) {
                 fill=NA,color="red") +
       labs(title=d.foc$fire.dist2[1])
     #print(g)
+    
+    default.suids.remaining <- unlist(foc.default.suids)
     
     ## X 1. Divide into named quadrants based on the variables to stratify by
     ## 2. For each planting unit, determint the number of sub-quadrants it covers within each quadrant
@@ -326,9 +330,11 @@ for(k in 1:nrow(mgmt.cats.df)) {
     
     
     ## Summarize by suid and quadrant: what subquadrants are represented by each SUID
-    concatenate.unique <- function(x) {
-      
-    }
+    
+    
+    # concatenate.unique <- function(x) {
+    #   
+    # }
     
     d.foc.yr.classified <- st_drop_geometry(d.foc.yr.classified)
     
@@ -344,6 +350,8 @@ for(k in 1:nrow(mgmt.cats.df)) {
     # for keeping track of which SUIDs we still have as candidates to add
     # initialize it with all SUIDS that contain points of the focal management category
     suids.remaining <- unique(suid.summ$f.s.first.planting.suid)
+    
+    suids.remaining <- setdiff(suids.remaining,default.suids.remaining)
     
     # for keeping track of which SUIDS we've already added
     suids.selected <- NULL
@@ -365,49 +373,65 @@ for(k in 1:nrow(mgmt.cats.df)) {
     highest.tier.goal.met <- 0
     
     ## start the loop here
-    while((current.tier < 4) & (length(suids.remaining) != 0)) {  
+    while((current.tier < 4) & (length(suids.remaining)+length(default.suids.remaining) != 0)) {  
      
-       tier.just.completed <- FALSE
+      tier.just.completed <- FALSE
+      added.defauld.suid <- FALSE
       
       #1. Compute the current stratification scores
       strat.scores <- score.stratif(sub.quads.df,simp=TRUE)
       
-      #2. Test all remaining suids to see which best improves the stratification scores
-      suids.remaining ##! need to remove the SUIDS that were added in the last iteration
+      
+      # if there are default SUIDs that need to be added, just select them as the ones to be added
+      if(length(default.suids.remaining) > 0) {
+        suid.to.add <- default.suids.remaining[1]
+        default.suids.remaining <- setdiff(default.suids.remaining,suid.to.add)
+        
+        new.strat.scores <- strat.scores.w.new.suid(suid.to.add,sub.quads.df,d.foc.yr.classified,subquads.goal=subquads.goal)
+        
+        added.default.suid <- TRUE
+        
+      } else {
       
       
-      new.strat.scores <- map(suids.remaining,.f=strat.scores.w.new.suid,sub.quads.df=sub.quads.df,d.foc.yr.classified=d.foc.yr.classified,subquads.goal=subquads.goal)
-      new.strat.scores.df <- bind_rows(new.strat.scores)
-      new.strat.scores.df$suid <- suids.remaining
-      
-      #find all the suids that achieve the greatest numver of quadrants that have at least 2+ subquadrants with at least one plot  ###!!! might want to reverse this to start looking for subquads with at least 3 plots? but then that deprioritizes SUIDs that fill lots of quadrants with one plot
-      max.quads.filled <- max(new.strat.scores.df$n.quads.w.two.plus.subquads)
-      best.scores <- new.strat.scores.df %>%
-        filter(n.quads.w.two.plus.subquads == max.quads.filled)
-      
-      #among those, find the one that achieve the greatest number of quadrants that have at least 2+ subquadrants with at least 2 plots
-      max.quads.filled.double <- max(best.scores$n.quads.w.two.plus.subquads.double)
-      best.scores <- best.scores %>%
-        filter(n.quads.w.two.plus.subquads.double == max.quads.filled.double)
-      
-      #among those, find the one that achieve the greatest number of quadrants that have at least 2+ subquadrants with at least 3 plots
-      max.quads.filled.triple <- max(best.scores$n.quads.w.two.plus.subquads.triple)
-      best.scores <- best.scores %>%
-        filter(n.quads.w.two.plus.subquads.triple == max.quads.filled.triple)
-      
-      #among those, find the one that fills the greatest number of subquads
-      max.sub.quads.filled <- max(best.scores$n.sub.quads.filled)
-      best.scores <- best.scores %>%
-        filter(n.sub.quads.filled == max.sub.quads.filled)
-      
-      #! here, we should take the SUID with the greatest number of plots total: #amont those, find the one that has the greatest number of plots total
-      
-      # now, in case there are still multiple tied, just take the first one (this should be rare)
-      best.scores <- best.scores[1,]
-      
-      ## compute the new strat scores with that suid
-      new.strat.scores <- strat.scores.w.new.suid(best.scores$suid,sub.quads.df,d.foc.yr.classified,subquads.goal=subquads.goal)
-      
+        #2. Test all remaining suids to see which best improves the stratification scores
+        suids.remaining ##! need to remove the SUIDS that were added in the last iteration
+        
+        
+        new.strat.scores <- map(suids.remaining,.f=strat.scores.w.new.suid,sub.quads.df=sub.quads.df,d.foc.yr.classified=d.foc.yr.classified,subquads.goal=subquads.goal)
+        new.strat.scores.df <- bind_rows(new.strat.scores)
+        new.strat.scores.df$suid <- suids.remaining
+        
+        #find all the suids that achieve the greatest numver of quadrants that have at least 2+ subquadrants with at least one plot  ###!!! might want to reverse this to start looking for subquads with at least 3 plots? but then that deprioritizes SUIDs that fill lots of quadrants with one plot
+        max.quads.filled <- max(new.strat.scores.df$n.quads.w.two.plus.subquads)
+        best.scores <- new.strat.scores.df %>%
+          filter(n.quads.w.two.plus.subquads == max.quads.filled)
+        
+        #among those, find the one that achieve the greatest number of quadrants that have at least 2+ subquadrants with at least 2 plots
+        max.quads.filled.double <- max(best.scores$n.quads.w.two.plus.subquads.double)
+        best.scores <- best.scores %>%
+          filter(n.quads.w.two.plus.subquads.double == max.quads.filled.double)
+        
+        #among those, find the one that achieve the greatest number of quadrants that have at least 2+ subquadrants with at least 3 plots
+        max.quads.filled.triple <- max(best.scores$n.quads.w.two.plus.subquads.triple)
+        best.scores <- best.scores %>%
+          filter(n.quads.w.two.plus.subquads.triple == max.quads.filled.triple)
+        
+        #among those, find the one that fills the greatest number of subquads
+        max.sub.quads.filled <- max(best.scores$n.sub.quads.filled)
+        best.scores <- best.scores %>%
+          filter(n.sub.quads.filled == max.sub.quads.filled)
+        
+        #! here, we should take the SUID with the greatest number of plots total: #amont those, find the one that has the greatest number of plots total
+        
+        # now, in case there are still multiple tied, just take the first one (this should be rare)
+        best.scores <- best.scores[1,]
+        
+        ## compute the new strat scores with that suid
+        new.strat.scores <- strat.scores.w.new.suid(best.scores$suid,sub.quads.df,d.foc.yr.classified,subquads.goal=subquads.goal)
+        
+        suid.to.add <- best.scores$suid
+      }
       
       #make sure they went up (if already hit the first tier goal, check for increase in second tier goal instead, then third tier)
       scores.increased <- FALSE
@@ -431,6 +455,11 @@ for(k in 1:nrow(mgmt.cats.df)) {
         }
       }
       
+      ## make it think the scores went up when we added the default SUID; otherwise, if the default SUID was not helpful, it would exit the loop
+      if(added.default.suid) {
+        scores.increased <- TRUE
+      }
+      
       ## if we were looking to increase first tier scoring, did we meet the goal?
       if(current.tier == 1 & new.strat.scores$n.quads.w.two.plus.subquads == max.cats) {
         
@@ -438,7 +467,7 @@ for(k in 1:nrow(mgmt.cats.df)) {
         highest.tier.goal.met <- 1
         
         # add the new selected SUID to the list of selected SUIDs
-        new.suid <- best.scores$suid
+        new.suid <- suid.to.add
         suids.selected.new <- data.frame(suid=new.suid,tier=current.tier)
         suids.selected <- rbind(suids.selected,suids.selected.new)
         sub.quads.df <- add.suid(new.suid,d.foc.yr.classified,sub.quads.df,tier=1)
@@ -451,7 +480,7 @@ for(k in 1:nrow(mgmt.cats.df)) {
       } else if (current.tier == 1 & scores.increased == TRUE) { # score increased but did not meet goal
         
         # add the new selected SUID to the list of selected SUIDS, but keep searching to meet goal
-        new.suid <- best.scores$suid
+        new.suid <- suid.to.add
         suids.selected.new <- data.frame(suid=new.suid,tier=current.tier)
         suids.selected <- rbind(suids.selected,suids.selected.new)
         sub.quads.df <- add.suid(new.suid,d.foc.yr.classified,sub.quads.df,tier=1)
@@ -471,7 +500,7 @@ for(k in 1:nrow(mgmt.cats.df)) {
         highest.tier.goal.met <- 2
         
         # add the new selected SUID to the list of selected SUIDs
-        new.suid <- best.scores$suid
+        new.suid <- suid.to.add
         suids.selected.new <- data.frame(suid=new.suid,tier=current.tier)
         suids.selected <- rbind(suids.selected,suids.selected.new)
         sub.quads.df <- add.suid(new.suid,d.foc.yr.classified,sub.quads.df,tier=2)
@@ -485,7 +514,7 @@ for(k in 1:nrow(mgmt.cats.df)) {
       } else if (current.tier == 2 & scores.increased == TRUE) { # score increased but did not meet goal
         
         # add the new selected SUID to the list of selected SUIDS, but keep searching to meet goal
-        new.suid <- best.scores$suid
+        new.suid <- suid.to.add
         suids.selected.new <- data.frame(suid=new.suid,tier=current.tier)
         suids.selected <- rbind(suids.selected,suids.selected.new)
         sub.quads.df <- add.suid(new.suid,d.foc.yr.classified,sub.quads.df,tier=2)
@@ -505,7 +534,7 @@ for(k in 1:nrow(mgmt.cats.df)) {
         highest.tier.goal.met <- 3
         
         # add the new selected SUID to the list of selected SUIDs
-        new.suid <- best.scores$suid
+        new.suid <- suid.to.add
         suids.selected.new <- data.frame(suid=new.suid,tier=current.tier)
         suids.selected <- rbind(suids.selected,suids.selected.new)
         sub.quads.df <- add.suid(new.suid,d.foc.yr.classified,sub.quads.df,tier=3)
@@ -519,7 +548,7 @@ for(k in 1:nrow(mgmt.cats.df)) {
       } else if (current.tier == 3 & scores.increased == TRUE) { # score increased but did not meet goal
         
         # add the new selected SUID to the list of selected SUIDS, but keep searching to meet goal
-        new.suid <- best.scores$suid
+        new.suid <- suid.to.add
         suids.selected.new <- data.frame(suid=new.suid,tier=current.tier)
         suids.selected <- rbind(suids.selected,suids.selected.new)
         sub.quads.df <- add.suid(new.suid,d.foc.yr.classified,sub.quads.df,tier=3)
