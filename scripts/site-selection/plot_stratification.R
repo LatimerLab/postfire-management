@@ -71,7 +71,7 @@ custom.elev.low <- NA
 custom.elev.high <- NA
 mgmt.cats.df.row <- data.frame(foc.fire.name,rad.cats,elev.cats,foc.salv.cat,foc.site.prepped,foc.released,foc.thinned,subquads.goal,custom.rad.low,custom.rad.high,custom.elev.low,custom.elev.high,mgmt.cat.string)
 mgmt.cats.df.row$foc.yrs.pltd <- list(c("1","2","3"))
-mgmt.cats.df.row$default.suids <- NULL #list(c("0511022080104000000","0511022080102000001","0511022080100000000"))
+mgmt.cats.df.row$default.suids <- NA #list(c("0511022080104000000","0511022080102000001","0511022080100000000"))
 mgmt.cats.df <- rbind(mgmt.cats.df,mgmt.cats.df.row)
 
 ## Second category: planted salvage, no prep, no release, no thin
@@ -234,7 +234,7 @@ for(k in 1:nrow(mgmt.cats.df)) {
     
     ## What first planting SUIDS are we working with?
     
-    suids <- unique(c(d.foc.yr$f.s.first.planting.suid,default.suids))
+    suids <- unique(c(d.foc.yr$f.s.first.planting.suid,foc.default.suids))
     
     ## Plot what we are working with
     
@@ -679,7 +679,7 @@ for(i in 1:nrow(suid.prioritization)) {
     ## If not, allow there to be at least 2 nplots
     if(n.candidate.subquads < subquads.goal) {
       
-      addl.subquads.needed <- subquad.goal - n.candidate.subquads
+      addl.subquads.needed <- subquads.goal - n.candidate.subquads
     
       ## Find more candidate subquads: those that have 2 nplots (not >2 because we already included those with 3+, and not those with < 2 because that is too few for redundancy)
       addl.candidate.subquads <- sub.quads.focal %>%
@@ -871,12 +871,16 @@ for(i in 1:length(mgmt.factorial.types)) {
 }
 
 
+## Tabulate the selected SUIDs by plot priority (rank)
+
+target.suids <- all.selected.plots %>%
+  st_drop_geometry() %>%
+  group_by(mgmt.factorial,first.pltd.yr,most.recent.focal.fire,f.s.first.planting.suid,rank) %>%
+  summarize(nplots = n()) %>%
+  arrange(most.recent.focal.fire,mgmt.factorial,rank,desc(nplots))
 
 
-
-
-
-
+write.csv(target.suids,"plumas_target_suids.csv")
 
 
 

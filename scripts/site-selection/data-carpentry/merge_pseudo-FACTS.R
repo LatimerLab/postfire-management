@@ -26,16 +26,18 @@ names(facts.reforest)[names(facts.reforest) == "METHOD_DES"] <- "METHOD"
 
 names(facts.tsi)[names(facts.tsi) == "ACTIVITY_N"] <- "ACTIVITY"
 names(facts.tsi)[names(facts.tsi) == "METHOD_DES"] <- "METHOD"
+facts.fueltrt$SUBUNIT_NA <- NA
 
 
 names(facts.harvest)[names(facts.harvest) == "ACTIVITY_N"] <- "ACTIVITY"
 names(facts.harvest)[names(facts.harvest) == "METHOD_DES"] <- "METHOD"
 
-names(facts.fueltrt)[names(facts.fueltrt) == "SUBUNIT"] <- "SUBUNIT_CN"
+#names(facts.fueltrt)[names(facts.fueltrt) == "SUBUNIT"] <- "SUBUNIT_CN"
 names(facts.fueltrt)[names(facts.fueltrt) == "ASU_NBR_UN"] <- "SUBUNIT_SI"
 names(facts.fueltrt)[names(facts.fueltrt) == "ASU_UOM"] <- "SUBUNIT_UO"
+facts.fueltrt$SUBUNIT_NA <- NA
 
-keep.cols <- c("SUID","ACTIVITY","DATE_ACCOM","DATE_COMPL","TREATMENT_","METHOD","NBR_UNITS_","UOM","DATE_PLANN","COST_PER_U","METHOD","EQUIPMENT_","PRODUCTIVI","TREATMENT_","DATA_SOURC","SUBUNIT_CN","DATA_SOU_1","GIS_ACRES","SHAPE_AREA","NBR_UNITS_","UOM","SUBUNIT_SI","SUBUNIT_UO")
+keep.cols <- c("SUID","ACTIVITY","DATE_ACCOM","DATE_COMPL","TREATMENT_","METHOD","NBR_UNITS_","UOM","DATE_PLANN","COST_PER_U","METHOD","EQUIPMENT_","PRODUCTIVI","TREATMENT_","DATA_SOURC","SUBUNIT","DATA_SOU_1","GIS_ACRES","SHAPE_AREA","NBR_UNITS_","UOM","SUBUNIT_SI","SUBUNIT_UO","SUBUNIT_NA")
 
 facts.fueltrt <- facts.fueltrt[,keep.cols]
 facts.reforest <- facts.reforest[,keep.cols]

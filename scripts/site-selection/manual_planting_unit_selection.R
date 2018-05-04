@@ -85,6 +85,19 @@ gvt.focal.slices <- planting.slices %>%
 
 
 
+#### Identify Piute focal planting SUIDs
 
+d.piute <- d.trt %>%
+  filter(most.recent.focal.fire == "2008PIUTE" &
+           mgmt.factorial.nofire == "salv: neither, prp: no, rel: no, thn: no" &
+           yr.pltd %in% c("2","3","4+"))
+piute.focal.suids <- unique(d.piute$f.s.first.planting.suid)
+
+d.piute.print <- d.piute %>%
+  dplyr::select(id,yr.pltd,elev,rad,dist.non.high,dist.nonhigh) %>%
+  st_drop_geometry()
+
+## write these plots as scouting plots
+st_write(d.piute,"data/site-selection/output/site-scouting/piute_example_plots.gpkg")
 
 

@@ -57,9 +57,16 @@ facts$DATE_P <- as.character(facts$DATE_P)
 ## thin to just the FACTS that overlap focal fires
 facts <- st_buffer(facts,0)
 fires.focal <- st_buffer(fires.focal,0)
+fires.focal <- st_buffer(fires.focal,0)
 fires.focal.singlepoly <- st_union(fires.focal)
 fires.focal.singlepoly <- st_buffer(fires.focal.singlepoly,0)
 facts <- st_intersection(facts,fires.focal.singlepoly)
+
+
+## for SUID, what we really want is SUID_subunit
+
+
+
 
 ## For FACTS units from the Power Fire, we need to set completed date = accomplished date ##
 fire.power <- fires.focal[fires.focal$VB_ID == "2004POWER",]
@@ -89,11 +96,11 @@ facts[facts$id %in% facts.exclude.ids,"stringer.threshold"] <- 0.012
 fires.exclude <- c("2012CHIPS","2000STORRIE","2008RICH")
 fire.exclude <- fires.focal[fires.focal$VB_ID %in% fires.exclude,]
 fire.exclude <- st_union(fire.exclude)
+facts <- st_buffer(facts,dist=0)
+fire.exclude <- st_buffer(fire.exclude,dist=0)
 facts.overlap.exclude <- st_intersection(facts,fire.exclude)
 facts.exclude.ids <- unique(facts.overlap.exclude$id)
 facts[facts$id %in% facts.exclude.ids,"stringer.threshold"] <- 0.03
-
-
 
 
 ## The important year is the year the management was completed
@@ -299,12 +306,14 @@ for(i in 1:nrow(fires.focal))  {
     planting.methods <- planting.over$METHOD[years.order]
     planting.nyears <- length(planting.years)
     planting.n.unique.years <- length(unique(planting.years))
+    planting.unit.name <- planting.over$SUBUNIT_N
     
     pl.spl[j,"planting.years.post"] <- paste(planting.years.post,collapse=", ")
     pl.spl[j,"planting.suids"] <- paste(planting.suids,collapse=", ")
     pl.spl[j,"planting.methods"] <- paste(planting.methods,collapse=", ")
     pl.spl[j,"planting.nyears"] <- paste(planting.nyears,collapse=", ")
     pl.spl[j,"planting.n.unique.years"] <- paste(planting.n.unique.years,collapse=", ")
+    pl.spl[j,"planting.unit.names"] <- paste(planting.unit.name,collapse=", ")
     # get suids excluding slivers (stringers)
     mgmt.over.noslivers <- planting.over[planting.over$sliver=="no",]
     mgmt.years <- mgmt.over.noslivers$year

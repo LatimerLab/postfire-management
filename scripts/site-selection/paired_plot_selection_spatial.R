@@ -336,7 +336,7 @@ get_all_facts_management <- function(x,type) { # function to get the VB_ID of al
   fire.year <- facts.data.overlaps[,"FIRE_YEAR"]
 
   completed_year <- substr(completed_date,1,4)
-  completed_year[which(completed_year == "noda")] <- "1800" # assume activities with no date were from very early
+  completed_year[which(completed_year == "nodate")] <- "1800" # assume activities with no date were from very early
   completed_year <- as.numeric(completed_year)
   fire.year <- as.numeric(fire.year)
   
@@ -805,7 +805,7 @@ release.classify <- function(release.code) {
   
   
   
-  yrs.e <- 1:2 # early
+  yrs.e <- 0:2 # early
   yrs.m <- 3:5 # mid
   yrs.l <- 6:10 # late
   
@@ -991,6 +991,15 @@ p.plot <- p.plot %>%
   filter(f.s.stringer == "no")
 
 
+d.perim.check <- d.perim %>%
+  select(elev,rad,yr.pltd,dist.nonhigh,fire.dist2,mgmt.w.newline)
+
+## temporary: because McNally has no rad, make up values (which also allow for differentiation of dist to seed tree)
+p.plot[p.plot$fire.name == "2002MCNALLY" & p.plot$dist.nonhigh == "< 80 m","rad"] <- 6000
+p.plot[p.plot$fire.name == "2002MCNALLY" & p.plot$dist.nonhigh == "> 120 m","rad"] <- 6500
+
+
+
 plts <- NULL
 for(i in 1:length(fires)) {
   
@@ -1022,7 +1031,7 @@ for(i in 1:length(fires)) {
 
 
 
-pdf("data/site-selection/output/candidate-plots/candidate_plot_management_environment_stratification_v12_nostringers.pdf")
+pdf("data/site-selection/output/candidate-plots/stratification_v14_fixed_nosplit_nostring.pdf")
 for(i in seq_along(plts)) {
   print(plts[[i]])
 }
