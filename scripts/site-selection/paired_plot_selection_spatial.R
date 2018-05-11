@@ -380,7 +380,7 @@ get_all_facts_management <- function(x,type) { # function to get the VB_ID of al
   release.summ <- paste(release.cat.post,collapse=",")
   
   
-  activity.salvage <- facts.data.overlaps[facts.data.overlaps$ACTIV %in% salvage & facts.data.overlaps$completed.year >= facts.data.overlaps$fire.year,] # select management that's release and that happened after the fire
+  activity.salvage <- facts.data.overlaps[facts.data.overlaps$ACTIV %in% salvage & facts.data.overlaps$completed.year >= facts.data.overlaps$fire.year,] # select management that's salvage and that happened after the fire
   salvage.method.year <- activity.salvage$METHOD #previously had: paste(activity.release$TREATMENT_,activity.release$METHOD,activity.release$DATE_C,sep="-")
   
   #are there any salvage?
@@ -392,9 +392,13 @@ get_all_facts_management <- function(x,type) { # function to get the VB_ID of al
   salvage.heli <- heli.logical
   salvage.heli <- ifelse(salvage.heli,"YES","no")
   
+  # was any of the salvage done after the planting year?
+  activity.salvage.postplant <- facts.data.overlaps[facts.data.overlaps$ACTIV %in% salvage & facts.data.overlaps$completed.year >= first.year.plant,] # select management that's salvage and that happened after the planting (planting happened in spring usually, so if salvage was in the same year it was after planting)
+  salvage.postplant.bool <- nrow(activity.salvage.postplant) > 0
+  
   
   return.var <- list(prefire.management.history=prefire.act.date.concatenate,management.history=act.date.concatenate,postfire.management.history=postfire.act.date.concatenate,
-                     postfire.release.methods=release.concatenate,postfire.salvage=salvage.bool,postfire.salvage.heli=salvage.heli,post.release.summ=release.summ)
+                     postfire.release.methods=release.concatenate,postfire.salvage=salvage.bool,postfire.salvage.heli=salvage.heli,postfire.salvage.postplant=salvage.postplant.bool,post.release.summ=release.summ)
   
   return(return.var)
   
@@ -657,6 +661,10 @@ candidate.plots.paired$label <- " "
 candidate.plots.paired[candidate.plots.paired$dist.non.high < 80,"dist.nonhigh"] <- "< 80 m"
 candidate.plots.paired[candidate.plots.paired$dist.non.high > 120,"dist.nonhigh"] <- "> 120 m"
 
+candidate.plots.paired = candidate.plots.paired %>%
+  mutate(postfire.salvage = ifelse(postfire.salvage,"YES","no"),
+         postfire.salvage.postplant = ifelse(postfire.salvage.postplant,"YES","no"))
+
 st_write(candidate.plots.paired,"data/site-selection/output/candidate-plots/candidate_plots_paired.gpkg",delete_dsn=TRUE)
 
 
@@ -749,6 +757,18 @@ p.dat$salv.cat[p.dat$f.s.salvage == "yes" & p.dat$f.s.salvage.ctl == "yes"] <- "
 p.dat$salv.cat[p.dat$f.s.salvage == "yes" & p.dat$f.s.salvage.ctl == "no"] <- "planted"
 p.dat$salv.cat[p.dat$f.s.salvage == "no" & p.dat$f.s.salvage.ctl == "no"] <- "neither"
 
+salvage.text.w.Post <- paste0(p.dat$salv.cat,"Post")
+salvage.text <- p.dat$salv.cat
+
+p.dat <- p.dat %>%
+  mutate(salv.cat = ifelse(p.dat$postfire.salvage.postplant == "YES",salvage.text.w.Post,salvage.text))
+
+## all salvage.cat that is neitherPost is because it was heli salvaged post planting
+p.dat[p.dat$postfire.salvage.heli == "YES" & p.dat$salv.cat == "neitherPost","salv.cat"] <- "neither"
+
+
+
+
 #add back the internal plots
 newcols <- setdiff(names(p.dat),names(p.int)) # which columns were added to the paired plots?
 p.int[,newcols] <- NA # add them
@@ -793,6 +813,8 @@ p.dat <- p.dat %>%
 # make fire the name of the fire and the name of the forest
 p.dat$fire.dist <- paste(p.dat$fire.name,p.dat$forest,sep=" - ")
 
+# for McNally on the forest and the monument, make it all on the firest
+p.dat[p.dat$fire.dist == "2002MCNALLY - Giant Sequoia NM","fire.dist"] <- "2002MCNALLY - Sequoia NF"
 
 
 
@@ -863,12 +885,12 @@ p.dat <- p.dat %>%
 p.dat <- p.dat %>%
   mutate(class = ifelse(type=="internal","internal","perimeter"))
 
-# remove internal plots close to seed source (the whole purpose of them is to provide additional plots far from seed source)
-p.dat <- p.dat %>%
-  filter(dist.non.high > 120 | class == "perimeter")
+# # remove internal plots close to seed source (the whole purpose of them is to provide additional plots far from seed source)
+# p.dat <- p.dat %>%
+#   filter(dist.non.high > 120 | class == "perimeter")
 
-# for computing if there's enough plots to justify study, only look at perimeter plots close to seed source (this also excludes internal plots because those were already filtered to >120 m)
-p.dat.close <- p.dat[p.dat$dist.non.high < 80,]
+# for computing if there's enough plots to justify study, only look at perimeter plots close to seed source
+p.dat.close <- p.dat[(p.dat$dist.non.high < 80) & (p.dat$class != "internal"),]
 
 
 
@@ -907,6 +929,7 @@ write.csv(p.dat.plt.summ,row.names=FALSE,"data/site-selection/output/candidate-p
 ## OK, now for each fire, sum the number of perimeter plots in each factorial combination of each of the important treatment columns
 # only consider perimeter plots when tallying if there are enough
 p.dat.agg <- p.dat.close %>%
+  st_drop_geometry() %>%
   filter(class=="perimeter") %>%
   # formerly before reduced number of factorial vars: group_by(fire2,salv.cat2,plant.timing2,site.prepped2,released2,replanted2,thinned2) %>%
   group_by(fire.dist2,salv.cat2,site.prepped2,released2,thinned2,heli2) %>%
@@ -921,9 +944,7 @@ p.dat.agg <- p.dat.close %>%
   
 # keep only the ones with enough candidate plots
 p.dat.agg.many <- p.dat.agg[p.dat.agg$nplots >= 10,] %>% 
-  as.data.frame() %>%
-  st_drop_geometry() %>%
-  dplyr::select(-geom)
+  as.data.frame()
 
 ## save to csv
 write.csv(p.dat.agg.many,"data/site-selection/output/candidate-plots/candidate_plots_management_stratification_v3allrelease.csv",row.names=FALSE)
@@ -970,13 +991,13 @@ yr.colors <- c("0" = "black","1" = "darkolivegreen3", "2" = "cornflowerblue", "3
 
 p.plot <- p.dat.many
 
-##make the management category text have a newline (after the 3rd comma)
+##make the management category text have a newline (after the 2nd comma)
 comma.locs <- str_locate(p.plot$mgmt.factorial.nofire,fixed(" thn:"))
 p.plot <- p.plot %>%
-  mutate(splitpos = str_locate(mgmt.factorial.nofire,fixed(" thn:"))[,"start"]) %>%
-  mutate(first.part = str_sub(mgmt.factorial.nofire,1,splitpos),
+  dplyr::mutate(splitpos = str_locate(mgmt.factorial.nofire,fixed(" rel:"))[,"start"]) %>%
+  dplyr::mutate(first.part = str_sub(mgmt.factorial.nofire,1,splitpos),
          second.part = str_sub(mgmt.factorial.nofire,splitpos,-1)) %>%
-  mutate(mgmt.w.newline = paste0(first.part,"\n",second.part))
+  dplyr::mutate(mgmt.w.newline = paste0(first.part,"\n",second.part))
 
 #remove plots that are in between 80 and 120 m from seed source (for them, no value stored for dist.nonhigh)
 p.plot <- p.plot %>%
@@ -992,11 +1013,11 @@ p.plot <- p.plot %>%
 
 
 d.perim.check <- d.perim %>%
-  select(elev,rad,yr.pltd,dist.nonhigh,fire.dist2,mgmt.w.newline)
+  dplyr::select(elev,rad,yr.pltd,dist.nonhigh,fire.dist2,mgmt.w.newline)
 
-## temporary: because McNally has no rad, make up values (which also allow for differentiation of dist to seed tree)
-p.plot[p.plot$fire.name == "2002MCNALLY" & p.plot$dist.nonhigh == "< 80 m","rad"] <- 6000
-p.plot[p.plot$fire.name == "2002MCNALLY" & p.plot$dist.nonhigh == "> 120 m","rad"] <- 6500
+# ## temporary: because McNally has no rad, make up values (which also allow for differentiation of dist to seed tree)
+# p.plot[p.plot$fire.name == "2002MCNALLY" & p.plot$dist.nonhigh == "< 80 m","rad"] <- 6000
+# p.plot[p.plot$fire.name == "2002MCNALLY" & p.plot$dist.nonhigh == "> 120 m","rad"] <- 6500
 
 
 
@@ -1011,11 +1032,13 @@ for(i in 1:length(fires)) {
     if(nrow(d) < 10) next()
     
     d.perim <- d[d$class=="perimeter",]
-    d.int <- d[d$class=="internal",]
+    d.int.close <- d[d$class=="internal" & d$dist.nonhigh == "< 80 m",]
+    d.int.far <- d[d$class=="internal" & d$dist.nonhigh == "> 120 m",]
     
     #! would like to add a symbology (shape? for whether it was replanted)
     plts[[i]] <- ggplot(d.perim,aes(x=elev,y=rad,color=yr.pltd,shape=dist.nonhigh)) +
-      geom_point(data=d.int,shape=3,size=0.7) +
+      geom_point(data=d.int.close,shape=18,size=1) +
+      geom_point(data=d.int.far,shape=3,size=0.7) +
       geom_point(size=1.5) +
       ggtitle(d[1,]$fire.dist2) +
       theme_bw(8) +
@@ -1031,7 +1054,7 @@ for(i in 1:length(fires)) {
 
 
 
-pdf("data/site-selection/output/candidate-plots/stratification_v14_fixed_nosplit_nostring.pdf")
+pdf("data/site-selection/output/candidate-plots/stratification_v15_fixed_nosplit_nostring.pdf")
 for(i in seq_along(plts)) {
   print(plts[[i]])
 }

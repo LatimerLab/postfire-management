@@ -49,3 +49,11 @@ facts <- rbind(facts.fueltrt,facts.reforest,facts.tsi,facts.harvest)
 
 st_write(facts,"data/non-synced/existing-datasets/pseudo-FACTS/CA clips/CA_Activity_merged.shp",delete_dsn=TRUE)
 
+
+
+
+####!!! temp code for exporting moonlight antelope only
+moontelope.plant <- facts.reforest %>%
+  filter(ADMIN_FO_1 == "Plumas National Forest" & FY_COMPLET > 2005)
+
+write.csv(moontelope.plant,"temp_moontelope_plant_facts_full.csv")
