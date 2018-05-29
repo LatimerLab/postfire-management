@@ -11,7 +11,7 @@ library(stringr)
 library(rgeos)
 library(DT)
 
-source("scripts/site-selection/plot_stratification_functions.R")
+source("scripts/site-selection/plot_stratification_functions_geo.R")
 
 crs <- 3310 # CA albers
 
@@ -72,6 +72,9 @@ custom.elev.high <- NA
 mgmt.cats.df.row <- data.frame(foc.fire.name,rad.cats,elev.cats,foc.salv.cat,foc.site.prepped,foc.released,foc.thinned,foc.replanted,subquads.goal,custom.rad.low,custom.rad.high,custom.elev.low,custom.elev.high,mgmt.cat.string)
 mgmt.cats.df.row$foc.yrs.pltd <- list(c("1","2","3"))
 mgmt.cats.df.row$default.suids <- NA #list(c("0511022080104000000","0511022080102000001","0511022080100000000"))
+default.plots <- NULL  ##!!! need to expand this
+
+
 mgmt.cats.df <- rbind(mgmt.cats.df,mgmt.cats.df.row)
 
 ## Second category: planted salvage, no prep, no release, no thin
@@ -122,7 +125,7 @@ mgmt.cats.df <- rbind(mgmt.cats.df,mgmt.cats.df.row)
 
 
 
-suid.prioritization <- NULL # this will store a growing data frame
+geocell.prioritization <- NULL # this will store a growing data frame
 
 ### For each management category
 for(k in 1:nrow(mgmt.cats.df)) {
@@ -141,9 +144,8 @@ for(k in 1:nrow(mgmt.cats.df)) {
   #foc.replanted <- mgmt.cats.df.row$foc.replanted
   foc.thinned <- mgmt.cats.df.row$foc.thinned
   foc.yrs.pltd <- mgmt.cats.df.row$foc.yrs.pltd[[1]]
-  foc.default.suids <- mgmt.cats.df.row$default.suids[[1]]
 
-  
+  foc.default.geocells <- NULL ##!!! need to expand this to determine which geocells the default plots fall into
   
   
   #### 1. Narrow the environmental space based on the intersection of env. space represented by each planting year (near to seed source only)  ####
@@ -160,6 +162,17 @@ for(k in 1:nrow(mgmt.cats.df)) {
                     yr.pltd %in% foc.yrs.pltd)
   
   plt.yrs <- as.character(foc.yrs.pltd)
+  
+  
+  
+  ### create a geo grid of the spanning the area covered by the candidate plots
+  geocells_all <- st_make_grid(d.foc,cellsize=5000) %>% st_sf()
+  geocells_all$geocell.id <- 1:nrow(geocells_all)
+  
+  # determine which geocell each plot falls into
+  d.foc <- st_intersection(d.foc,geocells_all)
+  
+  
   
   
   if(is.na(custom.rad.low)) { # no custom rad specified, so calc automatically
@@ -232,17 +245,17 @@ for(k in 1:nrow(mgmt.cats.df)) {
              dist.non.high < 80)
       
     
-    ## What first planting SUIDS are we working with?
+    ## What geocells are we working with?
     
-    suids <- unique(c(d.foc.yr$f.s.first.planting.suid,foc.default.suids))
+    geocells <- unique(c(d.foc.yr$geocell.id,foc.default.geocells))
     
     ## Plot what we are working with
     
-    g <- ggplot(d.foc.yr,aes(x=elev,y=rad,color=f.s.first.planting.suid,shape=dist.nonhigh)) +
+    g <- ggplot(d.foc.yr,aes(x=elev,y=rad,color=geocell.id,shape=dist.nonhigh)) +
       geom_point(size=2) +
       theme_bw(15) +
       scale_shape_manual(values=c(16,1)) +
-      labs(color="SUID",shape="Seed dist") +
+      labs(color="Geocell",shape="Seed dist") +
       geom_rect(xmin=plotting.range$elev.low,
                 xmax=plotting.range$elev.high,
                 ymin=plotting.range$rad.low,
@@ -251,7 +264,7 @@ for(k in 1:nrow(mgmt.cats.df)) {
       labs(title=d.foc$fire.dist2[1])
     #print(g)
     
-    default.suids.remaining <- unlist(foc.default.suids)
+    default.geocells.remaining <- unlist(foc.default.geocells)
     
     ## X 1. Divide into named quadrants based on the variables to stratify by
     ## 2. For each planting unit, determint the number of sub-quadrants it covers within each quadrant
@@ -338,8 +351,8 @@ for(k in 1:nrow(mgmt.cats.df)) {
     
     d.foc.yr.classified <- st_drop_geometry(d.foc.yr.classified)
     
-    suid.summ <- d.foc.yr.classified %>%
-      group_by(f.s.first.planting.suid, quad.label) %>%
+    geocell.summ <- d.foc.yr.classified %>%
+      group_by(geocell.id, quad.label) %>%
       summarize(subquads = list(unique(subquad.label)),
                 n.subquads = length(unique(subquad.label))) %>%
       ungroup()
@@ -349,12 +362,12 @@ for(k in 1:nrow(mgmt.cats.df)) {
     
     # for keeping track of which SUIDs we still have as candidates to add
     # initialize it with all SUIDS that contain points of the focal management category
-    suids.remaining <- unique(suid.summ$f.s.first.planting.suid)
+    geocells.remaining <- unique(geocell.summ$geocell.id)
     
-    suids.remaining <- setdiff(suids.remaining,default.suids.remaining)
+    geocells.remaining <- setdiff(geocells.remaining,default.geocells.remaining)
     
     # for keeping track of which SUIDS we've already added
-    suids.selected <- NULL
+    geocells.selected <- NULL
     
     # for keeping track of which subquads have been filled, use the subquads DF
     sub.quads.df$nplots <- 0
@@ -373,21 +386,21 @@ for(k in 1:nrow(mgmt.cats.df)) {
     highest.tier.goal.met <- 0
     
     ## start the loop here
-    while((current.tier < 4) & (length(suids.remaining)+length(default.suids.remaining) != 0)) {  
+    while((current.tier < 4) & (length(geocells.remaining)+length(default.geocells.remaining) != 0)) {  
      
       tier.just.completed <- FALSE
-      added.defauld.suid <- FALSE
+      added.default.geocell <- FALSE
       
       #1. Compute the current stratification scores
       strat.scores <- score.stratif(sub.quads.df,simp=TRUE)
       
       
       # if there are default SUIDs that need to be added, just select them as the ones to be added
-      if(length(default.suids.remaining) > 0) {
-        suid.to.add <- default.suids.remaining[1]
-        default.suids.remaining <- setdiff(default.suids.remaining,suid.to.add)
+      if(length(default.geocells.remaining) > 0) {
+        geocell.to.add <- default.geocellss.remaining[1]
+        default.geocellss.remaining <- setdiff(default.geocellss.remaining,geocell.to.add)
         
-        new.strat.scores <- strat.scores.w.new.suid(suid.to.add,sub.quads.df,d.foc.yr.classified,subquads.goal=subquads.goal)
+        new.strat.scores <- strat.scores.w.new.geocell(geocell.to.add,sub.quads.df,d.foc.yr.classified,subquads.goal=subquads.goal)
         
         added.default.suid <- TRUE
         
@@ -395,12 +408,12 @@ for(k in 1:nrow(mgmt.cats.df)) {
       
       
         #2. Test all remaining suids to see which best improves the stratification scores
-        suids.remaining ##! need to remove the SUIDS that were added in the last iteration
+        geocells.remaining ##! need to remove the SUIDS that were added in the last iteration
         
         
-        new.strat.scores <- map(suids.remaining,.f=strat.scores.w.new.suid,sub.quads.df=sub.quads.df,d.foc.yr.classified=d.foc.yr.classified,subquads.goal=subquads.goal)
+        new.strat.scores <- map(geocells.remaining,.f=strat.scores.w.new.geocell,sub.quads.df=sub.quads.df,d.foc.yr.classified=d.foc.yr.classified,subquads.goal=subquads.goal)
         new.strat.scores.df <- bind_rows(new.strat.scores)
-        new.strat.scores.df$suid <- suids.remaining
+        new.strat.scores.df$geocell <- geocells.remaining
         
         #find all the suids that achieve the greatest numver of quadrants that have at least 2+ subquadrants with at least one plot  ###!!! might want to reverse this to start looking for subquads with at least 3 plots? but then that deprioritizes SUIDs that fill lots of quadrants with one plot
         max.quads.filled <- max(new.strat.scores.df$n.quads.w.two.plus.subquads)
@@ -422,15 +435,15 @@ for(k in 1:nrow(mgmt.cats.df)) {
         best.scores <- best.scores %>%
           filter(n.sub.quads.filled == max.sub.quads.filled)
         
-        #! here, we should take the SUID with the greatest number of plots total: #amont those, find the one that has the greatest number of plots total
+        #! here, we should take the geocell with the greatest number of plots total: #amont those, find the one that has the greatest number of plots total
         
         # now, in case there are still multiple tied, just take the first one (this should be rare)
         best.scores <- best.scores[1,]
         
         ## compute the new strat scores with that suid
-        new.strat.scores <- strat.scores.w.new.suid(best.scores$suid,sub.quads.df,d.foc.yr.classified,subquads.goal=subquads.goal)
+        new.strat.scores <- strat.scores.w.new.geocell(best.scores$geocell,sub.quads.df,d.foc.yr.classified,subquads.goal=subquads.goal)
         
-        suid.to.add <- best.scores$suid
+        geocell.to.add <- best.scores$geocell
       }
       
       #make sure they went up (if already hit the first tier goal, check for increase in second tier goal instead, then third tier)
@@ -456,7 +469,7 @@ for(k in 1:nrow(mgmt.cats.df)) {
       }
       
       ## make it think the scores went up when we added the default SUID; otherwise, if the default SUID was not helpful, it would exit the loop
-      if(added.default.suid) {
+      if(added.default.geocell) {
         scores.increased <- TRUE
       }
       
@@ -467,11 +480,11 @@ for(k in 1:nrow(mgmt.cats.df)) {
         highest.tier.goal.met <- 1
         
         # add the new selected SUID to the list of selected SUIDs
-        new.suid <- suid.to.add
-        suids.selected.new <- data.frame(suid=new.suid,tier=current.tier)
-        suids.selected <- rbind(suids.selected,suids.selected.new)
-        sub.quads.df <- add.suid(new.suid,d.foc.yr.classified,sub.quads.df,tier=1)
-        suids.remaining <- dplyr::setdiff(suids.remaining,new.suid)
+        new.geocell <- geocell.to.add
+        geocells.selected.new <- data.frame(geocell=new.geocell,tier=current.tier)
+        geocells.selected <- rbind(geocells.selected,geocells.selected.new)
+        sub.quads.df <- add.suid(new.geocell,d.foc.yr.classified,sub.quads.df,tier=1)
+        geocells.remaining <- dplyr::setdiff(geocells.remaining,new.geocell)
         
         # go on to try to achieve tier 2 goal
         tier.just.completed <- TRUE
@@ -480,11 +493,11 @@ for(k in 1:nrow(mgmt.cats.df)) {
       } else if (current.tier == 1 & scores.increased == TRUE) { # score increased but did not meet goal
         
         # add the new selected SUID to the list of selected SUIDS, but keep searching to meet goal
-        new.suid <- suid.to.add
-        suids.selected.new <- data.frame(suid=new.suid,tier=current.tier)
-        suids.selected <- rbind(suids.selected,suids.selected.new)
-        sub.quads.df <- add.suid(new.suid,d.foc.yr.classified,sub.quads.df,tier=1)
-        suids.remaining <- dplyr::setdiff(suids.remaining,new.suid)
+        new.geocell <- geocell.to.add
+        geocells.selected.new <- data.frame(geocell=new.geocell,tier=current.tier)
+        geocells.selected <- rbind(geocells.selected,geocells.selected.new)
+        sub.quads.df <- add.geocell(new.geocell,d.foc.yr.classified,sub.quads.df,tier=1)
+        geocells.remaining <- dplyr::setdiff(geocells.remaining,new.geocell)
         
         
       } else if(current.tier == 1 & scores.increased == FALSE) { # if we were looking to increase first tier scoring (n quads with 2+ subquads filled once), but we didn't manage to increase it, print message, then go on to search for second tier goal
@@ -500,11 +513,11 @@ for(k in 1:nrow(mgmt.cats.df)) {
         highest.tier.goal.met <- 2
         
         # add the new selected SUID to the list of selected SUIDs
-        new.suid <- suid.to.add
-        suids.selected.new <- data.frame(suid=new.suid,tier=current.tier)
-        suids.selected <- rbind(suids.selected,suids.selected.new)
-        sub.quads.df <- add.suid(new.suid,d.foc.yr.classified,sub.quads.df,tier=2)
-        suids.remaining <- dplyr::setdiff(suids.remaining,new.suid)
+        new.geocell <- geocell.to.add
+        geocells.selected.new <- data.frame(geocell=new.geocell,tier=current.tier)
+        geocells.selected <- rbind(geocells.selected,geocells.selected.new)
+        sub.quads.df <- add.geocell(new.geocell,d.foc.yr.classified,sub.quads.df,tier=2)
+        geocells.remaining <- dplyr::setdiff(geocells.remaining,new.geocell)
         
         
         # go on to try to achieve tier 3 goal
@@ -513,12 +526,12 @@ for(k in 1:nrow(mgmt.cats.df)) {
         
       } else if (current.tier == 2 & scores.increased == TRUE) { # score increased but did not meet goal
         
-        # add the new selected SUID to the list of selected SUIDS, but keep searching to meet goal
-        new.suid <- suid.to.add
-        suids.selected.new <- data.frame(suid=new.suid,tier=current.tier)
-        suids.selected <- rbind(suids.selected,suids.selected.new)
-        sub.quads.df <- add.suid(new.suid,d.foc.yr.classified,sub.quads.df,tier=2)
-        suids.remaining <- dplyr::setdiff(suids.remaining,new.suid)
+        # add the new selected geocell to the list of selected geocellS, but keep searching to meet goal
+        new.geocell <- geocell.to.add
+        geocells.selected.new <- data.frame(geocell=new.geocell,tier=current.tier)
+        geocells.selected <- rbind(geocells.selected,geocells.selected.new)
+        sub.quads.df <- add.geocell(new.geocell,d.foc.yr.classified,sub.quads.df,tier=2)
+        geocells.remaining <- dplyr::setdiff(geocells.remaining,new.geocell)
         
         
       } else if(current.tier == 2 & scores.increased == FALSE) { # if we were looking to increase second tier scoring (n quads w/ 2+ subquads filled twice), but we didn't manage to increase it, print message, then go on to search for third tier goal
@@ -533,12 +546,12 @@ for(k in 1:nrow(mgmt.cats.df)) {
         # record that we met the goal
         highest.tier.goal.met <- 3
         
-        # add the new selected SUID to the list of selected SUIDs
-        new.suid <- suid.to.add
-        suids.selected.new <- data.frame(suid=new.suid,tier=current.tier)
-        suids.selected <- rbind(suids.selected,suids.selected.new)
-        sub.quads.df <- add.suid(new.suid,d.foc.yr.classified,sub.quads.df,tier=3)
-        suids.remaining <- dplyr::setdiff(suids.remaining,new.suid)
+        # add the new selected geocell to the list of selected geocells
+        new.geocell <- geocell.to.add
+        geocells.selected.new <- data.frame(geocell=new.geocell,tier=current.tier)
+        geocells.selected <- rbind(geocells.selected,geocells.selected.new)
+        sub.quads.df <- add.geocell(new.geocell,d.foc.yr.classified,sub.quads.df,tier=3)
+        geocells.remaining <- dplyr::setdiff(geocells.remaining,new.geocell)
         
         
         # completed tier 3 goal
@@ -547,12 +560,12 @@ for(k in 1:nrow(mgmt.cats.df)) {
         
       } else if (current.tier == 3 & scores.increased == TRUE) { # score increased but did not meet goal
         
-        # add the new selected SUID to the list of selected SUIDS, but keep searching to meet goal
-        new.suid <- suid.to.add
-        suids.selected.new <- data.frame(suid=new.suid,tier=current.tier)
-        suids.selected <- rbind(suids.selected,suids.selected.new)
-        sub.quads.df <- add.suid(new.suid,d.foc.yr.classified,sub.quads.df,tier=3)
-        suids.remaining <- dplyr::setdiff(suids.remaining,new.suid)
+        # add the new selected geocell to the list of selected geocellS, but keep searching to meet goal
+        new.geocell <- geocell.to.add
+        geocells.selected.new <- data.frame(geocell=new.geocell,tier=current.tier)
+        geocells.selected <- rbind(geocells.selected,geocells.selected.new)
+        sub.quads.df <- add.geocell(new.geocell,d.foc.yr.classified,sub.quads.df,tier=3)
+        geocells.remaining <- dplyr::setdiff(geocells.remaining,new.geocell)
         
         
       } else if(current.tier == 3 & scores.increased == FALSE) { # if we were looking to increase third tier scoring (n quads w/ 2+ subquads filled triply), but we didn't manage to increase it, print message, then consider tier complete
@@ -571,49 +584,62 @@ for(k in 1:nrow(mgmt.cats.df)) {
         current.tier <- current.tier + 1 ## if this goes up to 4, the loop will exit upon starting the next iteration
       }
       
-      # if we used up all the suid options, print a message that we did not achieve all tier goals
-      if(length(suids.remaining) == 0 & (current.tier != 4)) {
-        cat("\nFire:",foc.fire.name,", Plant year:",plt.yr,"-- All SUID options exhausted without completing three tiers")
+      # if we used up all the geocell options, print a message that we did not achieve all tier goals
+      if(length(geocells.remaining) == 0 & (current.tier != 4)) {
+        cat("\nFire:",foc.fire.name,", Plant year:",plt.yr,"-- All geocell options exhausted without completing three tiers")
       }
     }
     
     
     ## Create a data frame, where columns are: Fire, mgmt cat, plant year, suids.selected DF, and sub.quads DF, also columns with SUIDS for Tier 1, SUIDS for Tier 2, and SUIDS for Tier 3
     
-    suid.prioritization.single <- data.frame(foc.fire.name,mgmt.cat=mgmt.cat.string,plant.yr=plt.yr,highest.tier.goal.met,salv.cat=foc.salv.cat,site.prepped=foc.site.prepped,released=foc.released,thinned=foc.thinned,replanted=foc.replanted)
+    geocell.prioritization.single <- data.frame(foc.fire.name,mgmt.cat=mgmt.cat.string,plant.yr=plt.yr,highest.tier.goal.met,salv.cat=foc.salv.cat,site.prepped=foc.site.prepped,released=foc.released,thinned=foc.thinned,replanted=foc.replanted)
     
     
     
-    suid.prioritization.single$suids.selected <- list(suids.selected)
-    suid.prioritization.single$sub.quads <- list(sub.quads.df)
+    geocell.prioritization.single$geocells.selected <- list(geocells.selected)
+    geocell.prioritization.single$sub.quads <- list(sub.quads.df)
     
-    suids.tier1 <- as.character(suids.selected[suids.selected$tier==1,"suid"])
-    suids.tier2 <- as.character(suids.selected[suids.selected$tier==2,"suid"])
-    suids.tier3 <- as.character(suids.selected[suids.selected$tier==3,"suid"])
+    geocells.tier1 <- as.character(geocells.selected[geocells.selected$tier==1,"geocell"])
+    geocells.tier2 <- as.character(geocells.selected[geocells.selected$tier==2,"geocell"])
+    geocells.tier3 <- as.character(geocells.selected[geocells.selected$tier==3,"geocell"])
     
-    suid.prioritization.single$suids.tier1 <- list(suids.tier1)
-    suid.prioritization.single$suids.tier2 <- list(suids.tier2)
-    suid.prioritization.single$suids.tier3 <- list(suids.tier3)
+    geocell.prioritization.single$geocells.tier1 <- list(geocells.tier1)
+    geocell.prioritization.single$geocells.tier2 <- list(geocells.tier2)
+    geocell.prioritization.single$geocells.tier3 <- list(geocells.tier3)
     
-    suid.prioritization <- rbind(suid.prioritization,suid.prioritization.single)
+    geocell.prioritization <- rbind(geocell.prioritization,geocell.prioritization.single)
   }
   
   
   ## make a plot of all plots in the first three tiers of suids, colored by planting year and shped by tier
-  suid.prioritization.focal <- suid.prioritization %>%
+  geocell.prioritization.focal <- geocell.prioritization %>%
     filter(foc.fire.name == foc.fire.name &
              mgmt.cat == mgmt.cat.string)
   
-  suids.tier1 <- data.frame(tier=1,f.s.first.planting.suid=unlist(suid.prioritization$suids.tier1))
-  suids.tier2 <- data.frame(tier=2,f.s.first.planting.suid=unlist(suid.prioritization$suids.tier2))
-  suids.tier3 <- data.frame(tier=3,f.s.first.planting.suid=unlist(suid.prioritization$suids.tier3))
+  geocells.tier1 <- data.frame(tier=1,geocell.id=unlist(geocell.prioritization$geocells.tier1))
   
-  suids.priorities.pre <- suppressWarnings(bind_rows(suids.tier1,suids.tier2))
-  suids.priorities <- suppressWarnings(bind_rows(suids.priorities.pre,suids.tier3))
+  if(length(unlist(geocell.prioritization$geocells.tier2)) > 0) {
+    geocells.tier2 <- data.frame(tier=2,geocell.id=unlist(geocell.prioritization$geocells.tier2))
+  } else {
+    geocells.tier2 <- NULL
+  }
+  
+  if(length(unlist(geocell.prioritization$geocells.tier3)) > 0) {
+    geocells.tier3 <- data.frame(tier=3,geocell.id=unlist(geocell.prioritization$geocells.tier3))
+  } else {
+    geocells.tier3 <- NULL
+  }
+  
+  geocells.priorities.pre <- suppressWarnings(bind_rows(geocells.tier1,geocells.tier2))
+  geocells.priorities <- suppressWarnings(bind_rows(geocells.priorities.pre,geocells.tier3))
+  
+  geocells.priorities <- geocells.priorities %>%
+    mutate(geocell.id = as.numeric(as.character(geocell.id)))
   
     
   ##!! now merge this with plots data so we have plot rad and elevation which can be colored by planting year and shaped by tier
-  d.foc.suids.pri <- left_join(d.foc,suids.priorities,by="f.s.first.planting.suid") %>%
+  d.foc.geocells.pri <- left_join(d.foc,geocells.priorities,by="geocell.id") %>%
     filter(!is.na(tier)) %>%
     mutate(tier = as.character(tier),
            yr.pltd = as.character(yr.pltd)) %>%
@@ -623,13 +649,13 @@ for(k in 1:nrow(mgmt.cats.df)) {
   yr.colors <- c("0" = "black","1" = "darkolivegreen3", "2" = "cornflowerblue", "3" = "darkorange1", "4+" = "brown3")
   
   
-  g <- ggplot(d.foc.suids.pri,aes(x=elev,y=rad,color=yr.pltd,shape=tier)) +
+  g <- ggplot(d.foc.geocells.pri,aes(x=elev,y=rad,color=yr.pltd,shape=tier)) +
     geom_point(size=2.5) +
     theme_bw(15) +
     scale_shape_manual(values=c(16,1,8)) +
     scale_colour_manual(values=yr.colors) +
     labs(color="Yr planted",shape="Strat tier") +
-    labs(title=d.foc.suids.pri$fire.dist2[1])+
+    labs(title=d.foc.geocells.pri$fire.dist2[1])+
     geom_rect(xmin=plotting.range$elev.low,
               xmax=plotting.range$elev.high,
               ymin=plotting.range$rad.low,
@@ -637,30 +663,28 @@ for(k in 1:nrow(mgmt.cats.df)) {
               fill=NA,color="black")
   print(g)
   
-  
-  
 }
 
 
-#### Based on SUID prioritization, select actual plots in tiers, so we have the plots and also the top-priority SUIDs for study. ####
+#### Based on geocell prioritization, select actual plots in tiers, so we have the plots and also the top-priority SUIDs for study. ####
 
 selected.subquads <- NULL
 
 ### For each row
-for(i in 1:nrow(suid.prioritization)) {
+for(i in 1:nrow(geocell.prioritization)) {
   
   
-  suid.pri.focal <- suid.prioritization[i,]
+  geocell.pri.focal <- geocell.prioritization[i,]
   
   ## Look up what the subquad goal was
   mgmt.cat.focal <- mgmt.cats.df %>%
-    filter(foc.fire.name == suid.pri.focal$foc.fire.name &
-             mgmt.cat.string == suid.pri.focal$mgmt.cat)
+    filter(foc.fire.name == geocell.pri.focal$foc.fire.name &
+             mgmt.cat.string == geocell.pri.focal$mgmt.cat)
   subquads.goal <- mgmt.cat.focal$subquads.goal
   
   ### For each quad
   # First, what are the quads?
-  sub.quads.focal <- suid.pri.focal$sub.quads[[1]]
+  sub.quads.focal <- geocell.pri.focal$sub.quads[[1]]
   quads <- unique(sub.quads.focal$quad.label)
   
   for(j in 1:length(quads)) {
@@ -705,7 +729,7 @@ for(i in 1:nrow(suid.prioritization)) {
           
           #How many were there?
           n.candidate.subquads <- nrow(candidate.subquads) + nrow(addl.candidate.subquads)
-          cat("\nFor",as.character(suid.pri.focal$foc.fire.name),", quad ",as.character(quad),": only",n.candidate.subquads,"subquads with >= 2 plots; goal was",subquads.goal)
+          cat("\nFor",as.character(geocell.pri.focal$foc.fire.name),", quad ",as.character(quad),": only",n.candidate.subquads,"subquads with >= 2 plots; goal was",subquads.goal)
         
         }
         
@@ -775,14 +799,14 @@ for(i in 1:nrow(suid.prioritization)) {
       arrange(desc(goal1),desc(goal2),desc(goal3),desc(goal4),desc(goal5),desc(goal6))
     
     candidate.subquads <- candidate.subquads[0:subquads.goal,]
-    candidate.subquads$foc.fire.name <- suid.pri.focal$foc.fire.name
-    candidate.subquads$mgmt.cat <- suid.pri.focal$mgmt.cat
-    candidate.subquads$plant.yr <- suid.pri.focal$plant.yr
-    candidate.subquads$salv.cat <- suid.pri.focal$salv.cat
-    candidate.subquads$released <- suid.pri.focal$released
-    candidate.subquads$thinned <- suid.pri.focal$thinned
-    candidate.subquads$site.prepped <- suid.pri.focal$site.prepped
-    candidate.subquads$replanted <- suid.pri.focal$replanted
+    candidate.subquads$foc.fire.name <- geocell.pri.focal$foc.fire.name
+    candidate.subquads$mgmt.cat <- geocell.pri.focal$mgmt.cat
+    candidate.subquads$plant.yr <- geocell.pri.focal$plant.yr
+    candidate.subquads$salv.cat <- geocell.pri.focal$salv.cat
+    candidate.subquads$released <- geocell.pri.focal$released
+    candidate.subquads$thinned <- geocell.pri.focal$thinned
+    candidate.subquads$site.prepped <- geocell.pri.focal$site.prepped
+    candidate.subquads$replanted <- geocell.pri.focal$replanted
     
     
     ##^ this is the subquads we want to use for this quadrant
@@ -800,7 +824,7 @@ for(i in 1:nrow(selected.subquads)) {
   subquad.focal <- selected.subquads[i,]
   
   ## get the SUIDs for that subquad, along with their tiers.
-  suids <- suid.prioritization %>%
+  geocells <- geocell.prioritization %>%
     filter(foc.fire.name == as.character(subquad.focal$foc.fire.name) &
              plant.yr == as.character(subquad.focal$plant.yr) &
              salv.cat == as.character(subquad.focal$salv.cat) &
@@ -809,7 +833,7 @@ for(i in 1:nrow(selected.subquads)) {
              thinned == as.character(subquad.focal$thinned) &
              replanted == as.character(subquad.focal$replanted)) 
   
-  suids.w.tiers <- suids$suids.selected[[1]]
+  geocells.w.tiers <- geocells$geocells.selected[[1]]
   
   ## now get the PLOTs for that subquad
   plots.mgmt <- d.trt %>%
@@ -820,33 +844,40 @@ for(i in 1:nrow(selected.subquads)) {
              released == as.character(subquad.focal$released) &
              thinned == as.character(subquad.focal$thinned) &
              replanted == as.character(subquad.focal$replanted))
-             
+        
+  ##!! here we can just use the same df of plots from the earlier code, when doing for a single management type and age at a time (right?)
+  plots.mgmt <- st_intersection(plots.mgmt,geocells_all)
+  
+       
   plots.subquad <- plots.mgmt %>%
     filter(  elev < subquad.focal$elev.high &
              elev > subquad.focal$elev.low &
              rad < subquad.focal$rad.high &
              rad > subquad.focal$rad.low)
   
+
+  
+  
   ## attach the SUID prioritization
-  plots.subquad <- inner_join(plots.subquad,suids.w.tiers,by=c("f.s.first.planting.suid" = "suid"))
+  plots.subquad <- inner_join(plots.subquad,geocells.w.tiers,by=c("geocell.id" = "geocell"))
   
   ## get the number of plots of each SUID in this subquadrant
-  suid.subquad.counts <- plots.subquad %>%
+  geocell.subquad.counts <- plots.subquad %>%
     st_drop_geometry() %>%
-    group_by(f.s.first.planting.suid) %>%
-    summarize(suid.subquad.count=n())
+    group_by(geocell.id) %>%
+    summarize(geocell.subquad.count=n())
   
-  suid.overall.counts <- plots.mgmt %>%
+  geocell.overall.counts <- plots.mgmt %>%
     st_drop_geometry() %>%
-    group_by(f.s.first.planting.suid) %>%
-    summarize(suid.overall.count =n())
+    group_by(geocell.id) %>%
+    summarize(geocell.overall.count =n())
   
-  plots.subquad <- left_join(plots.subquad,suid.subquad.counts,by="f.s.first.planting.suid")
-  plots.subquad <- left_join(plots.subquad,suid.overall.counts,by="f.s.first.planting.suid")
+  plots.subquad <- left_join(plots.subquad,geocell.subquad.counts,by="geocell.id")
+  plots.subquad <- left_join(plots.subquad,geocell.overall.counts,by="geocell.id")
   plots.subquad$random <- sample(0:nrow(plots.subquad),nrow(plots.subquad),replace=FALSE)
   
   plots.subquad.ranked <- plots.subquad %>%
-    arrange(tier,desc(suid.subquad.count),desc(suid.overall.count),random)
+    arrange(tier,desc(geocell.subquad.count),desc(geocell.overall.count),random)
   
   ## if there are more than 2 plots,## keep 3 max   see if plots 2 and 3 are from the same tier; if so, keep #3
   if(nrow(plots.subquad.ranked) > 2) {
@@ -865,7 +896,7 @@ for(i in 1:nrow(selected.subquads)) {
 
 
 ## save it
-st_write(all.selected.plots,"data/site-selection/output/selected-plots/selected_plots_v1.gpkg")
+st_write(all.selected.plots,"data/site-selection/output/selected-plots/selected_plots_moontelope_v1.gpkg")
 
 
 #### For each fire and management cat, plot the resulting stratification ####
