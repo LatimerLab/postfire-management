@@ -62,14 +62,14 @@ subquads.goal <- 2
 foc.salv.cat <- "neither"
 foc.site.prepped <- "no"
 foc.released <- "no"
-#foc.replanted <- "no"
+foc.replanted <- "no"
 foc.thinned <- "no"
-mgmt.cat.string <- paste0("Salv: ",foc.salv.cat," - Prep: ",foc.site.prepped," - Rel: ",foc.released," - Thn: ",foc.thinned)
+mgmt.cat.string <- paste0("Salv: ",foc.salv.cat," - Prep: ",foc.site.prepped," - Rel: ",foc.released," - Thn: ",foc.thinned," - Replt: ",foc.replanted)
 custom.rad.low <- NA
 custom.rad.high <- NA
 custom.elev.low <- NA
 custom.elev.high <- NA
-mgmt.cats.df.row <- data.frame(foc.fire.name,rad.cats,elev.cats,foc.salv.cat,foc.site.prepped,foc.released,foc.thinned,subquads.goal,custom.rad.low,custom.rad.high,custom.elev.low,custom.elev.high,mgmt.cat.string)
+mgmt.cats.df.row <- data.frame(foc.fire.name,rad.cats,elev.cats,foc.salv.cat,foc.site.prepped,foc.released,foc.thinned,foc.replanted,subquads.goal,custom.rad.low,custom.rad.high,custom.elev.low,custom.elev.high,mgmt.cat.string)
 mgmt.cats.df.row$foc.yrs.pltd <- list(c("1","2","3"))
 mgmt.cats.df.row$default.suids <- NA #list(c("0511022080104000000","0511022080102000001","0511022080100000000"))
 mgmt.cats.df <- rbind(mgmt.cats.df,mgmt.cats.df.row)
@@ -580,7 +580,7 @@ for(k in 1:nrow(mgmt.cats.df)) {
     
     ## Create a data frame, where columns are: Fire, mgmt cat, plant year, suids.selected DF, and sub.quads DF, also columns with SUIDS for Tier 1, SUIDS for Tier 2, and SUIDS for Tier 3
     
-    suid.prioritization.single <- data.frame(foc.fire.name,mgmt.cat=mgmt.cat.string,plant.yr=plt.yr,highest.tier.goal.met,salv.cat=foc.salv.cat,site.prepped=foc.site.prepped,released=foc.released,thinned=foc.thinned)
+    suid.prioritization.single <- data.frame(foc.fire.name,mgmt.cat=mgmt.cat.string,plant.yr=plt.yr,highest.tier.goal.met,salv.cat=foc.salv.cat,site.prepped=foc.site.prepped,released=foc.released,thinned=foc.thinned,replanted=foc.replanted)
     
     
     
@@ -690,15 +690,29 @@ for(i in 1:nrow(suid.prioritization)) {
       ## Are there enough more?
       if(nrow(addl.candidate.subquads) < addl.subquads.needed) {
         
-        #How many were there?
-        n.candidate.subquads <- nrow(candidate.subquads) + nrow(addl.candidate.subquads)
-        cat("\nFor",as.character(suid.pri.focal$foc.fire.name),", quad ",as.character(quad),": only",n.candidate.subquads,"subquads with >= 2 plots; goal was",subquads.goal)
         
-        addl.subquads.needed <- nrow(addl.candidate.subquads)
+        
+        # if not, allow there to be at least 1 nplots
+        ## Find more candidate subquads: those that have 1 nplots (not >1 because we already included those with 2+, ## warning, selecting those with < 2 will mean not enough for redundancy)
+        addl.addl.candidate.subquads <- sub.quads.focal %>%
+          filter(quad.label == quad &
+                   nplots == 1) %>%
+          arrange(desc(nplots.tier1),desc(nplots.tier2),desc(nplots.tier3)) # sort by how many plots they had in the first round of searching
+        
+        ## are there enough more? if not...
+        if(nrow(addl.candidate.subquads) + nrow(addl.addl.candidate.subquads) < addl.subquads.needed) {
+        
+          
+          #How many were there?
+          n.candidate.subquads <- nrow(candidate.subquads) + nrow(addl.candidate.subquads)
+          cat("\nFor",as.character(suid.pri.focal$foc.fire.name),", quad ",as.character(quad),": only",n.candidate.subquads,"subquads with >= 2 plots; goal was",subquads.goal)
+        
+        }
         
       }
       
       candidate.subquads <- rbind(candidate.subquads,addl.candidate.subquads)
+      candidate.subquads <- rbind(candidate.subquads,addl.addl.candidate.subquads)
       n.candidate.subquads <- nrow(candidate.subquads)
       
     }
@@ -723,13 +737,15 @@ for(i in 1:nrow(suid.prioritization)) {
              goal2 = nplots.tiers12 >= 3,
              goal3 = nplots.tier1 >= 2,
              goal4 = nplots.tiers12 >= 2,
-             goal5 = nplots.tiers123 >= 2)
+             goal5 = nplots.tiers123 >= 2,
+             goal6 = nplots.tiers123 >= 1)
     
     goal1met <- sum(goals$goal1) >= subquads.goal
     goal2met <- sum(goals$goal2) >= subquads.goal
     goal3met <- sum(goals$goal3) >= subquads.goal
     goal4met <- sum(goals$goal4) >= subquads.goal
     goal5met <- sum(goals$goal5) >= subquads.goal
+    goal6met <- sum(goals$goal6) >= subquads.goal
       
     if(goal1met) {
       candidate.subquads <- goals %>%
@@ -746,13 +762,17 @@ for(i in 1:nrow(suid.prioritization)) {
     } else if(goal5met) {
       candidate.subquads <- goals %>%
         filter(goal1 | goal2 | goal3 | goal4 | goal5)
+    } else if(goal6met) {
+      candidate.subquads <- goals %>%
+        filter(goal1 | goal2 | goal3 | goal4 | goal5 | goal6)
     } else {
-      candidate.subquads <- goal %>%
-        filter(nplots >= 2)
+      candidate.subquads <- goals %>%
+        filter(nplots >= 1)
     }
+
     
     candidate.subquads <- candidate.subquads %>%
-      arrange(desc(goal1),desc(goal2),desc(goal3),desc(goal4),desc(goal5))
+      arrange(desc(goal1),desc(goal2),desc(goal3),desc(goal4),desc(goal5),desc(goal6))
     
     candidate.subquads <- candidate.subquads[0:subquads.goal,]
     candidate.subquads$foc.fire.name <- suid.pri.focal$foc.fire.name
@@ -762,6 +782,7 @@ for(i in 1:nrow(suid.prioritization)) {
     candidate.subquads$released <- suid.pri.focal$released
     candidate.subquads$thinned <- suid.pri.focal$thinned
     candidate.subquads$site.prepped <- suid.pri.focal$site.prepped
+    candidate.subquads$replanted <- suid.pri.focal$replanted
     
     
     ##^ this is the subquads we want to use for this quadrant
@@ -785,7 +806,8 @@ for(i in 1:nrow(selected.subquads)) {
              salv.cat == as.character(subquad.focal$salv.cat) &
              site.prepped == as.character(subquad.focal$site.prepped) &
              released == as.character(subquad.focal$released) &
-             thinned == as.character(subquad.focal$thinned))
+             thinned == as.character(subquad.focal$thinned) &
+             replanted == as.character(subquad.focal$replanted)) 
   
   suids.w.tiers <- suids$suids.selected[[1]]
   
@@ -796,7 +818,8 @@ for(i in 1:nrow(selected.subquads)) {
              salv.cat == as.character(subquad.focal$salv.cat) &
              site.prepped == as.character(subquad.focal$site.prepped) &
              released == as.character(subquad.focal$released) &
-             thinned == as.character(subquad.focal$thinned))
+             thinned == as.character(subquad.focal$thinned) &
+             replanted == as.character(subquad.focal$replanted))
              
   plots.subquad <- plots.mgmt %>%
     filter(  elev < subquad.focal$elev.high &
