@@ -84,7 +84,9 @@ facts.all.fires$DATE_A <- as.character(facts.all.fires$DATE_A)
 facts.all.fires$DATE_C <- as.character(facts.all.fires$DATE_C)
 facts.all.fires$DATE_P <- as.character(facts.all.fires$DATE_P)
 
-# remove facts units that were not completed (no completed date)
+
+# remove facts units that were not completed (no completed date, unless on power fire, in which case if completed date is blank, set to accomplished date)
+facts.all.fires[facts.all.fires$VB_ID == "2004POWER",]$DATE_C <- ifelse(is.na(facts.all.fires[facts.all.fires$VB_ID == "2004POWER",]$DATE_C),facts.all.fires[facts.all.fires$VB_ID == "2004POWER",]$DATE_A,facts.all.fires[facts.all.fires$VB_ID == "2004POWER",]$DATE_C)
 facts.all.fires <- facts.all.fires[!is.na(facts.all.fires$DATE_C),]
 
 
@@ -127,7 +129,7 @@ planting.zone <- st_union(planting.zone)
 ## Perimeter points
 
 # Buffer in by 25 m and out by 25 m and place points along the resulting perimeters to establish the candidate set of "treated" and "control" plots
-treated.plot.perim <- st_buffer(planting.zone,dist=-15)
+treated.plot.perim <- st_buffer(planting.zone,dist=-25)
 treated.plot.perim <- st_set_crs(treated.plot.perim,3310)
 
 # st_write(treated.plot.perim,"../treated_plot_perim_precast.gpkg")
@@ -145,7 +147,7 @@ treated.plot.perim <- as(treated.plot.perim,"Spatial")
 trt.candidate.plots <- spsample(treated.plot.perim,n=treated.perim.length/100,type="regular")
 trt.candidate.plots <- as(trt.candidate.plots,"sf")
 
-control.plot.perim <- st_buffer(planting.zone,dist=15)
+control.plot.perim <- st_buffer(planting.zone,dist=25)
 precast.crs <- st_crs(control.plot.perim)
 precast.precision <- st_precision(control.plot.perim)
 control.plot.perim <- st_cast(control.plot.perim,"MULTILINESTRING")
@@ -157,7 +159,7 @@ ctrl.candidate.plots <- spsample(control.plot.perim,n=control.perim.length/50,ty
 ctrl.candidate.plots <- as(ctrl.candidate.plots,"sf")
 
 ## Internal points
-internal.poly <- st_buffer(planting.zone,dist=-50)
+internal.poly <- st_buffer(planting.zone,dist=-60)
 # Must do fire-by-fire because it's too slow to do all at once
 internal.candidate.plots.list <- list()
 for(fire in fires.focal.names) {
@@ -244,7 +246,7 @@ ownership.intersect.first <- map_int(ownership_intersects,1,.default=NA) # get t
 candidate.plots$forest <- ownership[ownership.intersect.first,]$LABEL_NAME
 
 # Get the severity of the most recent overlapping focal fire(s) -- that is the fire that prompted the planting
-#!!!!!!!!! Need to reconcile this with needing plots to be close to seed sources !!!!! As written currently, plots will be >= 55m from non-high severity
+#!!!!!!!!! Need to reconcile this with needing plots to be close to seed sources !!!!! As written currently, plots will be >= 25 from non-high severity
 
 candidate.plots.buffer <- st_buffer(candidate.plots,15) # buffer out for 40m to make sure it's high-severity in the entire area surrounding
 fire.sev.buffer <- st_buffer(fire.sev,10) # buffer fire severity out for 15 m in case there were inaccuracies in measuring fire severity
@@ -325,6 +327,11 @@ chem.release <- c("Manual Chemical","Chemical")
 get_all_facts_management <- function(x,type) { # function to get the VB_ID of all overlapping historical fires (since 1984) to make sure that treated and control plots have the same fire history
   overlaps <- x
   facts.data.overlaps <- facts.data[overlaps,] # select management that's overlapping
+  
+  # remove cert. of natural regen. because it is not active management
+  facts.data.overlaps <- facts.data.overlaps[facts.data.overlaps$ACTIV != "Certification of Natural Regeneration without Site Prep",]
+  
+  
 
   completed_date <- facts.data.overlaps[,"DATE_C"]
   completed_date[which(is.na(completed_date))] <- "nodate"
@@ -337,6 +344,8 @@ get_all_facts_management <- function(x,type) { # function to get the VB_ID of al
 
   completed_year <- substr(completed_date,1,4)
   completed_year[which(completed_year == "nodate")] <- "1800" # assume activities with no date were from very early
+  completed_date[which(completed_date == "nodate")] <- "1800-01-01" # assume activities with no date were from very early
+  completed_year[which(completed_year == "noda")] <- "1800" # assume activities with no date were from very early
   completed_year <- as.numeric(completed_year)
   fire.year <- as.numeric(fire.year)
   
@@ -365,8 +374,10 @@ get_all_facts_management <- function(x,type) { # function to get the VB_ID of al
   plant.tree.post <- facts.data.overlaps[facts.data.overlaps$ACTIV == "Plant Trees" & facts.data.overlaps$completed.year > facts.data.overlaps$fire.year,]
   if(nrow(plant.tree.post)==0) {
     first.year.plant <- 2018
+    first.date.plant <- 2018-01-01
   } else {
     first.year.plant <- min(as.numeric(plant.tree.post$completed.year))
+    first.date.plant <- min(plant.tree.post$completed.date)
   }
   
   #compute years post-planting that release done
@@ -393,7 +404,7 @@ get_all_facts_management <- function(x,type) { # function to get the VB_ID of al
   salvage.heli <- ifelse(salvage.heli,"YES","no")
   
   # was any of the salvage done after the planting year?
-  activity.salvage.postplant <- facts.data.overlaps[facts.data.overlaps$ACTIV %in% salvage & facts.data.overlaps$completed.year >= first.year.plant,] # select management that's salvage and that happened after the planting (planting happened in spring usually, so if salvage was in the same year it was after planting)
+  activity.salvage.postplant <- facts.data.overlaps[facts.data.overlaps$ACTIV %in% salvage & facts.data.overlaps$completed.date >= first.date.plant,] # select management that's salvage and that happened after the planting (planting happened in spring usually, so if salvage was in the same year it was after planting)
   salvage.postplant.bool <- nrow(activity.salvage.postplant) > 0
   
   
@@ -524,7 +535,7 @@ for(i in 1:nrow(trt)) {
   
   ctl.close <- ctl.close[ctl.close$most.recent.focal.fire == trt.focal$most.recent.focal.fire &
                            ctl.close$fire.history == trt.focal$fire.history &
-                           near(ctl.close$slope,trt.focal$slope,10) &
+                           near(ctl.close$slope,trt.focal$slope,15) &
                            near(ctl.close$elev,trt.focal$elev,100) &
                            (near(ctl.close$northness,trt.focal$northness,0.5) | (min(ctl.close$slope,trt.focal$slope) < 5)) & # either (a) there is little difference in aspect between the paired plots, or (b) at least one of the plots is quite flat (so aspect is not very relevant)
                            ctl.close$prefire.management.history == trt.focal$prefire.management.history & # pre-fire management in control plot same as in planted plot
@@ -890,40 +901,48 @@ p.dat <- p.dat %>%
 #   filter(dist.non.high > 120 | class == "perimeter")
 
 # for computing if there's enough plots to justify study, only look at perimeter plots close to seed source
-p.dat.close <- p.dat[(p.dat$dist.non.high < 80) & (p.dat$class != "internal"),]
+p.dat.close <- p.dat[(p.dat$dist.non.high < 120) & (p.dat$class != "internal"),]
+
+
+# 
+# 
+# ### First-pass summary of breakdown of abundance by fire of: salvage, released, thinned
+# p.dat.plt <- p.dat %>%
+#   dplyr::filter(type=="treatment") %>%
+#   mutate(salv.tf = (f.s.salvage == "yes"),
+#          rel.tf = (f.s.release.nyears > 0),
+#          replt.tf = (f.s.replant.nyears > 0),
+#          thin.tf = (f.s.thin.nyears > 0))
+# 
+# p.dat.plt.summ <- p.dat.plt %>%
+#   st_drop_geometry %>%
+#   group_by(fire.dist2) %>%
+#   summarize(salv.perc = sum(salv.tf)/n(),
+#             replt.perc = sum(replt.tf)/n(),
+#             rel.perc = sum(rel.tf)/n(),
+#             thin.perc = sum(thin.tf)/n())
+# 
+# prop_to_perc <- function(x) {
+#   return(round(x*100))
+# }
+# 
+# p.dat.plt.summ <- p.dat.plt.summ %>%
+#   mutate_at(.vars=vars(salv.perc,rel.perc,replt.perc,thin.perc),
+#             .funs = prop_to_perc)
+# 
+# 
+# write.csv(p.dat.plt.summ,row.names=FALSE,"data/site-selection/output/candidate-plots/plot_summ_for_workshop.csv")
+# 
+# 
+# ## resuming main code
+# 
 
 
 
+### temp testing of mcnally: why are so many getting dropped
+p.inspect <- p.dat.close %>%
+  filter(fire.dist == "2002MCNALLY - Sequoia NF")
 
-### First-pass summary of breakdown of abundance by fire of: salvage, released, thinned
-p.dat.plt <- p.dat %>%
-  dplyr::filter(type=="treatment") %>%
-  mutate(salv.tf = (f.s.salvage == "yes"),
-         rel.tf = (f.s.release.nyears > 0),
-         replt.tf = (f.s.replant.nyears > 0),
-         thin.tf = (f.s.thin.nyears > 0))
-
-p.dat.plt.summ <- p.dat.plt %>%
-  st_drop_geometry %>%
-  group_by(fire.dist2) %>%
-  summarize(salv.perc = sum(salv.tf)/n(),
-            replt.perc = sum(replt.tf)/n(),
-            rel.perc = sum(rel.tf)/n(),
-            thin.perc = sum(thin.tf)/n())
-
-prop_to_perc <- function(x) {
-  return(round(x*100))
-}
-
-p.dat.plt.summ <- p.dat.plt.summ %>%
-  mutate_at(.vars=vars(salv.perc,rel.perc,replt.perc,thin.perc),
-            .funs = prop_to_perc)
-
-
-write.csv(p.dat.plt.summ,row.names=FALSE,"data/site-selection/output/candidate-plots/plot_summ_for_workshop.csv")
-
-
-## resuming main code
 
 
 ## OK, now for each fire, sum the number of perimeter plots in each factorial combination of each of the important treatment columns
@@ -943,7 +962,7 @@ p.dat.agg <- p.dat.close %>%
 
   
 # keep only the ones with enough candidate plots
-p.dat.agg.many <- p.dat.agg[p.dat.agg$nplots >= 10,] %>% 
+p.dat.agg.many <- p.dat.agg[p.dat.agg$nplots >= 5,] %>% 
   as.data.frame()
 
 ## save to csv
@@ -1054,7 +1073,7 @@ for(i in 1:length(fires)) {
 
 
 
-pdf("data/site-selection/output/candidate-plots/stratification_v15_fixed_nosplit_nostring.pdf")
+pdf("data/site-selection/output/candidate-plots/stratification_v16_widerbuff.pdf")
 for(i in seq_along(plts)) {
   print(plts[[i]])
 }

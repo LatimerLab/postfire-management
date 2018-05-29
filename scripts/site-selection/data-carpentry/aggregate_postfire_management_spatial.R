@@ -63,9 +63,18 @@ fires.focal.singlepoly <- st_buffer(fires.focal.singlepoly,0)
 facts <- st_intersection(facts,fires.focal.singlepoly)
 
 
-## for SUID, what we really want is SUID_subunit
 
 
+
+## Check for reporting discrepancies in reported size vs. actual size
+## remove those units where reported and GIS acres do not match. Check either NBR_UNTIS or SUBUNIT_S and allow either to match
+# now just making sure GIS acres is not much larger than reported acres
+facts <- facts %>%
+  mutate( reporting_discrepancy = ! (((((NBR_UNITS_ > (GIS_A*.75)) ) | ((NBR_UNITS_ > (GIS_A - 25)) ))) |
+                                       ((((SUBUNIT_S > (GIS_A*.75)) ) | ((SUBUNIT_S > (GIS_A - 25)) )))) )
+
+
+st_write(facts,"../facts_reporting_discrepancies.gpkg")
 
 
 ## For FACTS units from the Power Fire, we need to set completed date = accomplished date ##
@@ -144,7 +153,7 @@ facts$sliver <- "no"
 facts[facts$area.post.pre.ratio < facts$stringer.threshold,"sliver"] <- "YES"
 facts$sliver <- as.character(facts$sliver)
 
-st_write(facts,"../CA_Activity_merged_slivers_fixed.shp",delete_dsn=TRUE)
+# st_write(facts,"../CA_Activity_merged_slivers_fixed.shp",delete_dsn=TRUE)
 
 
 ### for each fire, get management history, separately for each area that did not have all the same management applied to it
@@ -158,7 +167,7 @@ for(i in 1:nrow(fires.focal))  {
   
   cat("\nProcessing management history of fire:",fire.name,"(",i,"of",nrow(fires.focal),")\n")
   
-  # remove areas of the fire that burned later
+  # remove areas of the fire that burned later (or the same year)
   fires.later <- fires[fires$FIRE_YEAR >= year.focal & fires$VB_ID!=fire.focal$VB_ID,]
   fires.later <- st_combine(fires.later)
   fires.later <- st_buffer(fires.later,0)
@@ -186,7 +195,7 @@ for(i in 1:nrow(fires.focal))  {
   
   ## pull out planting units only
   facts.fire.planting <- facts.fire[facts.fire$ACTIV %in% planting,]
-  facts.fire.planting <- facts.fire.planting[facts.fire.planting$year >= year.focal,] # must have been planted after fire #! should we also exclude areas that were planted before the fire?
+  facts.fire.planting <- facts.fire.planting[facts.fire.planting$year > year.focal,] # must have been planted after fire #! should we also exclude areas that were planted before the fire?
   
   ## pull out all other relevant management (except planting)
   facts.fire.othermanagement <- facts.fire[facts.fire$ACTIV %in% manage.except.plant,]
@@ -206,19 +215,19 @@ for(i in 1:nrow(fires.focal))  {
   
   ## pull out all release
   facts.fire.release <- facts.fire[facts.fire$ACTIV %in% release,]
-  facts.fire.release <- facts.fire.release[facts.fire.release$year >= year.focal,] # management must have occurred the same year as the fire or later
+  facts.fire.release <- facts.fire.release[facts.fire.release$year > year.focal,] # management must have occurred the same year as the fire or later
   
   ## pull out all thin
   facts.fire.thin <- facts.fire[facts.fire$ACTIV %in% thin,]
-  facts.fire.thin <- facts.fire.thin[facts.fire.thin$year >= year.focal,] # management must have occurred the same year as the fire or later
+  facts.fire.thin <- facts.fire.thin[facts.fire.thin$year > year.focal,] # management must have occurred the same year as the fire or later
   
   ## pull out all replant
   facts.fire.replant <- facts.fire[facts.fire$ACTIV %in% replant,]
-  facts.fire.replant <- facts.fire.replant[facts.fire.replant$year >= year.focal,] # management must have occurred the same year as the fire or later
+  facts.fire.replant <- facts.fire.replant[facts.fire.replant$year > year.focal,] # management must have occurred the same year as the fire or later
   
   ## pull out all prune
   facts.fire.prune <- facts.fire[facts.fire$ACTIV %in% prune,]
-  facts.fire.prune <- facts.fire.prune[facts.fire.prune$year >= year.focal,] # management must have occurred the same year as the fire or later
+  facts.fire.prune <- facts.fire.prune[facts.fire.prune$year > year.focal,] # management must have occurred the same year as the fire or later
 
   ## pull out all fuel
   facts.fire.fuel <- facts.fire[facts.fire$ACTIV %in% fuel,]
@@ -297,7 +306,6 @@ for(i in 1:nrow(fires.focal))  {
     # get all overlapping planting units and their associated info
     if(is.null(facts.fire.planting)) planting.over <- NULL else planting.over <- raster::intersect(facts.fire.planting,planting.slice)
  
-  
     planting.years <- planting.over$year
     planting.years.post <- planting.years - year.focal
     years.order <- order(planting.years.post)
@@ -314,6 +322,7 @@ for(i in 1:nrow(fires.focal))  {
     pl.spl[j,"planting.nyears"] <- paste(planting.nyears,collapse=", ")
     pl.spl[j,"planting.n.unique.years"] <- paste(planting.n.unique.years,collapse=", ")
     pl.spl[j,"planting.unit.names"] <- paste(planting.unit.name,collapse=", ")
+    pl.spl[j,"planting.reporting.discrepancy"] <- any(planting.over$reporting_discrepancy)
     # get suids excluding slivers (stringers)
     mgmt.over.noslivers <- planting.over[planting.over$sliver=="no",]
     mgmt.years <- mgmt.over.noslivers$year
@@ -339,6 +348,8 @@ for(i in 1:nrow(fires.focal))  {
     pl.spl[j,"salvage.methods"] <- paste(mgmt.methods,collapse=", ")
     pl.spl[j,"salvage.nyears"] <- paste(mgmt.nyears,collapse=", ")
     pl.spl[j,"salvage.n.unique.years"] <- paste(mgmt.n.unique.years,collapse=", ")
+    pl.spl[j,"salvage.reporting.discrepancy"] <- any(mgmt.over$reporting_discrepancy)
+    
     # get suids excluding slivers (stringers)
     mgmt.over.noslivers <- mgmt.over[mgmt.over$sliver=="no",]
     mgmt.years <- mgmt.over.noslivers$year
@@ -374,6 +385,8 @@ for(i in 1:nrow(fires.focal))  {
     pl.spl[j,"prep.methods"] <- paste(mgmt.methods,collapse=", ")
     pl.spl[j,"prep.nyears"] <- paste(mgmt.nyears,collapse=", ")
     pl.spl[j,"prep.n.unique.years"] <- paste(mgmt.n.unique.years,collapse=", ")
+    pl.spl[j,"prep.reporting.discrepancy"] <- any(mgmt.over$reporting_discrepancy)
+    
     # get suids excluding slivers (stringers)
     mgmt.over.noslivers <- mgmt.over[mgmt.over$sliver=="no",]
     mgmt.years <- mgmt.over.noslivers$year
@@ -398,6 +411,8 @@ for(i in 1:nrow(fires.focal))  {
     pl.spl[j,"release.methods"] <- paste(mgmt.methods,collapse=", ")
     pl.spl[j,"release.nyears"] <- paste(mgmt.nyears,collapse=", ")
     pl.spl[j,"release.n.unique.years"] <- paste(mgmt.n.unique.years,collapse=", ")
+    pl.spl[j,"release.reporting.discrepancy"] <- any(mgmt.over$reporting_discrepancy)
+    
     # get suids excluding slivers (stringers)
     mgmt.over.noslivers <- mgmt.over[mgmt.over$sliver=="no",]
     mgmt.years <- mgmt.over.noslivers$year
@@ -422,6 +437,8 @@ for(i in 1:nrow(fires.focal))  {
     pl.spl[j,"thin.methods"] <- paste(mgmt.methods,collapse=", ")
     pl.spl[j,"thin.nyears"] <- paste(mgmt.nyears,collapse=", ")
     pl.spl[j,"thin.n.unique.years"] <- paste(mgmt.n.unique.years,collapse=", ")
+    pl.spl[j,"thin.reporting.discrepancy"] <- any(mgmt.over$reporting_discrepancy)
+    
     # get suids excluding slivers (stringers)
     mgmt.over.noslivers <- mgmt.over[mgmt.over$sliver=="no",]
     mgmt.years <- mgmt.over.noslivers$year
@@ -459,6 +476,8 @@ for(i in 1:nrow(fires.focal))  {
     pl.spl[j,"replant.methods"] <- paste(mgmt.methods,collapse=", ")
     pl.spl[j,"replant.nyears"] <- paste(mgmt.nyears,collapse=", ")
     pl.spl[j,"replant.n.unique.years"] <- paste(mgmt.n.unique.years,collapse=", ")
+    pl.spl[j,"replant.reporting.discrepancy"] <- any(mgmt.over$reporting_discrepancy)
+    
     # get suids excluding slivers (stringers)
     mgmt.over.noslivers <- mgmt.over[mgmt.over$sliver=="no",]
     mgmt.years <- mgmt.over.noslivers$year
@@ -493,6 +512,8 @@ for(i in 1:nrow(fires.focal))  {
     pl.spl[j,"fuel.methods"] <- paste(mgmt.methods,collapse=", ")
     pl.spl[j,"fuel.nyears"] <- paste(mgmt.nyears,collapse=", ")
     pl.spl[j,"fuel.n.unique.years"] <- paste(mgmt.n.unique.years,collapse=", ")
+    pl.spl[j,"fuel.reporting.discrepancy"] <- any(mgmt.over$reporting_discrepancy)
+    
     # get suids excluding slivers (stringers)
     mgmt.over.noslivers <- mgmt.over[mgmt.over$sliver=="no",]
     mgmt.years <- mgmt.over.noslivers$year
@@ -518,6 +539,8 @@ for(i in 1:nrow(fires.focal))  {
     pl.spl[j,"prune.methods"] <- paste(mgmt.methods,collapse=", ")
     pl.spl[j,"prune.nyears"] <- paste(mgmt.nyears,collapse=", ")
     pl.spl[j,"prune.n.unique.years"] <- paste(mgmt.n.unique.years,collapse=", ")
+    pl.spl[j,"prune.reporting.discrepancy"] <- any(mgmt.over$reporting_discrepancy)
+    
     # get suids excluding slivers (stringers)
     mgmt.over.noslivers <- mgmt.over[mgmt.over$sliver=="no",]
     mgmt.years <- mgmt.over.noslivers$year
@@ -607,54 +630,55 @@ planting.management$planting.slice.split <- "no"
 planting.management <- as(planting.management,"sf")
 planting.management$area <- st_area(planting.management)
 
-for(i in 1:nrow(planting.management)) {
-  
-  cat("\r Checking for split planting units: ",i,"of",nrow(planting.management),"      ")
-  
-  planting.row <- planting.management[i,]
-
-  # if(planting.row$unique.id == 2181) {
-  #   browser()
-  # }
-
-  focal.area <- planting.row$area
-  
-  first.suid <-planting.row$first.planting.suid
-  unique.id <- planting.row$unique.id
-  
-  suid.matches <- which(planting.management$first.planting.suid == first.suid)
-  id.matches <- which(planting.management$unique.id == unique.id)
-  
-  non.matching.ids.with.same.suid <- suid.matches[!(suid.matches %in% id.matches) & (suid.matches != i)]
-  matching.ids.with.same.suid <- suid.matches[(suid.matches %in% id.matches) & (suid.matches != i)]
-  
-  # if there are areas with the same suid but a different unique.id, it means the planting suid was split into multiple types of follow-up management
-  if(length(non.matching.ids.with.same.suid) > 0) {
-
-    # get the total area of the non-matching ids (different management--but excluding polygons in stringers)
-    non.matching.rows <- planting.management[non.matching.ids.with.same.suid,]
-    non.matching.rows <- non.matching.rows[non.matching.rows$stringer == "no",] # make sure the non-matching rows are not slivers
-    area.other.management <- sum(non.matching.rows$area)
-    
-    # get the total area of the matching ids (same management)
-    matching.rows <- planting.management[matching.ids.with.same.suid,]
-    area.focal.management <- sum(matching.rows$area) + focal.area
-    
-    prop.focal.area <- area.focal.management/(area.focal.management + area.other.management)
-    
-    ## if the planting unit was split but there was a piece that had >95% of the area (i.e., split by some small misalignments that are probably just human spatial error), then consider the large piece to not be split.
-    if(as.numeric(prop.focal.area) > 0.95) {
-      planting.management[i,"planting.slice.split"] <- "no"
-    } else {
-      planting.management[i,"planting.slice.split"] <- "YES"    
-    }
-    
-
-    
-    
-  }
-  
-}
+### Commented out because no longer excluding split planting units.
+# for(i in 1:nrow(planting.management)) {
+#   
+#   cat("\r Checking for split planting units: ",i,"of",nrow(planting.management),"      ")
+#   
+#   planting.row <- planting.management[i,]
+# 
+#   # if(planting.row$unique.id == 2181) {
+#   #   browser()
+#   # }
+# 
+#   focal.area <- planting.row$area
+#   
+#   first.suid <-planting.row$first.planting.suid
+#   unique.id <- planting.row$unique.id
+#   
+#   suid.matches <- which(planting.management$first.planting.suid == first.suid)
+#   id.matches <- which(planting.management$unique.id == unique.id)
+#   
+#   non.matching.ids.with.same.suid <- suid.matches[!(suid.matches %in% id.matches) & (suid.matches != i)]
+#   matching.ids.with.same.suid <- suid.matches[(suid.matches %in% id.matches) & (suid.matches != i)]
+#   
+#   # if there are areas with the same suid but a different unique.id, it means the planting suid was split into multiple types of follow-up management
+#   if(length(non.matching.ids.with.same.suid) > 0) {
+# 
+#     # get the total area of the non-matching ids (different management--but excluding polygons in stringers)
+#     non.matching.rows <- planting.management[non.matching.ids.with.same.suid,]
+#     non.matching.rows <- non.matching.rows[non.matching.rows$stringer == "no",] # make sure the non-matching rows are not slivers
+#     area.other.management <- sum(non.matching.rows$area)
+#     
+#     # get the total area of the matching ids (same management)
+#     matching.rows <- planting.management[matching.ids.with.same.suid,]
+#     area.focal.management <- sum(matching.rows$area) + focal.area
+#     
+#     prop.focal.area <- area.focal.management/(area.focal.management + area.other.management)
+#     
+#     ## if the planting unit was split but there was a piece that had >95% of the area (i.e., split by some small misalignments that are probably just human spatial error), then consider the large piece to not be split.
+#     if(as.numeric(prop.focal.area) > 0.95) {
+#       planting.management[i,"planting.slice.split"] <- "no"
+#     } else {
+#       planting.management[i,"planting.slice.split"] <- "YES"    
+#     }
+#     
+# 
+#     
+#     
+#   }
+#   
+# }
 
 out <- planting.management
 

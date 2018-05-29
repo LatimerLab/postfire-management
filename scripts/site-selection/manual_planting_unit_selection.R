@@ -52,13 +52,14 @@ d.trt <- d.trt %>%
   filter(f.s.stringer == "no")
 
 
-
 #### Temporary: Identify Power focal planting units ####
 
 d.pwr <- d.trt %>%
   filter(most.recent.focal.fire == "2004POWER" &
-           mgmt.factorial.nofire == "salv: neither, prp: no, rel: no, thn: no" &
+           mgmt.factorial.nofire == "salv: neither, prp: no, rel: e, thn: no" &
            yr.pltd == 3)
+
+st_write(d.pwr,"../power_focal_plots.gpkg")
 
 pwr.focal.suids <- unique(d.pwr$f.s.first.planting.suid)
 
