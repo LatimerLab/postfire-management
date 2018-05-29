@@ -65,6 +65,8 @@ planting.slices <- planting.slices[planting.slices$planting.nyears > 0,]
 focal.fires.input <- read.csv("data/site-selection/analysis-parameters/focal_fires.csv",stringsAsFactors=FALSE)
 fires.focal.names <- unique(focal.fires.input$VB_ID)
 
+#fires.focal.names <- c("2007ANTELOPE_CMPLX","2007MOONLIGHT")
+
 
 # load fire perimeter database and thin to focal fires
 fires <- readOGR("data/non-synced/existing-datasets/veg_severity_perimeters16_1.gdb",stringsAsFactors=FALSE)
@@ -365,6 +367,7 @@ get_all_facts_management <- function(x,type) { # function to get the VB_ID of al
   
   facts.data.overlaps$fire.year <- fire.year
   facts.data.overlaps$completed.year <- completed_year
+  facts.data.overlaps$completed.date <- completed_date
   
   activity.release <- facts.data.overlaps[facts.data.overlaps$ACTIV %in% release & facts.data.overlaps$completed.year > facts.data.overlaps$fire.year,] # select management that's release and that happened after the fire
   release.method.year <- activity.release$METHOD #previously had: paste(activity.release$TREATMENT_,activity.release$METHOD,activity.release$DATE_C,sep="-")
@@ -402,6 +405,8 @@ get_all_facts_management <- function(x,type) { # function to get the VB_ID of al
   heli.logical <- sum(heli) > 0
   salvage.heli <- heli.logical
   salvage.heli <- ifelse(salvage.heli,"YES","no")
+  
+  #if(nrow(facts.data.overlaps) > 0 && facts.data.overlaps$ACTIV %in% salvage) browser()
   
   # was any of the salvage done after the planting year?
   activity.salvage.postplant <- facts.data.overlaps[facts.data.overlaps$ACTIV %in% salvage & facts.data.overlaps$completed.date >= first.date.plant,] # select management that's salvage and that happened after the planting (planting happened in spring usually, so if salvage was in the same year it was after planting)
@@ -767,6 +772,8 @@ p.dat$salv.cat <- NA
 p.dat$salv.cat[p.dat$f.s.salvage == "yes" & p.dat$f.s.salvage.ctl == "yes"] <- "both"
 p.dat$salv.cat[p.dat$f.s.salvage == "yes" & p.dat$f.s.salvage.ctl == "no"] <- "planted"
 p.dat$salv.cat[p.dat$f.s.salvage == "no" & p.dat$f.s.salvage.ctl == "no"] <- "neither"
+p.dat$salv.cat[p.dat$f.s.salvage == "no" & p.dat$f.s.salvage.ctl == "yes"] <- "control"
+
 
 salvage.text.w.Post <- paste0(p.dat$salv.cat,"Post")
 salvage.text <- p.dat$salv.cat
@@ -779,13 +786,22 @@ p.dat[p.dat$postfire.salvage.heli == "YES" & p.dat$salv.cat == "neitherPost","sa
 
 
 
-
 #add back the internal plots
 newcols <- setdiff(names(p.dat),names(p.int)) # which columns were added to the paired plots?
 p.int[,newcols] <- NA # add them
 p.int <- p.int[,names(p.dat)] # order cols the same
 p.dat <- p.dat[,names(p.int)]
 p.dat <- rbind(p.dat,p.int)
+
+
+
+### remove plots that had reporting discrepancies
+###!!! resume here. maybe none on moontelope
+p.dat <- p.dat %>%
+  mutate(any.discrepancies = f.s.planting.reporting.discrepancy | f.s.salvage.reporting.discrepancy | f.s.release.reporting.discrepancy | f.s.thin.reporting.discrepancy | f.s.prep.reporting.discrepancy)
+
+p.dat <- p.dat %>%
+  filter(any.discrepancies == FALSE)
 
 
 
@@ -867,7 +883,7 @@ p.dat$release.txt <- sapply(p.dat$post.release.summ,FUN=release.classify)
 
 
 ## For internal plots, if they were salvaged, replicate them, once classified as "both" and once classified as "planted". This is so that they appear as comparable plots along all relevant salvage categories of perimeter plots
-
+##!!HERE
 p.dat.int.salv.copy <- p.dat %>%
   filter(type == "internal" & f.s.salvage == "yes")
 p.dat.int.salv.copy$salv.cat <- "both"
@@ -875,6 +891,19 @@ p.dat.int.salv.copy$salv.cat <- "both"
 p.dat[p.dat$type=="internal" & p.dat$f.s.salvage == "yes","salv.cat"] <- "planted"
 p.dat[p.dat$type=="internal" & p.dat$f.s.salvage == "no","salv.cat"] <- "neither"
 p.dat <- rbind(p.dat,p.dat.int.salv.copy)
+
+
+### need to tag all internal plots as postplanting salvaged if applicable
+salvage.text.w.Post <- paste0(p.dat$salv.cat,"Post")
+salvage.text <- p.dat$salv.cat
+
+p.dat <- p.dat %>%
+  mutate(salv.cat = ifelse(p.dat$postfire.salvage.postplant == "YES" & p.dat$type=="internal",salvage.text.w.Post,salvage.text))
+
+## all salvage.cat that is neitherPost is because it was heli salvaged post planting
+p.dat[p.dat$postfire.salvage.heli == "YES" & p.dat$salv.cat == "neitherPost","salv.cat"] <- "neither"
+
+
 
 # revalue the important columns to something intelligible
 p.dat$fire2 <- p.dat$fire.name
@@ -887,7 +916,7 @@ p.dat$replanted2 <- paste0("replt: ",p.dat$replanted)
 p.dat$thinned2 <- paste0("thn: ",p.dat$thinned)
 p.dat$heli2 <- paste0("heli: ",p.dat$postfire.salvage.heli)
 p.dat <- p.dat %>%
-  mutate(mgmt.factorial = paste(fire.dist2,salv.cat2,site.prepped2,released2,thinned2,sep=", ")) # make a column with factorial management
+  mutate(mgmt.factorial = paste(fire.dist2,salv.cat2,site.prepped2,released2,thinned2,replanted2,sep=", ")) # make a column with factorial management
   # original: mutate(mgmt.factorial = paste(fire2,salv.cat2,plant.timing2,site.prepped2,released2,replanted2,thinned2,sep=", ")) # make a column with factorial management
   # also removed heli2 because now all helicopter slavage is considered unsalvaged.
 
@@ -901,7 +930,7 @@ p.dat <- p.dat %>%
 #   filter(dist.non.high > 120 | class == "perimeter")
 
 # for computing if there's enough plots to justify study, only look at perimeter plots close to seed source
-p.dat.close <- p.dat[(p.dat$dist.non.high < 120) & (p.dat$class != "internal"),]
+p.dat.close <- p.dat[(p.dat$dist.non.high < 100) & (p.dat$class != "internal"),]
 
 
 # 
@@ -951,12 +980,12 @@ p.dat.agg <- p.dat.close %>%
   st_drop_geometry() %>%
   filter(class=="perimeter") %>%
   # formerly before reduced number of factorial vars: group_by(fire2,salv.cat2,plant.timing2,site.prepped2,released2,replanted2,thinned2) %>%
-  group_by(fire.dist2,salv.cat2,site.prepped2,released2,thinned2,heli2) %>%
+  group_by(fire.dist2,salv.cat2,site.prepped2,released2,thinned2,replanted2) %>%
   #! could we just do group_by the mgmt.factorial col?
   summarize(nplots = n()) %>%
   arrange(fire.dist2,-nplots) %>%
   # formerly before reduced number of factorial vars: mutate(mgmt.factorial = paste(fire2,salv.cat2,plant.timing2,site.prepped2,released2,replanted2,thinned2,sep=", ")) %>% # make a column with factorial management
-  mutate(mgmt.factorial = paste(fire.dist2,salv.cat2,site.prepped2,released2,thinned2,sep=", ")) %>% # make a column with factorial management
+  mutate(mgmt.factorial = paste(fire.dist2,salv.cat2,site.prepped2,released2,thinned2,replanted2,sep=", ")) %>% # make a column with factorial management
   ungroup()
   #! removed heli2 from mgmt factorical because considering heli salvage to be unsalvaged
 
@@ -1073,7 +1102,7 @@ for(i in 1:length(fires)) {
 
 
 
-pdf("data/site-selection/output/candidate-plots/stratification_v16_widerbuff.pdf")
+pdf("data/site-selection/output/candidate-plots/stratification_v17_morecats_allfires.pdf")
 for(i in seq_along(plts)) {
   print(plts[[i]])
 }
