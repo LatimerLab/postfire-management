@@ -1,4 +1,42 @@
 
+
+## remove a priori bad suids
+d.foc.yr <- d.foc.yr %>%
+  dplyr::filter(!(f.s.first.planting.suid %in% suids_exclude$suid))
+
+
+## define the geocells
+geocells_all <- determine_geocells(d.foc.yr,cellsize=5000)
+
+# determine which geocell each plot falls into
+d.foc.yr <- st_intersection(d.foc.yr,geocells_all)
+#plot_geocells_env(d.foc.yr)
+
+
+
+
+
+## identify default (top-priority) geocells based on the presence of previously-identified plots there
+if(is.null(geocell.scoping.plots)) {
+  foc.default.geocells <- NULL
+} else {
+  previous.plots.geocells <- st_intersection(geocell.scoping.plots,geocells_all)
+  foc.default.geocells <- unique(previous.plots.geocells$geocell.id.1)
+  
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
   
 geocell.prioritization <- NULL # this will store a growing data frame
 
@@ -122,12 +160,12 @@ while((current.tier < 4) & (length(geocells.remaining)+length(default.geocells.r
   
   # if there are default SUIDs that need to be added, just select them as the ones to be added
   if(length(default.geocells.remaining) > 0) {
-    geocell.to.add <- default.geocellss.remaining[1]
-    default.geocellss.remaining <- setdiff(default.geocellss.remaining,geocell.to.add)
+    geocell.to.add <- default.geocells.remaining[1]
+    default.geocells.remaining <- setdiff(default.geocells.remaining,geocell.to.add)
     
     new.strat.scores <- strat.scores.w.new.geocell(geocell.to.add,sub.quads.df,d.foc.yr.classified,subquads.goal=subquads.goal)
     
-    added.default.suid <- TRUE
+    added.default.geocell <- TRUE
     
   } else {
   
@@ -608,6 +646,66 @@ for(i in 1:nrow(selected.subquads)) {   ## check this for i = 4 because it's not
   plots.subquad.ranked <- plots.subquad %>%
     arrange(tier,desc(geocell.subquad.count),desc(geocell.overall.count),random)
   
+  ### rank them further: if some of the first plots are nearby some of the later plots, rank the later plots at the end
+  
+  distance.matrix <- st_distance(plots.subquad.ranked)
+  
+  dist.to.prev <- c()
+  dist.to.prev[1] <- 100000
+  
+  plots.subquad.ranked$dist.to.prev <- 100000
+
+  if(nrow(plots.subquad.ranked) > 1) {  
+    for(l in 2:nrow(plots.subquad.ranked)) {
+        dist.to.prev[l]<- min(distance.matrix[l,1:(l-1)])
+    }
+    
+    plots.subquad.ranked$dist.to.prev <- dist.to.prev
+    
+  }
+  
+  dist.to.prev.selected.tier12 <- NULL
+  dist.to.prev.selected.tier2 <- NULL
+  plots.subquad.ranked$min.dist.to.prev.selected.tier12 <- 100000
+  
+  if(is.null(selected.plots)) {
+    all.selected.plots.plus.new <- all.selected.plots
+  } else {
+    all.selected.plots.plus.new <- rbind(all.selected.plots[,c("id","type","rank","geom")],selected.plots[,c("id","type","rank","geom")])
+  }
+  
+  if(!is.null(all.selected.plots.plus.new)) {
+    
+    all.selected.plots.tier12 <- all.selected.plots.plus.new %>%
+      filter(rank %in% c(1,2))
+    
+    dist.to.prev.selected.tier12 <- st_distance(plots.subquad.ranked,all.selected.plots.tier12)
+    min.dist.to.prev.selected.tier12 <- apply(dist.to.prev.selected.tier12,1,min)
+    
+    plots.subquad.ranked$min.dist.to.prev.selected.tier12 <- min.dist.to.prev.selected.tier12
+    
+    # 
+    # all.selected.plots.tier2 <- all.selected.plots %>%
+    #   filter(rank == 2)
+    # 
+    # dist.to.prev.selected.tier2 <- st_distance(plots.subquad.ranked,all.selected.plots.tier2)
+    # min.dist.to.prev.selected.tier2 <- apply(dist.to.prev.selected.tier2,1,min)
+    # 
+    # plots.subquad.ranked$min.dist.to.prev.selected.tier2 <- min.dist.to.prev.selected.tier2
+    
+  }
+  
+  
+  
+  ## if it's too close to a current candidate plot or an already selected plot, make it lower priority
+  plots.subquad.ranked <- plots.subquad.ranked %>%
+    mutate(too.close.500 = min.dist.to.prev.selected.tier12 < 500 | dist.to.prev < 500) %>%
+    mutate(too.close.200 = min.dist.to.prev.selected.tier12 < 100 | dist.to.prev < 100) %>%
+    mutate(orig.rank = 1:nrow(plots.subquad.ranked)) %>%
+    arrange(too.close.500,too.close.200,orig.rank)
+  
+  
+  
   ## if there are more than 2 plots,## keep 3 max   see if plots 2 and 3 are from the same tier; if so, keep #3
   if(nrow(plots.subquad.ranked) > 2) {
     plots.subquad.ranked <- plots.subquad.ranked[1:3,]
@@ -710,11 +808,12 @@ print(g)
 
 ## plot naming
 
-# FF A M ER ER T P
+# I FF T M Y ER ER  P
 
+# I = iteration of plot set
 # FF = fire
-# A = planting year
-# M = other management differentiator
+# Y = planting year
+# M = management type code
 # ER = elev and rad quad
 # ER = elev and rad subquad
 # T = type (Trt, control, interior)
