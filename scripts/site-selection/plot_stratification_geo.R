@@ -580,9 +580,46 @@ for(j in 1:length(quads)) {
 
 
 
+### Remove candidate plots that are spatially close to any of the already-done plots we're trying to avoid
+if(!is.null(existing.plots.avoid)) {
+  dist.to.plots.avoid <- st_distance(d.foc.yr,existing.plots.avoid)
+  min.dist.to.plots.avoid <- apply(dist.to.plots.avoid,1,min)
+  too.close.to.plots.avoid <- as.numeric(min.dist.to.plots.avoid) < 300
+  d.foc.yr <- d.foc.yr[!too.close.to.plots.avoid,]
+}
+
+
+
+
+
+
 
 ## Now, for each selected subquad, order the member plots by geocells tier, then by SIUD nplots in that subquad, then by nplots total, then random.
 # If plot ranked 2 and 3 are from different geocell tiers, drop the third one, else keep it.
+
+if(!is.null(existing.plots.avoid)) {
+  ## add the default already-selected plots to avoid climatically and spatially to the plots dataset
+  # Need to see what columns to add to existing.plots.avoid
+  cols.to.add.to.b <- setdiff(names(d.foc.yr),names(existing.plots.avoid))
+  cols.to.remove.from.b <- setdiff(names(existing.plots.avoid),names(d.foc.yr))
+  # add them
+  existing.plots.avoid[,cols.to.add.to.b] <- NA
+  # remove them
+  existing.plots.avoid <- existing.plots.avoid %>%
+    select(-one_of(cols.to.remove.from.b))
+  # make sure we're only using the same columns from d.foc.yr
+  d.foc.yr <- d.foc.yr[,names(existing.plots.avoid)]
+  # put them in the same order
+  existing.plots.avoid <- existing.plots.avoid[,names(d.foc.yr)]
+  # add column saying if it should be avoided
+  d.foc.yr$avoid <- "no"
+  existing.plots.avoid$avoid <- "YES"
+  # add it
+  d.foc.yr <- rbind(d.foc.yr,existing.plots.avoid)
+} else {
+  d.foc.yr$avoid <- "no"
+}
+
 selected.plots <- NULL
 for(i in 1:nrow(selected.subquads)) {   ## check this for i = 4 because it's not filling that subquad with plots
   
@@ -611,9 +648,14 @@ for(i in 1:nrow(selected.subquads)) {   ## check this for i = 4 because it's not
     #          thinned == as.character(subquad.focal$thinned) &
     #          replanted == as.character(subquad.focal$replanted))
         
-  ##!! here we can just use the same df of plots from the earlier code, when doing for a single management type and age at a time (right?)
-  # yes, doing that. commented out the following line
-  # plots.mgmt <- st_intersection(plots.mgmt,geocells_all)
+  ## look up what geocell each plot falls in
+  # # first remove the geocell.id column if it exists
+  # if("geocell.id" %in% names(plots.mgmt)) {
+  #   plots.mgmt <- plots.mgmt %>%
+  #     select(-geocell.id,-tier-geocell.subquad.count,-geocell.overall.count)
+  # }
+  # then look up what geocell
+  plots.mgmt <- st_intersection(plots.mgmt,geocells_all)
   
        
   plots.subquad <- plots.mgmt %>%
@@ -622,7 +664,9 @@ for(i in 1:nrow(selected.subquads)) {   ## check this for i = 4 because it's not
              rad < subquad.focal$rad.high &
              rad > subquad.focal$rad.low)
   
-
+  if(nrow(plots.subquad) == 0) {
+    next()
+  }
   
   
   ## attach the geocell prioritization
@@ -632,19 +676,21 @@ for(i in 1:nrow(selected.subquads)) {   ## check this for i = 4 because it's not
   geocell.subquad.counts <- plots.subquad %>%
     st_drop_geometry() %>%
     group_by(geocell.id) %>%
-    summarize(geocell.subquad.count=n())
+    dplyr::summarize(geocell.subquad.count=n())
   
   geocell.overall.counts <- plots.mgmt %>%
     st_drop_geometry() %>%
     group_by(geocell.id) %>%
-    summarize(geocell.overall.count =n())
+    dplyr::summarize(geocell.overall.count =n())
   
   plots.subquad <- left_join(plots.subquad,geocell.subquad.counts,by="geocell.id")
   plots.subquad <- left_join(plots.subquad,geocell.overall.counts,by="geocell.id")
   plots.subquad$random <- sample(0:nrow(plots.subquad),nrow(plots.subquad),replace=FALSE)
   
+  
+  #rank them: put the plots to avoid first to they get selected if they exist and then exluded
   plots.subquad.ranked <- plots.subquad %>%
-    arrange(tier,desc(geocell.subquad.count),desc(geocell.overall.count),random)
+    arrange(desc(avoid),tier,desc(geocell.subquad.count),desc(geocell.overall.count),random)
   
   ### rank them further: if some of the first plots are nearby some of the later plots, rank the later plots at the end
   
@@ -670,8 +716,10 @@ for(i in 1:nrow(selected.subquads)) {   ## check this for i = 4 because it's not
   
   if(is.null(selected.plots)) {
     all.selected.plots.plus.new <- all.selected.plots
-  } else {
+  } else if(!is.null(all.selected.plots)) {
     all.selected.plots.plus.new <- rbind(all.selected.plots[,c("id","type","rank","geom")],selected.plots[,c("id","type","rank","geom")])
+  } else {
+    all.selected.plots.plus.new <- selected.plots[,c("id","type","rank","geom")]
   }
   
   if(!is.null(all.selected.plots.plus.new)) {
@@ -702,7 +750,7 @@ for(i in 1:nrow(selected.subquads)) {   ## check this for i = 4 because it's not
     mutate(too.close.500 = min.dist.to.prev.selected.tier12 < 500 | dist.to.prev < 500) %>%
     mutate(too.close.200 = min.dist.to.prev.selected.tier12 < 100 | dist.to.prev < 100) %>%
     mutate(orig.rank = 1:nrow(plots.subquad.ranked)) %>%
-    arrange(too.close.500,too.close.200,orig.rank)
+    arrange(desc(avoid),too.close.500,too.close.200,orig.rank)
   
   
   
@@ -717,12 +765,13 @@ for(i in 1:nrow(selected.subquads)) {   ## check this for i = 4 because it's not
   if(is.null(selected.plots)) {
     selected.plots <- plots.subquad.ranked
   } else {
-  selected.plots <- rbind(selected.plots,plots.subquad.ranked)
+    selected.plots <- rbind(selected.plots,plots.subquad.ranked)
   }
 }
 
-
-
+### Remove plots to avoid (they were previously surveyed or selected for survey)
+selected.plots <- selected.plots %>%
+  filter(avoid == "no")
 
 #### plot the resulting stratification ####
 

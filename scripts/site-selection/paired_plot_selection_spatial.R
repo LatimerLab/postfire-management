@@ -65,7 +65,7 @@ planting.slices <- planting.slices[planting.slices$planting.nyears > 0,]
 focal.fires.input <- read.csv("data/site-selection/analysis-parameters/focal_fires.csv",stringsAsFactors=FALSE)
 fires.focal.names <- unique(focal.fires.input$VB_ID)
 
-#fires.focal.names <- c("2007ANTELOPE_CMPLX","2007MOONLIGHT")
+fires.focal.names <- c("2007ANTELOPE_CMPLX","2007MOONLIGHT")
 
 
 # load fire perimeter database and thin to focal fires
@@ -161,13 +161,15 @@ ctrl.candidate.plots <- spsample(control.plot.perim,n=control.perim.length/50,ty
 ctrl.candidate.plots <- as(ctrl.candidate.plots,"sf")
 
 ## Internal points
-internal.poly <- st_buffer(planting.zone,dist=-60)
+# internal.poly <- st_buffer(planting.zone,dist=-60)
+internal.poly <- st_buffer(planting.slices,dist=-60)
 # Must do fire-by-fire because it's too slow to do all at once
 internal.candidate.plots.list <- list()
 for(fire in fires.focal.names) {
   
   fire.focal.curr <- fires.focal[fires.focal$VB_ID==fire,]
   plt.zone.curr <- st_intersection(internal.poly,fire.focal.curr)
+  plt.zone.curr <- st_union(plt.zone.curr)
   area <- st_area(plt.zone.curr)
   npts <- as.numeric(area)/(150*150) #200 m between points
   plt.zone.curr.sp <- as(plt.zone.curr,"Spatial")
@@ -181,8 +183,9 @@ for(fire in fires.focal.names) {
 int.candidate.plots<- do.call(rbind,internal.candidate.plots.list)
 
 
-st_write(internal.poly,"../internal.shp",delete_dsn=TRUE)
-st_write(planting.zone,"../planting.shp",delete_dsn=TRUE)
+# st_write(internal.poly,"../internal.shp",delete_dsn=TRUE)
+# st_write(planting.zone,"../planting.shp",delete_dsn=TRUE)
+# st_write(int.candidate.plots,"../internal_plots.shp",delete_dsn=TRUE)
 
 trt.candidate.plots$type <- "treatment"
 ctrl.candidate.plots$type <- "control"

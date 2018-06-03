@@ -34,8 +34,7 @@ plt.yr.env.range <- function(plt.yr,plots) {
   
   # filter to the current planting year
   plots.yr <- plots %>%
-    filter(yr.pltd == plt.yr &
-             dist.non.high < 80) # and when computing range, only look at plots close to seed source (this means only looking at perimeter plots, because previously we filtered out the internal plots close to seed source)
+    filter(yr.pltd == plt.yr) # and when computing range, only look at plots close to seed source (this means only looking at perimeter plots, because previously we filtered out the internal plots close to seed source)
   
   # find the non-outliers of elevation and radiation
   elevs <- plots.yr$elev
