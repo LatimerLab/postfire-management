@@ -299,12 +299,19 @@ define.subquads <- function(env.quads) {
 determine_geocells <- function(d.foc.yr,cellsize) {
   ### create a geo grid of the spanning the area covered by the candidate plots
   geocells_all <- st_make_grid(d.foc.yr,cellsize=cellsize) %>% st_sf()
+  centroids <- st_centroid(geocells_all)
+  geocells_all$centroid.y <- map_dbl(centroids$geometry,1)
+  geocells_all$centroid.x <- map_dbl(centroids$geometry,2)
+  
+  geocells_all <- geocells_all %>%
+    dplyr::arrange(centroid.x,desc(centroid.y))
+  
 
   # plot(d.foc.yr,max.plot=1)  
   # plot(geocells_all,add=TRUE)
 
   
-  geocells_all$geocell.id <- 1:nrow(geocells_all)
+  geocells_all$geocell.id <- nrow(geocells_all):1
   return(geocells_all)
 }
 

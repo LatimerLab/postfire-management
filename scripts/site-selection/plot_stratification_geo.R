@@ -672,6 +672,10 @@ for(i in 1:nrow(selected.subquads)) {   ## check this for i = 4 because it's not
   ## attach the geocell prioritization
   plots.subquad <- inner_join(plots.subquad,geocells.w.tiers,by=c("geocell.id" = "geocell"))
   
+  if(nrow(plots.subquad) == 0) {
+    next()
+  }
+  
   ## get the number of plots of each geocell in this subquadrant
   geocell.subquad.counts <- plots.subquad %>%
     st_drop_geometry() %>%

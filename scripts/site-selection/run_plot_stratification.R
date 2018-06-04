@@ -489,7 +489,7 @@ g <- ggplot(d.perim,aes(x=elev,y=rad,color=yr.pltd,shape=dist.nonhigh)) +
 
 print(g)
 
-### prepare the plot names
+### prepare the plot codes
 all.selected.plots.w.names = all.selected.plots %>%
   mutate(plot.iter = 1,
          plot.fire = "A",
@@ -500,15 +500,62 @@ all.selected.plots.w.names = all.selected.plots %>%
          plot.rad1 = str_sub(subquad.overall.label,start=4,end=4),
          plot.elev2 = str_sub(subquad.overall.label,start=7,end=7),
          plot.rad2 = str_sub(subquad.overall.label,start=9,end=9),
-         plot.tier = recode(rank,`1`="A",`2`="B",`3`="C"))
+         plot.tier = rank)
+
+### make new geocells just for IDing plots in a reasonable geospatial order:
+geogrid <- determine_geocells(all.selected.plots.w.names,cellsize=5000) %>%
+  rename(geogrid.cell.id = geocell.id)
+plot(geogrid)
+# determine which geocell each plot falls into
+all.selected.plots.w.names <- st_intersection(all.selected.plots.w.names,geogrid)
+
+### also get the x and y lat long for arranging within the geogrids
+all.selected.plots.w.names$lat <- a <-st_coordinates(all.selected.plots.w.names)[,2]
+all.selected.plots.w.names$long <- a <-st_coordinates(all.selected.plots.w.names)[,1]
+
+all.selected.plots.w.names <- all.selected.plots.w.names %>%
+  mutate_at(vars(lat,long),round,digits=6)
+
+## Arrange the plots geographically to assign ID numbers
+all.selected.plots.w.names <- all.selected.plots.w.names %>%
+  arrange(geogrid.cell.id,long)
+
+starting.map.id <- 1000
+map.ids <- starting.map.id:(starting.map.id+nrow(all.selected.plots.w.names)-1)
+all.selected.plots.w.names$plot.id.map <- map.ids
+all.selected.plots.w.names$plot.id.gps.pre <- paste0(all.selected.plots.w.names$plot.fire,map.ids)
+
+
 ### bring in the control plots
 d.ctl <- d.full %>%
   filter(type == "control")
 
+d.ctl <- st_transform(d.ctl,4326)
+d.ctl$lat <-st_coordinates(d.ctl)[,2]
+d.ctl$long <-st_coordinates(d.ctl)[,1]
+all.selected.plots.w.names <- st_transform(all.selected.plots.w.names,4326)
+all.selected.plots.w.names$lat <-st_coordinates(all.selected.plots.w.names)[,2]
+all.selected.plots.w.names$long <-st_coordinates(all.selected.plots.w.names)[,1]
+
+
 ## pull in the names of the treated plots they are paired with
 d.ctl <- inner_join(d.ctl,
-                    all.selected.plots.w.names %>% select(ctl.id,subquad.overall.label:plot.tier) %>% st_drop_geometry(),
+                    all.selected.plots.w.names %>% st_drop_geometry() %>% select(ctl.id,subquad.overall.label:plot.tier),
                     by=c("id"="ctl.id"))
+
+##need to order d.ctl in the same order as: all.selected.plots.w.names[all.selected.plots.w.names$type == "treatment",]
+order.of.ctl.id <- all.selected.plots.w.names[all.selected.plots.w.names$type == "treatment",]$ctl.id
+reorder <- match(order.of.ctl.id,d.ctl$id)
+d.ctl <- d.ctl[reorder,]
+
+
+plot.id.gps.pre <- all.selected.plots.w.names[all.selected.plots.w.names$type == "treatment",]$plot.id.gps.pre
+d.ctl$plot.id.gps.pre <- plot.id.gps.pre
+plot.id.map <- all.selected.plots.w.names[all.selected.plots.w.names$type == "treatment",]$plot.id.map
+d.ctl$plot.id.map <- plot.id.map
+
+# d.ctl <- st_drop_geometry(d.ctl)
+# all.selected.plots.w.names <- st_drop_geometry(all.selected.plots.w.names)
 
 ## find out what vars they have in common to keep all of them
 vars.in.common <- intersect(names(all.selected.plots.w.names),names(d.ctl))
@@ -518,19 +565,89 @@ all.selected.plots.w.names <- all.selected.plots.w.names %>%
 d.ctl <- d.ctl %>%
   select(vars.in.common)
 
-all.selected.plots.w.names.w.ctl <- rbind(all.selected.plots.w.names,d.ctl)
+sel <- rbind(all.selected.plots.w.names,d.ctl)
 
-
-all.selected.plots.w.names.w.ctl <- all.selected.plots.w.names.w.ctl %>%
+sel.p <- sel %>%
   mutate(plot.type = recode(type,"treatment"="T","internal"="I","control"="C")) %>%
-  mutate(plot.name = paste0(plot.iter,plot.fire,plot.cat,plot.yr,plot.seed.dist,plot.elev1,plot.rad1,plot.elev2,plot.rad2,plot.tier,plot.type))
-
-# reorder columns so plot name comes first
-all.selected.plots.w.names.w.ctl <- all.selected.plots.w.names.w.ctl %>%
-  select(plot.name,plot.iter:plot.type,everything())
+  mutate(plot.code = paste0(plot.iter,plot.fire,plot.cat,plot.yr,plot.seed.dist,plot.elev1,plot.rad1,plot.elev2,plot.rad2,plot.tier,plot.type))
 
 
-st_write(all.selected.plots.w.names.w.ctl,"data/site-selection/output/selected-plots/moontelope_v1.gpkg",delete_dsn=TRUE)
+### also get the x and y lat long for arranging within the geogrids
+sel.p <- sel.p %>%
+  mutate_at(vars(lat,long),round,digits=6)
+
+
+## make a plotting category
+sel.p <- sel.p %>%
+  mutate(map.cat = paste0(type,ifelse(type!="control",plot.tier,""))) %>%
+  mutate(plot.id.gps = paste0(plot.id.gps.pre,plot.type))
+
+# reorder columns so plot code etc. comes first
+sel.p <- sel.p %>%
+  select(plot.id.gps,plot.id.map,plot.code,plot.iter:plot.type,map.cat,everything())
+
+
+
+st_write(sel.p,"data/site-selection/output/selected-plots/moontelope_v2.gpkg",delete_dsn=TRUE)
+
+
+
+### Export plot data table and GPS waypoints
+p <- st_read("data/site-selection/output/selected-plots/moontelope_v2.gpkg",stringsAsFactors=FALSE)
+
+
+### for each tier1 plot, determine acceptable tier2 and tier3 plots
+p2 <- p %>% st_drop_geometry() %>%
+  select(plot.type,plot.id.gps,plot.code,lat,long,plot.iter,plot.fire,plot.cat,plot.yr,plot.seed.dist,plot.elev1:plot.rad2,plot.tier) %>%
+  mutate(plot.code2 = paste0(plot.iter,plot.fire,plot.cat,plot.yr,plot.seed.dist,plot.elev1,plot.rad1,plot.elev2,plot.rad2,plot.type)) %>%
+  mutate(t2_opt = NA, t3_opt = NA)
+
+for(i in 1:nrow(p2)) {
+  if((p2[i,]$plot.type != "T") | p2[i,]$plot.tier != 1) next()
+
+  
+  focal.code2 <- p2[i,]$plot.code2
+  
+  # find matching tier 2 plots
+  p.t2.match <- p2 %>%
+    filter(plot.code2 == focal.code2,
+           plot.tier == 2)
+  
+  plot.ids.tier2 <- paste(p.t2.match$plot.id.gps,collapse=", ")
+  
+  # find matching tier 3 plots
+  p.t3.match <- p2 %>%
+    filter(plot.code2 == focal.code2,
+           plot.tier == 3)
+  
+  plot.ids.tier3 <- paste(p.t3.match$plot.id.gps,collapse=", ")
+  
+  p2[i,"t2_opt"] <- plot.ids.tier2
+  p2[i,"t3_opt"] <- plot.ids.tier3
+  
+  
+}
+
+
+
+
+## export a table
+p.table <- p2 %>%
+  select(type=plot.type,tier=plot.tier,id=plot.id.gps,lat,long,t2_opt,t3_opt,elev1=plot.elev1,rad1=plot.rad1,elev2=plot.elev2,rad2=plot.rad2,year=plot.yr,cat=plot.cat,seed=plot.seed.dist) %>%
+  arrange(desc(type),tier,id)
+  
+#six decimals on lat and long
+p.table <- p.table %>%
+  mutate_at(vars(lat,long),format,nsmall=6)
+  
+write.csv(p.table,"data/site-selection/output/selected-plots/wpt_table_moontelope.csv")
+  
+  
+### Export GPS waypoints
+wpts <- p %>%
+  select(name=plot.id.gps)
+  
+st_write(wpts,"data/site-selection/output/selected-plots/wpts_moontelope.gpx",driver="GPX")
 
 
 
@@ -539,16 +656,6 @@ st_write(all.selected.plots.w.names.w.ctl,"data/site-selection/output/selected-p
 
 
 
-
-
-
-setwd("~/UC Davis/Research Projects/Post-fire management/postfire-management")
-
-library(tidyverse)
-library(sf)
-library(readODS)
-
-source("scripts/site-selection/plot_stratification_functions_geo.R")
 
 
 
