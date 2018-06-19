@@ -202,12 +202,14 @@ for(i in 1:nrow(fires.focal))  {
   facts.fire.othermanagement <- facts.fire.othermanagement[facts.fire.othermanagement$year >= year.focal,] # management must have occurred the same year as the fire or later
   
   ## pull out all salvage
-  facts.fire.salvage <- facts.fire[facts.fire$ACTIV %in% salvage,]
-  facts.fire.salvage <- facts.fire.salvage[facts.fire.salvage$year >= year.focal,] # management must have occurred the same year as the fire or later
+  facts.fire.salvage <- facts.fire[facts.fire$ACTIV %in% c(salvage,"Commercial Thin"),]
+  facts.fire.salvage <- facts.fire.salvage[(facts.fire.salvage$year >= year.focal) & (facts.fire.salvage$year < (year.focal+10)),] #  +10 is because we included salvage coded as comm. thin# management must have occurred the same year as the fire or later
+  
+  facts.fire.salvage.planting <- rbind(facts.fire.salvage,facts.fire.planting)
   
   ## pull out all salvage + planting
-  facts.fire.salvage.planting <- facts.fire[facts.fire$ACTIV %in% c(planting,salvage),]
-  facts.fire.salvage.planting <- facts.fire.salvage.planting[facts.fire.salvage.planting$year >= year.focal,] # management must have occurred the same year as the fire or later
+  #facts.fire.salvage.planting <- facts.fire[(facts.fire$ACTIV %in% c(planting,salvage) | (facts.fire$ACTIV == "Commercial Thin") & facts.fire.salvage$year < (year.focal+10)) & (facts.fire.salvage$year >= year.focal),]
+  #facts.fire.salvage.planting <- facts.fire.salvage.planting[(facts.fire.salvage$year >= year.focal) & (facts.fire.salvage$year < (year.focal+10)),] # management must have occurred the same year as the fire or later
   
   ## pull out all prep
   facts.fire.prep <- facts.fire[facts.fire$ACTIV %in% prep,]
@@ -340,6 +342,7 @@ for(i in 1:nrow(fires.focal))  {
     years.order <- order(mgmt.years.post)
     mgmt.years.post <- mgmt.years.post[years.order]
     mgmt.suids <- mgmt.over$SUID[years.order]
+    # if(length(mgmt.suids) > 0 && mgmt.suids == 0511022080085000000) browser()
     mgmt.methods <- mgmt.over$METHOD[years.order]
     mgmt.nyears <- length(mgmt.years)
     mgmt.n.unique.years <- length(unique(mgmt.years))

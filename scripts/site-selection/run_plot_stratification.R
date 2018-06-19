@@ -9,7 +9,7 @@ source("scripts/site-selection/plot_stratification_functions_geo.R")
 #### 0. Load overall data ####
 
 ## candidate plots
-d.full <- st_read("data/site-selection/output/candidate-plots/candidate_plots_paired_filtered_v2.gpkg",stringsAsFactors=FALSE)
+d.full <- st_read("data/site-selection/output/candidate-plots/candidate_plots_paired_filtered_v5_amriv_widespacing_medfirebuff.gpkg",stringsAsFactors=FALSE)
 
 ## plots to avoid
 suids_exclude <- read_ods("data/site-selection/analysis-parameters/planting_unit_preferences_a_priori.ods",col_names=TRUE) %>%
@@ -659,14 +659,9 @@ st_write(wpts,"data/site-selection/output/selected-plots/wpts_moontelope.gpx",dr
 
 
 
-
-
-#### 2. For Power Fire ####
+#### 2alt. Power Fire ####
 
 all.selected.plots <- NULL
-
-## no management except early release ##
-## All plots close to seed source, randomly half far from seed source, and all internal ##
 
 d.trt <- d.full[d.full$type %in% c("treatment","internal"),] ## remove the paired "control" plots because they do not have the environemntal data associated with them
 
@@ -698,26 +693,612 @@ d.foc.overall <- d.trt %>%
                   thinned %in% foc.thinned &
                   yr.pltd %in% foc.yrs.pltd)
 
-# define study range using only plots near seed source
-d.foc.close <- d.foc.overall %>%
-  filter(dist.non.high < 80 | type == "internal")
-
-d.foc.far <- d.foc.overall %>%
-  filter(dist.non.high > 120 & type == "treatment")
-
-d.foc.all <- rbind(d.foc.close,d.foc.far)
-
-all.selected.plots.power <- d.foc.all
+#### 2alt.a: Power plots paired unmanaged close to seed source ####
 
 
-## make half of the far-from-seed-source plots second-priority because they are so close together
-second.tier.plots <- c(8974,8972,8970,8979,8968,8957)
+## subset to the relevant plots
+d.foc.yr <- d.foc.overall %>%
+  filter(first.pltd.yr == 3 &
+           type == "treatment" &
+           dist.non.high < 80)
 
-all.selected.plots.power <- all.selected.plots.power %>%
-  mutate(rank = case_when(id %in% second.tier.plots ~ 2,
-                              !(id %in% second.tier.plots) ~1))
+selected.plots <- d.foc.yr
+
+
+selected.plots$plt.cat = 1 # 1 means: perimeter unmanaged
+selected.plots$plt.seeddist = "N"
+
+##manually set the rank
+selected.plots$rank <- 1
+
+
+all.selected.plots <- selected.plots
 
 
 
 
-st_write(all.selected.plots.power,"../selected_plots_power.gpkg",delete_dsn=TRUE)
+#### 2alt.b: Power plots paired unmanaged far from seed source ####
+
+
+## subset to the relevant plots
+d.foc.yr <- d.foc.overall %>%
+  filter(first.pltd.yr == 3 &
+           type == "treatment" &
+           dist.non.high > 120)
+
+selected.plots <- d.foc.yr
+
+
+selected.plots$plt.cat = 1 # 1 means: perimeter unmanaged
+selected.plots$plt.seeddist = "F"
+
+##manually set the rank
+selected.plots$rank <- 2
+
+## remove excessive plots far from seed source (we already have anouth and some are really close to each other)
+selected.plots <- selected.plots %>%
+  filter(!(id %in% c(8723,8721,8719,8704)))
+
+
+all.selected.plots <- rbind(all.selected.plots,selected.plots)
+
+#### 2alt.c: Power plots internal unmanaged far from seed source ####
+
+
+## subset to the relevant plots
+d.foc.yr <- d.foc.overall %>%
+  filter(first.pltd.yr == 3 &
+           type == "internal" &
+           dist.non.high > 120)
+
+selected.plots <- d.foc.yr
+
+
+selected.plots$plt.cat = 2 # 1 means: internal unmanaged
+selected.plots$plt.seeddist = "F"
+
+##manually set the rank
+selected.plots$rank <- 3
+
+all.selected.plots <- rbind(all.selected.plots,selected.plots)
+
+
+
+
+
+#### 2alt.Z. Complete compilation of Power plots ####
+
+
+### plot all the plots for this management type on this fire: but first tier only ###
+d <- all.selected.plots %>%
+  filter(rank == 1)
+
+##make the management category text have a newline (after the 2nd comma)
+comma.locs <- str_locate(d$mgmt.factorial.nofire,fixed(" thn:"))
+d <- d %>%
+  dplyr::mutate(splitpos = str_locate(mgmt.factorial.nofire,fixed(" rel:"))[,"start"]) %>%
+  dplyr::mutate(first.part = str_sub(mgmt.factorial.nofire,1,splitpos),
+                second.part = str_sub(mgmt.factorial.nofire,splitpos,-1)) %>%
+  dplyr::mutate(mgmt.w.newline = paste0(first.part,"\n",second.part))
+
+
+d.perim <- d[d$class=="perimeter",]
+d.int.close <- d[d$class=="internal" & d$dist.nonhigh == "< 80 m",]
+d.int.far <- d[d$class=="internal" & d$dist.nonhigh == "> 120 m",]
+
+g <- ggplot(d.perim,aes(x=elev,y=rad,color=yr.pltd,shape=dist.nonhigh)) +
+  #geom_point(data=d.int.close,shape=18,size=1) +
+  #geom_point(data=d.int.far,shape=3,size=0.7) +
+  geom_point(size=2.5) +
+  ggtitle(d[1,]$fire.dist2) +
+  theme_bw(12) +
+  theme(plot.title = element_text(size=8)) +
+  facet_wrap(~mgmt.w.newline) +
+  scale_shape_manual(values=c(16,1)) +
+  scale_colour_manual(values=yr.colors) +
+  theme(strip.text.x = element_text(size = 8)) +
+  labs(color="Yr planted",shape="Seed dist")
+
+print(g)
+
+### prepare the plot codes
+all.selected.plots.w.names = all.selected.plots %>%
+  mutate(plot.iter = 1,
+         plot.fire = "B",
+         plot.cat = plt.cat,
+         plot.yr = first.pltd.yr,
+         plot.seed.dist = plt.seeddist,
+         #plot.elev1 = str_sub(subquad.overall.label,start=2,end=2),
+         #plot.rad1 = str_sub(subquad.overall.label,start=4,end=4),
+         #plot.elev2 = str_sub(subquad.overall.label,start=7,end=7),
+         #plot.rad2 = str_sub(subquad.overall.label,start=9,end=9),
+         plot.tier = rank)
+
+### make new geocells just for IDing plots in a reasonable geospatial order:
+geogrid <- determine_geocells(all.selected.plots.w.names,cellsize=4000) %>%
+  rename(geogrid.cell.id = geocell.id)
+plot(geogrid)
+# determine which geocell each plot falls into
+all.selected.plots.w.names <- st_intersection(all.selected.plots.w.names,geogrid)
+
+### also get the x and y lat long for arranging within the geogrids
+all.selected.plots.w.names$lat <- a <-st_coordinates(all.selected.plots.w.names)[,2]
+all.selected.plots.w.names$long <- a <-st_coordinates(all.selected.plots.w.names)[,1]
+
+all.selected.plots.w.names <- all.selected.plots.w.names %>%
+  mutate_at(vars(lat,long),round,digits=6)
+
+## Arrange the plots geographically to assign ID numbers
+all.selected.plots.w.names <- all.selected.plots.w.names %>%
+  arrange(geogrid.cell.id,long)
+
+starting.map.id <- 1000
+map.ids <- starting.map.id:(starting.map.id+nrow(all.selected.plots.w.names)-1)
+all.selected.plots.w.names$plot.id.map <- map.ids
+all.selected.plots.w.names$plot.id.gps.pre <- paste0(all.selected.plots.w.names$plot.fire,map.ids)
+
+
+### bring in the control plots
+d.ctl <- d.full %>%
+  filter(type == "control")
+
+d.ctl <- st_transform(d.ctl,4326)
+d.ctl$lat <-st_coordinates(d.ctl)[,2]
+d.ctl$long <-st_coordinates(d.ctl)[,1]
+all.selected.plots.w.names <- st_transform(all.selected.plots.w.names,4326)
+all.selected.plots.w.names$lat <-st_coordinates(all.selected.plots.w.names)[,2]
+all.selected.plots.w.names$long <-st_coordinates(all.selected.plots.w.names)[,1]
+
+
+## pull in the names of the treated plots they are paired with
+d.ctl <- inner_join(d.ctl,
+                    all.selected.plots.w.names %>% st_drop_geometry() %>% select(ctl.id,plt.cat:plot.tier),
+                    by=c("id"="ctl.id"))
+
+##need to order d.ctl in the same order as: all.selected.plots.w.names[all.selected.plots.w.names$type == "treatment",]
+order.of.ctl.id <- all.selected.plots.w.names[all.selected.plots.w.names$type == "treatment",]$ctl.id
+reorder <- match(order.of.ctl.id,d.ctl$id)
+d.ctl <- d.ctl[reorder,]
+
+
+plot.id.gps.pre <- all.selected.plots.w.names[all.selected.plots.w.names$type == "treatment",]$plot.id.gps.pre
+d.ctl$plot.id.gps.pre <- plot.id.gps.pre
+plot.id.map <- all.selected.plots.w.names[all.selected.plots.w.names$type == "treatment",]$plot.id.map
+d.ctl$plot.id.map <- plot.id.map
+
+# d.ctl <- st_drop_geometry(d.ctl)
+# all.selected.plots.w.names <- st_drop_geometry(all.selected.plots.w.names)
+
+## find out what vars they have in common to keep all of them
+vars.in.common <- intersect(names(all.selected.plots.w.names),names(d.ctl))
+
+all.selected.plots.w.names <- all.selected.plots.w.names %>%
+  select(vars.in.common)
+d.ctl <- d.ctl %>%
+  select(vars.in.common)
+
+sel <- rbind(all.selected.plots.w.names,d.ctl)
+
+sel.p <- sel %>%
+  mutate(plot.type = recode(type,"treatment"="T","internal"="I","control"="C")) %>%
+  mutate(plot.code = paste0(plot.iter,plot.fire,plot.cat,plot.yr,plot.seed.dist,plot.tier,plot.type))
+
+
+### also get the x and y lat long for arranging within the geogrids
+sel.p <- sel.p %>%
+  mutate_at(vars(lat,long),round,digits=6)
+
+
+## make a plotting category
+sel.p <- sel.p %>%
+  mutate(map.cat = paste0(type,ifelse(type!="control",plot.tier,""))) %>%
+  mutate(plot.id.gps = paste0(plot.id.gps.pre,plot.type))
+
+# reorder columns so plot code etc. comes first
+sel.p <- sel.p %>%
+  select(plot.id.gps,plot.id.map,plot.code,plot.iter:plot.type,map.cat,everything())
+
+
+
+st_write(sel.p,"data/site-selection/output/selected-plots/power_v1.gpkg",delete_dsn=TRUE)
+
+
+
+### Export plot data table and GPS waypoints
+p <- st_read("data/site-selection/output/selected-plots/power_v1.gpkg",stringsAsFactors=FALSE)
+
+
+# ### for each tier1 plot, determine acceptable tier2 and tier3 plots
+# p2 <- p %>% st_drop_geometry() %>%
+#   select(plot.type,plot.id.gps,plot.code,lat,long,plot.iter,plot.fire,plot.cat,plot.yr,plot.seed.dist,plot.elev1:plot.rad2,plot.tier) %>%
+#   mutate(plot.code2 = paste0(plot.iter,plot.fire,plot.cat,plot.yr,plot.seed.dist,plot.elev1,plot.rad1,plot.elev2,plot.rad2,plot.type)) %>%
+#   mutate(t2_opt = NA, t3_opt = NA)
+# 
+# for(i in 1:nrow(p2)) {
+#   if((p2[i,]$plot.type != "T") | p2[i,]$plot.tier != 1) next()
+#   
+#   
+#   focal.code2 <- p2[i,]$plot.code2
+#   
+#   # find matching tier 2 plots
+#   p.t2.match <- p2 %>%
+#     filter(plot.code2 == focal.code2,
+#            plot.tier == 2)
+#   
+#   plot.ids.tier2 <- paste(p.t2.match$plot.id.gps,collapse=", ")
+#   
+#   # find matching tier 3 plots
+#   p.t3.match <- p2 %>%
+#     filter(plot.code2 == focal.code2,
+#            plot.tier == 3)
+#   
+#   plot.ids.tier3 <- paste(p.t3.match$plot.id.gps,collapse=", ")
+#   
+#   p2[i,"t2_opt"] <- plot.ids.tier2
+#   p2[i,"t3_opt"] <- plot.ids.tier3
+#   
+#   
+# }
+
+
+p2 <- p
+
+## export a table
+p.table <- p2 %>%
+  select(type=plot.type,tier=plot.tier,id=plot.id.gps,lat,long,year=plot.yr,cat=plot.cat,seed=plot.seed.dist) %>%
+  arrange(desc(type),tier,id)
+
+#six decimals on lat and long
+p.table <- p.table %>%
+  mutate_at(vars(lat,long),format,nsmall=6)
+
+write.csv(p.table,"data/site-selection/output/selected-plots/wpt_table_power.csv")
+
+
+### Export GPS waypoints
+wpts <- p %>%
+  select(name=plot.id.gps)
+
+st_write(wpts,"data/site-selection/output/selected-plots/wpts_power.gpx",driver="GPX",delete_dsn=TRUE)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#### 3. AmRiv Fire ####
+
+all.selected.plots <- NULL
+
+d.trt <- d.full[d.full$type %in% c("treatment","internal"),] ## remove the paired "control" plots because they do not have the environemntal data associated with them
+
+#remove plots that are in between 80 and 120 m from seed source (for them, no value stored for dist.nonhigh) (this is only removing internal plots, as perimeter plots were already removed earlier in the script)
+# and which had roadsode salvage stringers
+d.trt <- d.trt %>%
+  filter(!is.na(dist.nonhigh)) %>%
+  filter(f.s.stringer == "no")
+
+
+### Determine the env. range for which to get data ###
+
+## Specify fire and management of interest ##
+
+foc.fire.name <- "2008GOVERNMENT - Tahoe NF"
+foc.salv.cat <- "neither"
+foc.site.prepped <- "no"
+foc.released <- "e"
+foc.replanted <- c("no","YES")
+foc.thinned <- c("no")
+foc.yrs.pltd <- c("1","2")
+
+d.foc.overall <- d.trt %>%
+  dplyr::filter(fire.dist2 %in% foc.fire.name &
+                  salv.cat %in% foc.salv.cat &
+                  site.prepped %in% foc.site.prepped &
+                  release.txt %in% foc.released &
+                  replanted %in% foc.replanted &
+                  thinned %in% foc.thinned &
+                  yr.pltd %in% foc.yrs.pltd)
+
+#### 3alt.a: AmRiv plots perimeter early release close to seed source, plus yr 1 far from seed source ####
+
+
+## subset to the relevant plots
+d.foc.yr <- d.foc.overall %>%
+  filter(first.pltd.yr %in% c(1,2) &
+           type == "treatment" &
+           dist.non.high < 80)
+
+selected.plots <- d.foc.yr
+
+
+selected.plots$plt.cat = 1 # 1 means: perimeter 
+selected.plots$plt.seeddist = "N"
+
+##manually set the rank
+selected.plots$rank <- 1
+
+
+all.selected.plots <- selected.plots
+
+
+
+
+#### 2alt.b: AmRiv plots paired unmanaged far from seed source yr 1 ####
+
+
+## subset to the relevant plots
+d.foc.yr <- d.foc.overall %>%
+  filter(first.pltd.yr %in% c(1,2) &
+           type == "treatment" &
+           (dist.non.high > 120 & yr.pltd == 1))
+
+selected.plots <- d.foc.yr
+
+
+selected.plots$plt.cat = 1 # 1 means: perimeter 
+selected.plots$plt.seeddist = "F"
+
+##manually set the rank
+selected.plots$rank <- 1
+
+
+all.selected.plots <- rbind(all.selected.plots,selected.plots)
+
+
+
+
+#### 3alt.c: AmRiv plots internal unmanaged far from seed source ####
+
+
+## subset to the relevant plots
+d.foc.yr <- d.foc.overall %>%
+  filter(first.pltd.yr  %in% c(1,2) &
+           type == "internal" &
+           dist.non.high > 120)
+
+selected.plots <- d.foc.yr
+
+
+selected.plots$plt.cat = 2 # 2 means: internal 
+selected.plots$plt.seeddist = "F"
+
+##manually set the rank
+selected.plots$rank <- 2
+
+all.selected.plots <- rbind(all.selected.plots,selected.plots)
+
+
+
+
+
+#### 3alt.Z. Complete compilation of AmRiv plots ####
+
+
+### plot all the plots for this management type on this fire: but first tier only ###
+d <- all.selected.plots %>%
+  filter(rank == 1)
+
+##make the management category text have a newline (after the 2nd comma)
+comma.locs <- str_locate(d$mgmt.factorial.nofire,fixed(" thn:"))
+d <- d %>%
+  dplyr::mutate(splitpos = str_locate(mgmt.factorial.nofire,fixed(" rel:"))[,"start"]) %>%
+  dplyr::mutate(first.part = str_sub(mgmt.factorial.nofire,1,splitpos),
+                second.part = str_sub(mgmt.factorial.nofire,splitpos,-1)) %>%
+  dplyr::mutate(mgmt.w.newline = paste0(first.part,"\n",second.part))
+
+
+d.perim <- d[d$class=="perimeter",]
+d.int.close <- d[d$class=="internal" & d$dist.nonhigh == "< 80 m",]
+d.int.far <- d[d$class=="internal" & d$dist.nonhigh == "> 120 m",]
+
+g <- ggplot(d.perim,aes(x=elev,y=rad,color=yr.pltd,shape=dist.nonhigh)) +
+  #geom_point(data=d.int.close,shape=18,size=1) +
+  #geom_point(data=d.int.far,shape=3,size=0.7) +
+  geom_point(size=2.5) +
+  ggtitle(d[1,]$fire.dist2) +
+  theme_bw(12) +
+  theme(plot.title = element_text(size=8)) +
+  facet_wrap(~mgmt.w.newline) +
+  scale_shape_manual(values=c(16,1)) +
+  scale_colour_manual(values=yr.colors) +
+  theme(strip.text.x = element_text(size = 8)) +
+  labs(color="Yr planted",shape="Seed dist")
+
+print(g)
+
+### prepare the plot codes
+all.selected.plots.w.names = all.selected.plots %>%
+  mutate(plot.iter = 1,
+         plot.fire = "C",
+         plot.cat = plt.cat,
+         plot.yr = first.pltd.yr,
+         plot.seed.dist = plt.seeddist,
+         #plot.elev1 = str_sub(subquad.overall.label,start=2,end=2),
+         #plot.rad1 = str_sub(subquad.overall.label,start=4,end=4),
+         #plot.elev2 = str_sub(subquad.overall.label,start=7,end=7),
+         #plot.rad2 = str_sub(subquad.overall.label,start=9,end=9),
+         plot.tier = rank)
+
+### make new geocells just for IDing plots in a reasonable geospatial order:
+geogrid <- determine_geocells(all.selected.plots.w.names,cellsize=4000) %>%
+  rename(geogrid.cell.id = geocell.id)
+plot(geogrid)
+# determine which geocell each plot falls into
+all.selected.plots.w.names <- st_intersection(all.selected.plots.w.names,geogrid)
+
+### also get the x and y lat long for arranging within the geogrids
+all.selected.plots.w.names$lat <- a <-st_coordinates(all.selected.plots.w.names)[,2]
+all.selected.plots.w.names$long <- a <-st_coordinates(all.selected.plots.w.names)[,1]
+
+all.selected.plots.w.names <- all.selected.plots.w.names %>%
+  mutate_at(vars(lat,long),round,digits=6)
+
+## Arrange the plots geographically to assign ID numbers
+all.selected.plots.w.names <- all.selected.plots.w.names %>%
+  arrange(geogrid.cell.id,long)
+
+starting.map.id <- 1000
+map.ids <- starting.map.id:(starting.map.id+nrow(all.selected.plots.w.names)-1)
+all.selected.plots.w.names$plot.id.map <- map.ids
+all.selected.plots.w.names$plot.id.gps.pre <- paste0(all.selected.plots.w.names$plot.fire,map.ids)
+
+
+### bring in the control plots
+d.ctl <- d.full %>%
+  filter(type == "control")
+
+d.ctl <- st_transform(d.ctl,4326)
+d.ctl$lat <-st_coordinates(d.ctl)[,2]
+d.ctl$long <-st_coordinates(d.ctl)[,1]
+all.selected.plots.w.names <- st_transform(all.selected.plots.w.names,4326)
+all.selected.plots.w.names$lat <-st_coordinates(all.selected.plots.w.names)[,2]
+all.selected.plots.w.names$long <-st_coordinates(all.selected.plots.w.names)[,1]
+
+
+## pull in the names of the treated plots they are paired with
+d.ctl <- inner_join(d.ctl,
+                    all.selected.plots.w.names %>% st_drop_geometry() %>% select(ctl.id,plt.cat:plot.tier),
+                    by=c("id"="ctl.id"))
+
+##need to order d.ctl in the same order as: all.selected.plots.w.names[all.selected.plots.w.names$type == "treatment",]
+order.of.ctl.id <- all.selected.plots.w.names[all.selected.plots.w.names$type == "treatment",]$ctl.id
+reorder <- match(order.of.ctl.id,d.ctl$id)
+d.ctl <- d.ctl[reorder,]
+
+
+plot.id.gps.pre <- all.selected.plots.w.names[all.selected.plots.w.names$type == "treatment",]$plot.id.gps.pre
+d.ctl$plot.id.gps.pre <- plot.id.gps.pre
+plot.id.map <- all.selected.plots.w.names[all.selected.plots.w.names$type == "treatment",]$plot.id.map
+d.ctl$plot.id.map <- plot.id.map
+
+# d.ctl <- st_drop_geometry(d.ctl)
+# all.selected.plots.w.names <- st_drop_geometry(all.selected.plots.w.names)
+
+## find out what vars they have in common to keep all of them
+vars.in.common <- intersect(names(all.selected.plots.w.names),names(d.ctl))
+
+all.selected.plots.w.names <- all.selected.plots.w.names %>%
+  select(vars.in.common)
+d.ctl <- d.ctl %>%
+  select(vars.in.common)
+
+sel <- rbind(all.selected.plots.w.names,d.ctl)
+
+sel.p <- sel %>%
+  mutate(plot.type = recode(type,"treatment"="T","internal"="I","control"="C")) %>%
+  mutate(plot.code = paste0(plot.iter,plot.fire,plot.cat,plot.yr,plot.seed.dist,plot.tier,plot.type))
+
+
+### also get the x and y lat long for arranging within the geogrids
+sel.p <- sel.p %>%
+  mutate_at(vars(lat,long),round,digits=6)
+
+
+## make a plotting category
+sel.p <- sel.p %>%
+  mutate(map.cat = paste0(type,ifelse(type!="control",plot.tier,""))) %>%
+  mutate(plot.id.gps = paste0(plot.id.gps.pre,plot.type))
+
+# reorder columns so plot code etc. comes first
+sel.p <- sel.p %>%
+  select(plot.id.gps,plot.id.map,plot.code,plot.iter:plot.type,map.cat,everything())
+
+
+
+st_write(sel.p,"data/site-selection/output/selected-plots/AmRiv_v1.gpkg",delete_dsn=TRUE)
+
+
+
+### Export plot data table and GPS waypoints
+p <- st_read("data/site-selection/output/selected-plots/AmRiv_v1.gpkg",stringsAsFactors=FALSE)
+
+
+# ### for each tier1 plot, determine acceptable tier2 and tier3 plots
+# p2 <- p %>% st_drop_geometry() %>%
+#   select(plot.type,plot.id.gps,plot.code,lat,long,plot.iter,plot.fire,plot.cat,plot.yr,plot.seed.dist,plot.elev1:plot.rad2,plot.tier) %>%
+#   mutate(plot.code2 = paste0(plot.iter,plot.fire,plot.cat,plot.yr,plot.seed.dist,plot.elev1,plot.rad1,plot.elev2,plot.rad2,plot.type)) %>%
+#   mutate(t2_opt = NA, t3_opt = NA)
+# 
+# for(i in 1:nrow(p2)) {
+#   if((p2[i,]$plot.type != "T") | p2[i,]$plot.tier != 1) next()
+#   
+#   
+#   focal.code2 <- p2[i,]$plot.code2
+#   
+#   # find matching tier 2 plots
+#   p.t2.match <- p2 %>%
+#     filter(plot.code2 == focal.code2,
+#            plot.tier == 2)
+#   
+#   plot.ids.tier2 <- paste(p.t2.match$plot.id.gps,collapse=", ")
+#   
+#   # find matching tier 3 plots
+#   p.t3.match <- p2 %>%
+#     filter(plot.code2 == focal.code2,
+#            plot.tier == 3)
+#   
+#   plot.ids.tier3 <- paste(p.t3.match$plot.id.gps,collapse=", ")
+#   
+#   p2[i,"t2_opt"] <- plot.ids.tier2
+#   p2[i,"t3_opt"] <- plot.ids.tier3
+#   
+#   
+# }
+
+
+p2 <- p
+
+## export a table
+p.table <- p2 %>%
+  select(type=plot.type,tier=plot.tier,id=plot.id.gps,lat,long,year=plot.yr,cat=plot.cat,seed=plot.seed.dist) %>%
+  arrange(desc(type),tier,id)
+
+#six decimals on lat and long
+p.table <- p.table %>%
+  mutate_at(vars(lat,long),format,nsmall=6)
+
+write.csv(p.table,"data/site-selection/output/selected-plots/wpt_table_amriv.csv")
+
+
+### Export GPS waypoints
+wpts <- p %>%
+  select(name=plot.id.gps)
+
+st_write(wpts,"data/site-selection/output/selected-plots/wpts_amriv.gpx",driver="GPX",delete_dsn=TRUE)
+
+
+
+
+
+
+
+
+
+
+
+

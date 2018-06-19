@@ -2,7 +2,9 @@ Plot selection records:
 
 2007MOONTELOPE:
 
-Used candidate_plots_paired_filtered_v1.gpkg
+moontelope_v2.gpkg
+Used candidate_plots_paired_filtered_v2.gpkg
+Started plot numbering at 1000
 
 ## plot naming
 

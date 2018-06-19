@@ -65,7 +65,8 @@ planting.slices <- planting.slices[planting.slices$planting.nyears > 0,]
 focal.fires.input <- read.csv("data/site-selection/analysis-parameters/focal_fires.csv",stringsAsFactors=FALSE)
 fires.focal.names <- unique(focal.fires.input$VB_ID)
 
-fires.focal.names <- c("2007ANTELOPE_CMPLX","2007MOONLIGHT")
+# fires.focal.names <- c("2007ANTELOPE_CMPLX","2007MOONLIGHT")
+fires.focal.names <- c("2008GOVERNMENT")
 
 
 # load fire perimeter database and thin to focal fires
@@ -123,6 +124,13 @@ ownership <- st_transform(ownership,crs=crs)
 
 #### Place points ####
 
+
+## set distances in and out
+distin = 30
+distout = 45
+dist.apart = (distin + distout) * 1.7
+
+
 # Buffer out the planting units by 0.5 m so they merge back together
 planting.zone <- st_buffer(planting.slices,dist=1)
 planting.zone <- st_union(planting.zone)
@@ -131,7 +139,7 @@ planting.zone <- st_union(planting.zone)
 ## Perimeter points
 
 # Buffer in by 25 m and out by 25 m and place points along the resulting perimeters to establish the candidate set of "treated" and "control" plots
-treated.plot.perim <- st_buffer(planting.zone,dist=-25)
+treated.plot.perim <- st_buffer(planting.zone,dist=-distin)
 treated.plot.perim <- st_set_crs(treated.plot.perim,3310)
 
 # st_write(treated.plot.perim,"../treated_plot_perim_precast.gpkg")
@@ -149,7 +157,7 @@ treated.plot.perim <- as(treated.plot.perim,"Spatial")
 trt.candidate.plots <- spsample(treated.plot.perim,n=treated.perim.length/100,type="regular")
 trt.candidate.plots <- as(trt.candidate.plots,"sf")
 
-control.plot.perim <- st_buffer(planting.zone,dist=25)
+control.plot.perim <- st_buffer(planting.zone,dist=distout)
 precast.crs <- st_crs(control.plot.perim)
 precast.precision <- st_precision(control.plot.perim)
 control.plot.perim <- st_cast(control.plot.perim,"MULTILINESTRING")
@@ -157,12 +165,12 @@ st_crs(control.plot.perim) <- precast.crs
 st_precision(control.plot.perim) <- precast.precision
 control.perim.length <- st_length(control.plot.perim) %>% sum() %>% as.numeric()
 control.plot.perim <- as(control.plot.perim,"Spatial")
-ctrl.candidate.plots <- spsample(control.plot.perim,n=control.perim.length/50,type="regular")
+ctrl.candidate.plots <- spsample(control.plot.perim,n=control.perim.length/30,type="regular")
 ctrl.candidate.plots <- as(ctrl.candidate.plots,"sf")
 
 ## Internal points
 # internal.poly <- st_buffer(planting.zone,dist=-60)
-internal.poly <- st_buffer(planting.slices,dist=-60)
+internal.poly <- st_buffer(planting.slices,dist=-40)
 # Must do fire-by-fire because it's too slow to do all at once
 internal.candidate.plots.list <- list()
 for(fire in fires.focal.names) {
@@ -255,7 +263,7 @@ candidate.plots$forest <- ownership[ownership.intersect.first,]$LABEL_NAME
 
 candidate.plots.buffer <- st_buffer(candidate.plots,15) # buffer out for 40m to make sure it's high-severity in the entire area surrounding
 fire.sev.buffer <- st_buffer(fire.sev,10) # buffer fire severity out for 15 m in case there were inaccuracies in measuring fire severity
-sev.intersect <- st_intersects(candidate.plots,fire.sev.buffer)
+sev.intersect <- st_intersects(candidate.plots.buffer,fire.sev.buffer)
 rm(fire.sev.buffer)
 rm(candidate.plots.buffer)
 
@@ -271,7 +279,7 @@ get_mostrecent_severity <- function(x) { # function to get the severities of the
   overlap.years <- fire.sev.overlap$FIRE_YEAR
   max.yr.index <- which(overlap.years == max(overlap.years)) # indices of all overlap fires that were the most recent focal fire
   severities <- fire.sev.overlap[max.yr.index,"BURNSEV"]
-  severity.mostrecent <- min(severities) # in case there was more than one severity within the buffered area around each plot, take the minimum so we can later filter to plots for which the entire surrounding area was > X severity. Note that this can be foiled if there was more than one fire that burned over a given plot in the most-recent fire year (e.g. one fire burned at high severity and the second burned at low severity and then the site was planted). But that should be a very small number of candidate plots.
+  severity.mostrecent <- min(severities) # in case there was more than one severity within the buffered area around each plot, take the minimum so we can later filter to plots for which the entire surrounding area was > X severity. Note that this can be foiled if there was more than one fire that burned over a given plot in the most-recent fire year (e.g. one fire burned at high severity and the second burned at low severity and then the site was planted). But that should be a very small number of candidate plots, and this approach conservatively excludes those areas
   
   return(severity.mostrecent)
   
@@ -496,12 +504,15 @@ candidate.plots.backup <- candidate.plots
 # filter based on severity, ownership, salvage methods
 candidate.plots <- candidate.plots %>%
   filter(focal.fire.sev == 4) %>%  # include only candidate plots that have high severity surrounding them #! in the future, may want to look out to a wider surrounding area
-  filter(ownership == "fs") # include only candidate plots that are on (buffered in) FS land
+  filter(ownership == "fs") %>% # include only candidate plots that are on (buffered in) FS land
+  filter(dist.non.high > 20) # all high severity in and surrounding th eplot
   
 # break back into treated and control
 trt <- candidate.plots %>% filter(type=="treatment")
 ctl <- candidate.plots %>% filter(type=="control")
 int <- candidate.plots %>% filter(type=="internal")
+
+
 
 trt$index <- 1:nrow(trt)
 ctl$index <- 1:nrow(ctl)
@@ -511,7 +522,7 @@ int$index <- 1:nrow(int)
 a <- st_distance(trt,ctl) # takes 1-2 min. maybe do after narrowing
 
 # for each row (treated plot), which columns (control plots) are within x distance
-radius <- set_units(80,m)
+radius <- set_units(dist.apart,m)
 close.pairs <- which(a < radius,arr.ind=T)
 colnames(close.pairs) <- c("trt","ctl")
 close.pairs <- as.data.frame(close.pairs)
@@ -677,7 +688,7 @@ candidate.plots.paired <- candidate.plots.paired %>% dplyr::select(-index,-owner
 candidate.plots.paired$label <- " "
 
 #candidate.plots.paired$dist.nonhigh <- ifelse(candidate.plots.paired$dist.non.high < 100,"< 100 m","> 100 m")
-candidate.plots.paired[candidate.plots.paired$dist.non.high < 80,"dist.nonhigh"] <- "< 80 m"
+candidate.plots.paired[candidate.plots.paired$dist.non.high < 90,"dist.nonhigh"] <- "< 80 m"
 candidate.plots.paired[candidate.plots.paired$dist.non.high > 120,"dist.nonhigh"] <- "> 120 m"
 
 candidate.plots.paired = candidate.plots.paired %>%
@@ -895,6 +906,10 @@ p.dat[p.dat$type=="internal" & p.dat$f.s.salvage == "yes","salv.cat"] <- "plante
 p.dat[p.dat$type=="internal" & p.dat$f.s.salvage == "no","salv.cat"] <- "neither"
 p.dat <- rbind(p.dat,p.dat.int.salv.copy)
 
+## remove internal plots that are close to seed source
+p.dat <- p.dat %>%
+  filter(p.dat$type != "internal" | p.dat$dist.non.high > 120)
+
 
 ### need to tag all internal plots as postplanting salvaged if applicable
 salvage.text.w.Post <- paste0(p.dat$salv.cat,"Post")
@@ -969,12 +984,12 @@ p.dat.close <- p.dat[(p.dat$dist.non.high < 100) & (p.dat$class != "internal"),]
 # ## resuming main code
 # 
 
-
-
-### temp testing of mcnally: why are so many getting dropped
-p.inspect <- p.dat.close %>%
-  filter(fire.dist == "2002MCNALLY - Sequoia NF")
-
+# 
+# 
+# ### temp testing of mcnally: why are so many getting dropped
+# p.inspect <- p.dat.close %>%
+#   filter(fire.dist == "2002MCNALLY - Sequoia NF")
+# 
 
 
 ## OK, now for each fire, sum the number of perimeter plots in each factorial combination of each of the important treatment columns
@@ -1006,7 +1021,8 @@ datatable(p.dat.agg.many,options=list(pageLength=100)) %>%
   saveWidget(file=path)
 
 # filter the full plot database to only those fires and factorial management categories that have enough member plots
-p.dat.many <- p.dat[p.dat$mgmt.factorial %in% p.dat.agg.many$mgmt.factorial,]
+#p.dat.many <- p.dat[p.dat$mgmt.factorial %in% p.dat.agg.many$mgmt.factorial,]
+p.dat.many <- p.dat
 
 # make some variables better for plotting
 p.dat.many$mgmt.factorial.nofire <- str_split(p.dat.many$mgmt.factorial,", ",n=2) %>%
@@ -1030,8 +1046,8 @@ p.ctl.match <- p.ctl.match[,names(p.dat.many)]
 p.dat.many.w.ctl <- rbind(p.dat.many,p.ctl.match)
 
 # write the filtered candidate plot dataset
-st_write(p.dat.many.w.ctl,"data/site-selection/output/candidate-plots/candidate_plots_paired_filtered.gpkg",delete_dsn=TRUE)
-
+st_write(p.dat.many.w.ctl,"data/site-selection/output/candidate-plots/candidate_plots_paired_filtered_v5_amriv_widespacing_medfirebuff.gpkg",delete_dsn=TRUE)
+  
 ## Plot environmental range of each factorial management type
 mgmt.cats <- unique(p.dat.many$mgmt.factorial)
 fires <- unique(p.dat.many$fire.dist2)
@@ -1061,10 +1077,10 @@ p.plot <- p.plot %>%
 # Remove plots that are from roadside salvage+planting stringers
 p.plot <- p.plot %>%
   filter(f.s.stringer == "no")
-
-
-d.perim.check <- d.perim %>%
-  dplyr::select(elev,rad,yr.pltd,dist.nonhigh,fire.dist2,mgmt.w.newline)
+# 
+# 
+# d.perim.check <- d.perim %>%
+#   dplyr::select(elev,rad,yr.pltd,dist.nonhigh,fire.dist2,mgmt.w.newline)
 
 # ## temporary: because McNally has no rad, make up values (which also allow for differentiation of dist to seed tree)
 # p.plot[p.plot$fire.name == "2002MCNALLY" & p.plot$dist.nonhigh == "< 80 m","rad"] <- 6000
@@ -1105,7 +1121,7 @@ for(i in 1:length(fires)) {
 
 
 
-pdf("data/site-selection/output/candidate-plots/stratification_v17_morecats_allfires.pdf")
+pdf("data/site-selection/output/candidate-plots/stratification_v20_widspacing_medfirebuff_fixed_amriv.pdf")
 for(i in seq_along(plts)) {
   print(plts[[i]])
 }
