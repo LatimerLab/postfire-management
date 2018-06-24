@@ -5,6 +5,39 @@ d.foc.yr <- d.foc.yr %>%
   dplyr::filter(!(f.s.first.planting.suid %in% suids_exclude$suid))
 
 
+
+## Plot the homogeneity
+
+
+d.foc.yr <- d.foc.yr %>%
+  mutate(homogeneity = pmin(n.similar.adj.trt.plots,n.close.paired.plots),
+         homogeneous = homogeneity > min.homogeneity)
+
+g <- ggplot(d.foc.yr,aes(x=elev,y=rad,color=homogeneous)) +
+  geom_point(size=2) +
+  theme_bw(15) +
+  scale_shape_manual(values=c(16,1,2,17)) +
+  labs(color="Homogeneity") +
+  geom_rect(xmin=focal.env.range$elev.low,
+            xmax=focal.env.range$elev.high,
+            ymin=focal.env.range$rad.low,
+            ymax=focal.env.range$rad.high,
+            fill=NA,color="red") +
+  labs(title=d.foc.yr$fire.dist2[1])
+print(g)
+
+d.foc.yr <- d.foc.yr %>%
+  filter(homogeneous == TRUE)
+
+
+invisible(readline(prompt="Press [enter] to continue"))
+
+
+
+
+
+
+
 ## define the geocells
 geocells_all <- determine_geocells(d.foc.yr,cellsize=5000)
 
@@ -88,6 +121,10 @@ g <- ggplot(d.foc.yr.classified,aes(x=elev,y=rad,color=quad.label,shape=subquad.
   labs(title=d.foc.yr.classified$fire.dist2[1])
 print(g)
 
+invisible(readline(prompt="Press [enter] to continue"))
+
+
+
 
 ## Summarize by suid and quadrant: what subquadrants are represented by each SUID
 
@@ -102,12 +139,6 @@ geocell.summ <- d.foc.yr.classified %>%
 
 
 
-
-
-
-
-
-invisible(readline(prompt="Press [enter] to continue"))
 
 
 
@@ -578,7 +609,7 @@ for(j in 1:length(quads)) {
   selected.subquads <- rbind(selected.subquads,candidate.subquads)
 }
 
-
+if(!is.null(existing.plots.avoid)) existing.plots.avoid <- st_transform(existing.plots.avoid,3310)
 
 ### Remove candidate plots that are spatially close to any of the already-done plots we're trying to avoid
 if(!is.null(existing.plots.avoid)) {
@@ -609,7 +640,7 @@ if(!is.null(existing.plots.avoid)) {
     select(-one_of(cols.to.remove.from.b))
   # make sure we're only using the same columns from d.foc.yr
   d.foc.yr <- d.foc.yr[,names(existing.plots.avoid)]
-  # put them in the same order
+  # put the columns in the same order
   existing.plots.avoid <- existing.plots.avoid[,names(d.foc.yr)]
   # add column saying if it should be avoided
   d.foc.yr$avoid <- "no"
@@ -692,9 +723,9 @@ for(i in 1:nrow(selected.subquads)) {   ## check this for i = 4 because it's not
   plots.subquad$random <- sample(0:nrow(plots.subquad),nrow(plots.subquad),replace=FALSE)
   
   
-  #rank them: put the plots to avoid first to they get selected if they exist and then exluded
+  #rank them: put the plots to avoid first so they get selected if they exist and then exluded
   plots.subquad.ranked <- plots.subquad %>%
-    arrange(desc(avoid),tier,desc(geocell.subquad.count),desc(geocell.overall.count),random)
+    arrange(desc(avoid),tier,desc(homogeneity),desc(geocell.subquad.count),desc(geocell.overall.count),random)
   
   ### rank them further: if some of the first plots are nearby some of the later plots, rank the later plots at the end
   
@@ -749,7 +780,7 @@ for(i in 1:nrow(selected.subquads)) {   ## check this for i = 4 because it's not
   
   
   
-  ## if it's too close to a current candidate plot or an already selected plot, make it lower priority
+  ## if it's too close to a current candidate plot or an already selected plot, make it lower priority; after that, choose the more homogeneous plots
   plots.subquad.ranked <- plots.subquad.ranked %>%
     mutate(too.close.500 = min.dist.to.prev.selected.tier12 < 500 | dist.to.prev < 500) %>%
     mutate(too.close.200 = min.dist.to.prev.selected.tier12 < 100 | dist.to.prev < 100) %>%
