@@ -65,9 +65,10 @@ planting.slices <- planting.slices[planting.slices$planting.nyears > 0,]
 focal.fires.input <- read.csv("data/site-selection/analysis-parameters/focal_fires.csv",stringsAsFactors=FALSE)
 fires.focal.names <- unique(focal.fires.input$VB_ID)
 
-fires.focal.names <- c("2007ANTELOPE_CMPLX","2007MOONLIGHT")
+# fires.focal.names <- c("2007ANTELOPE_CMPLX","2007MOONLIGHT")
 # fires.focal.names <- c("2008GOVERNMENT")
-
+# fires.focal.names <- c("1994COTTONWOOD")
+fires.focal.names <- c("1987INDIAN","1990STORMY","1994COTTONWOOD","2002MCNALLY","2004POWER","2008GOVERNMENT","2008PIUTE")
 
 # load fire perimeter database and thin to focal fires
 fires <- readOGR("data/non-synced/existing-datasets/veg_severity_perimeters16_1.gdb",stringsAsFactors=FALSE)
@@ -128,8 +129,8 @@ ownership <- st_transform(ownership,crs=crs)
 
 
 ## set distances in and out
-distin = 40
-distout = 45
+distin = 35
+distout = 40
 dist.apart = (distin + distout) * 1.7
 
 
@@ -599,7 +600,7 @@ for(i in 1:nrow(trt)) {
                            ctl.close$fire.history == trt.focal$fire.history &
                            near(ctl.close$slope,trt.focal$slope,15) &
                            near(ctl.close$elev,trt.focal$elev,100) &
-                           (near(ctl.close$northness,trt.focal$northness,0.5) | (min(ctl.close$slope,trt.focal$slope) < 5)) & # either (a) there is little difference in aspect between the paired plots, or (b) at least one of the plots is quite flat (so aspect is not very relevant)
+                           (near(ctl.close$northness,trt.focal$northness,0.5) | (min(ctl.close$slope,trt.focal$slope) < 8)) & # either (a) there is little difference in aspect between the paired plots, or (b) at least one of the plots is quite flat (so aspect is not very relevant)
                            ctl.close$prefire.management.history == trt.focal$prefire.management.history & # pre-fire management in control plot same as in planted plot
                            ctl.close$forest == trt.focal$forest &
                            near(ctl.close$dist.non.high,trt.focal$dist.non.high,50) &
@@ -1007,8 +1008,8 @@ p.dat <- p.dat %>%
 #   filter(dist.non.high > 120 | class == "perimeter")
 
 # for computing if there's enough plots to justify study, only look at perimeter plots close to seed source
-p.dat.close <- p.dat[(p.dat$dist.non.high < 100) & (p.dat$class != "internal"),]
-
+# p.dat.close <- p.dat[(p.dat$dist.non.high < 100) & (p.dat$class != "internal"),]
+p.dat.close <- p.dat ##!! temp
 
 # 
 # 
@@ -1055,7 +1056,7 @@ p.dat.close <- p.dat[(p.dat$dist.non.high < 100) & (p.dat$class != "internal"),]
 # only consider perimeter plots when tallying if there are enough
 p.dat.agg <- p.dat.close %>%
   st_drop_geometry() %>%
-  filter(class=="perimeter") %>%
+  #filter(class=="perimeter") %>%
   # formerly before reduced number of factorial vars: group_by(fire2,salv.cat2,plant.timing2,site.prepped2,released2,replanted2,thinned2) %>%
   group_by(fire.dist2,salv.cat2,site.prepped2,released2,thinned2,replanted2) %>%
   #! could we just do group_by the mgmt.factorial col?
@@ -1080,8 +1081,8 @@ datatable(p.dat.agg.many,options=list(pageLength=100)) %>%
   saveWidget(file=path)
 
 # filter the full plot database to only those fires and factorial management categories that have enough member plots
-#p.dat.many <- p.dat[p.dat$mgmt.factorial %in% p.dat.agg.many$mgmt.factorial,]
-p.dat.many <- p.dat
+p.dat.many <- p.dat[p.dat$mgmt.factorial %in% p.dat.agg.many$mgmt.factorial,]
+#p.dat.many <- p.dat
 
 # make some variables better for plotting
 p.dat.many$mgmt.factorial.nofire <- str_split(p.dat.many$mgmt.factorial,", ",n=2) %>%
@@ -1105,7 +1106,7 @@ p.ctl.match <- p.ctl.match[,names(p.dat.many)]
 p.dat.many.w.ctl <- rbind(p.dat.many,p.ctl.match)
 
 # write the filtered candidate plot dataset
-st_write(p.dat.many.w.ctl,"data/site-selection/output/candidate-plots/candidate_plots_paired_filtered_moontelope_v3.gpkg",delete_dsn=TRUE)
+st_write(p.dat.many.w.ctl,"data/site-selection/output/candidate-plots/candidate_plots_paired_filtered_all_lesswide_v1.gpkg",delete_dsn=TRUE)
   
 ## Plot environmental range of each factorial management type
 mgmt.cats <- unique(p.dat.many$mgmt.factorial)
@@ -1180,7 +1181,7 @@ for(i in 1:length(fires)) {
 
 
 
-pdf("data/site-selection/output/candidate-plots/stratification_v20_widspacing_medfirebuff_fixed_moontelope.pdf")
+pdf("data/site-selection/output/candidate-plots/stratification_v23_all_lesswide.pdf")
 for(i in seq_along(plts)) {
   print(plts[[i]])
 }
