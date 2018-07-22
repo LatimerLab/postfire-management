@@ -68,7 +68,7 @@ fires.focal.names <- unique(focal.fires.input$VB_ID)
 # fires.focal.names <- c("2007ANTELOPE_CMPLX","2007MOONLIGHT")
 # fires.focal.names <- c("2008GOVERNMENT")
 # fires.focal.names <- c("1994COTTONWOOD")
-fires.focal.names <- c("1987INDIAN","1990STORMY","1994COTTONWOOD","2002MCNALLY","2004POWER","2008GOVERNMENT","2008PIUTE")
+# fires.focal.names <- c("1987INDIAN","1990STORMY","1994COTTONWOOD","2002MCNALLY","2004POWER","2008GOVERNMENT","2008PIUTE")
 
 # load fire perimeter database and thin to focal fires
 fires <- readOGR("data/non-synced/existing-datasets/veg_severity_perimeters17_1.gdb",stringsAsFactors=FALSE)
@@ -131,7 +131,11 @@ ownership <- st_transform(ownership,crs=crs)
 ## set distances in and out
 distin = 45
 distout = 45
+minfinger = 110
 dist.apart = (distin + distout) * 1.7
+
+fingerbuff = (minfinger/2) - distin
+fingerbuff = max(fingerbuff,0)
 
 
 # Buffer out the planting units by 0.5 m so they merge back together
@@ -145,6 +149,10 @@ planting.zone <- st_union(planting.zone)
 
 # treated
 treated.plot.perim <- st_buffer(planting.zone,dist=-distin)
+
+treated.plot.perim <- st_buffer(treated.plot.perim,dist=-fingerbuff)
+treated.plot.perim <- st_buffer(treated.plot.perim,dist=fingerbuff)
+
 treated.plot.perim <- st_set_crs(treated.plot.perim,3310)
 precast.crs <- st_crs(treated.plot.perim)
 precast.precision <- st_precision(treated.plot.perim)
@@ -158,6 +166,10 @@ trt.candidate.plots <- as(trt.candidate.plots,"sf")
 
 # treated dummy
 treated.plot.perim <- st_buffer(planting.zone,dist=-distin)
+
+treated.plot.perim <- st_buffer(treated.plot.perim,dist=-fingerbuff)
+treated.plot.perim <- st_buffer(treated.plot.perim,dist=fingerbuff)
+
 treated.plot.perim <- st_set_crs(treated.plot.perim,3310)
 precast.crs <- st_crs(treated.plot.perim)
 precast.precision <- st_precision(treated.plot.perim)
@@ -1106,7 +1118,7 @@ p.ctl.match <- p.ctl.match[,names(p.dat.many)]
 p.dat.many.w.ctl <- rbind(p.dat.many,p.ctl.match)
 
 # write the filtered candidate plot dataset
-st_write(p.dat.many.w.ctl,"data/site-selection/output/candidate-plots/candidate_plots_paired_filtered_all_45m-45m_v1.gpkg",delete_dsn=TRUE)
+st_write(p.dat.many.w.ctl,"data/site-selection/output/candidate-plots/candidate_plots_paired_filtered_moontelope_45m-45m_v1.gpkg",delete_dsn=TRUE)
   
 ## Plot environmental range of each factorial management type
 mgmt.cats <- unique(p.dat.many$mgmt.factorial)
@@ -1181,7 +1193,7 @@ for(i in 1:length(fires)) {
 
 
 
-pdf("data/site-selection/output/candidate-plots/stratification_v24_all_45m-45m.pdf")
+pdf("data/site-selection/output/candidate-plots/stratification_v24_moontelope_45m-45m.pdf")
 for(i in seq_along(plts)) {
   print(plts[[i]])
 }

@@ -628,25 +628,25 @@ if(!is.null(existing.plots.avoid)) {
 ## Now, for each selected subquad, order the member plots by geocells tier, then by SIUD nplots in that subquad, then by nplots total, then random.
 # If plot ranked 2 and 3 are from different geocell tiers, drop the third one, else keep it.
 
-if(!is.null(existing.plots.avoid)) {
-  ## add the default already-selected plots to avoid climatically and spatially to the plots dataset
-  # Need to see what columns to add to existing.plots.avoid
-  cols.to.add.to.b <- setdiff(names(d.foc.yr),names(existing.plots.avoid))
-  cols.to.remove.from.b <- setdiff(names(existing.plots.avoid),names(d.foc.yr))
-  # add them
-  existing.plots.avoid[,cols.to.add.to.b] <- NA
-  # remove them
-  existing.plots.avoid <- existing.plots.avoid %>%
-    select(-one_of(cols.to.remove.from.b))
-  # make sure we're only using the same columns from d.foc.yr
-  d.foc.yr <- d.foc.yr[,names(existing.plots.avoid)]
-  # put the columns in the same order
-  existing.plots.avoid <- existing.plots.avoid[,names(d.foc.yr)]
-  # add column saying if it should be avoided
-  d.foc.yr$avoid <- "no"
-  existing.plots.avoid$avoid <- "YES"
-  # add it
-  d.foc.yr <- rbind(d.foc.yr,existing.plots.avoid)
+if(!is.null(existing.plots.avoid) && (nrow(existing.plots.avoid) > 0)) {
+    ## add the default already-selected plots to avoid climatically and spatially to the plots dataset
+    # Need to see what columns to add to existing.plots.avoid
+    cols.to.add.to.b <- setdiff(names(d.foc.yr),names(existing.plots.avoid))
+    cols.to.remove.from.b <- setdiff(names(existing.plots.avoid),names(d.foc.yr))
+    # add them
+    existing.plots.avoid[,cols.to.add.to.b] <- NA
+    # remove them
+    existing.plots.avoid <- existing.plots.avoid %>%
+      select(-one_of(cols.to.remove.from.b))
+    # make sure we're only using the same columns from d.foc.yr
+    d.foc.yr <- d.foc.yr[,names(existing.plots.avoid)]
+    # put the columns in the same order
+    existing.plots.avoid <- existing.plots.avoid[,names(d.foc.yr)]
+    # add column saying if it should be avoided
+    d.foc.yr$avoid <- "no"
+    existing.plots.avoid$avoid <- "YES"
+    # add it
+    d.foc.yr <- rbind(d.foc.yr,existing.plots.avoid)
 } else {
   d.foc.yr$avoid <- "no"
 }

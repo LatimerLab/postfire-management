@@ -5,6 +5,7 @@ library(sf)
 library(readODS)
 
 source("scripts/site-selection/plot_stratification_functions_geo.R")
+source("scripts/site-selection/st_rbind_all.R")
 
 #### 0. Load overall data ####
 
@@ -13,7 +14,7 @@ d.full <- st_read("data/site-selection/output/candidate-plots/candidate_plots_pa
 # candidate_plots_paired_filtered_moontelope_v3
 d.full <- st_read("data/site-selection/output/candidate-plots/candidate_plots_paired_filtered_v5_amriv_widespacing_medfirebuff.gpkg",stringsAsFactors=FALSE)
 d.full <- st_read("data/site-selection/output/candidate-plots/candidate_plots_paired_filtered_all_45m-45m_v1.gpkg",stringsAsFactors=FALSE)
-
+d.full <- st_read("data/site-selection/output/candidate-plots/candidate_plots_paired_filtered_moontelope_45m-45m_v1.gpkg",stringsAsFactors=FALSE)
 
 ## plots to avoid
 suids_exclude <- read_ods("data/site-selection/analysis-parameters/planting_unit_preferences_a_priori.ods",col_names=TRUE) %>%
@@ -21,8 +22,13 @@ suids_exclude <- read_ods("data/site-selection/analysis-parameters/planting_unit
   select(suid)
 
 ## previous plots (selected plots, some may have been surveyed)
-prev.plots <- st_read("data/site-selection/output/selected-plots/moontelope_v2.gpkg",stringsAsFactors=FALSE)
-prev.plots.done.ids <- c("A1041T", "A1140T", "A1147T", "A1096T" ,"A1157T" )
+prev.plots.a <- st_read("data/site-selection/output/selected-plots/moontelope_v2.gpkg",stringsAsFactors=FALSE)
+prev.plots.b <- st_read("data/site-selection/output/selected-plots/moontelope_v3_priHomogeneity.gpkg")
+prev.plots <- st_rbind_all(prev.plots.a,prev.plots.b)
+
+prev.plots.surveyed = read.csv("data/site-selection/analysis-parameters/plots_surveyed.csv",header=TRUE,stringsAsFactors=FALSE)
+prev.plots.done.ids <- unique(toupper(prev.plots.surveyed$plot))
+
 prev.plots.done <- prev.plots[prev.plots$plot.id.gps %in% prev.plots.done.ids,]
 
 yr.colors <- c("0" = "black","1" = "darkolivegreen3", "2" = "cornflowerblue", "3" = "darkorange1", "4+" = "brown3")
@@ -64,12 +70,12 @@ d.foc.overall <- d.trt %>%
 
 # define study range using only plots near seed source
 d.foc.overall.forenv <- d.foc.overall %>%
-  filter(dist.non.high < 80)
+  filter(dist.non.high < 90)
 
 focal.env.range <- get.overall.env.range(plt.yrs=foc.yrs.pltd,plots=d.foc.overall.forenv)
 # alternative focal.env.range <- data.frame(elev.low=custom.elev.low,elev.high=custom.elev.high,rad.low=custom.rad.low,rad.high=custom.rad.high)
 focal.env.range$rad.high <- 8000
-
+focal.env.range$rad.low <- 4000
 
 #### 1.a. Moontelope planted yr 1 close to seed source ####
 
@@ -77,7 +83,11 @@ focal.env.range$rad.high <- 8000
 geocell.scoping.plots <- NULL
 
 ## specify plots for which to avoid placing new plots that are spatially or environmentally close
-existing.plots.avoid <- NULL
+existing.plots.avoid <- prev.plots.done %>%
+  filter(plot.yr == 1)
+
+existing.plots.avoid <- existing.plots.avoid[rep(seq_len(nrow(existing.plots.avoid)), each=3),] # rep 3 times so it can count for all 3 tiers
+#existing.plots.avoid <- NULL
 
 min.homogeneity <- 1
 
@@ -94,12 +104,28 @@ sub.quads.df <- define.subquads(env.quads)
 d.foc.yr <- d.foc.overall %>%
   filter(first.pltd.yr == 1 &
            type == "treatment" &
-           dist.non.high < 80)
+           dist.non.high < 90)
+
+# #temp
+# d.foc.yr = d.foc.yr %>%
+#   filter((rad > 7000) | (rad < 5000))
 
 
 # select plots
 
 source("scripts/site-selection/plot_stratification_geo.R")
+
+## manually select some additional plots
+d.foc.yr.addl <- d.foc.overall %>%
+  filter(first.pltd.yr == 1,
+           type == "treatment",
+           dist.non.high < 90,
+          elev > 1800,
+          rad < 5000)
+
+d.foc.yr.addl$rank = c(1,2)
+d.foc.yr.addl$subquad.overall.label = c("GGGGGGGGGG")
+selected.plots = st_rbind_all(selected.plots,d.foc.yr.addl)
 
 # now we have selected.plots for this mgmt.type
 
@@ -136,7 +162,7 @@ sub.quads.df <- define.subquads(env.quads)
 d.foc.yr <- d.foc.overall %>%
   filter(first.pltd.yr == 3 &
            type == "treatment" &
-           dist.non.high < 80)
+           dist.non.high < 90)
 
 
 min.homogeneity <- 2
@@ -148,6 +174,23 @@ min.homogeneity <- 2
 
 source("scripts/site-selection/plot_stratification_geo.R")
 # now we have selected.plots for this mgmt.type
+
+## manually select some additional plots
+d.foc.yr.addl <- d.foc.overall %>%
+  filter(first.pltd.yr == 3,
+         type == "treatment",
+         dist.non.high < 90,
+         elev < 1650,
+         elev >= focal.env.range$elev.low,
+         rad > 6000)
+
+d.foc.yr.addl$rank = c(1,2)
+
+d.foc.yr.addl$subquad.overall.label = c("FFFFFFFFFF")
+
+selected.plots = st_rbind_all(selected.plots,d.foc.yr.addl)
+
+
 
 selected.plots$plt.cat = 1 # 1 means: perimeter, no management, restricted env. range
 selected.plots$plt.seeddist = "N"
@@ -302,6 +345,47 @@ existing.plots.avoid <- st_rbind_all(existing.plots.avoid.pre,existing.plots.avo
 
 source("scripts/site-selection/plot_stratification_geo.R")
 
+
+## manually select some additional plots
+d.foc.yr.addl <- d.foc.overall %>%
+  filter(first.pltd.yr == 3,
+         type == "treatment",
+         dist.non.high < 90,
+         elev > 1900,
+         rad < 4500)
+
+d.foc.yr.addl$rank = c(1)
+d.foc.yr.addl$subquad.overall.label = c("EEEEEEEEEE")
+selected.plots = st_rbind_all(selected.plots,d.foc.yr.addl)
+
+## manually select some additional plots
+d.foc.yr.addl <- d.foc.overall %>%
+  filter(first.pltd.yr == 3,
+         type == "treatment",
+         dist.non.high < 90,
+         elev < 1500,
+         rad > 7500)
+
+d.foc.yr.addl$rank = c(1,1)
+d.foc.yr.addl$subquad.overall.label = c("DDDDDDDDDD")
+selected.plots = st_rbind_all(selected.plots,d.foc.yr.addl)
+
+
+## manually select some additional plots
+d.foc.yr.addl <- d.foc.overall %>%
+  filter(first.pltd.yr == 3,
+         type == "treatment",
+         dist.non.high < 90,
+         elev < 1600,
+         rad < 4000)
+
+d.foc.yr.addl$rank = c(1,1,2)
+d.foc.yr.addl$subquad.overall.label = c("AAAAAAAAAA","BBBBBBBBBB","AAAAAAAAAA")
+selected.plots = st_rbind_all(selected.plots,d.foc.yr.addl)
+
+
+
+
 # now we have selected.plots for this mgmt.type
 
 selected.plots$plt.cat = 2 # 2 means: perimeter, no management, broad env. range
@@ -312,23 +396,23 @@ all.selected.plots <- rbind(all.selected.plots,selected.plots)
 
 
 
-
+####### Messed this one up ##########
 # 
-# #### 1.e. Planted yr 3 full env. range far from seed source ####
+# #### 1.e. Planted yr 3 full env. range salvagedPost ####
 # 
 # ### Determine the env. range for which to get data ###
 # 
 # ## Specify fire and management of interest ##
 # 
 # foc.fire.name <- "2007MOONTELOPE - Plumas NF"
-# foc.salv.cat <- "neither"
+# foc.salv.cat <- c("planted","both")
 # foc.site.prepped <- "no"
 # foc.released <- "no"
 # foc.replanted <- "no"
 # foc.thinned <- "no"
 # foc.yrs.pltd <- c("3")
 # 
-# d.foc.overall <- d.trt %>%
+# d.foc.overall <- d.int %>%
 #   dplyr::filter(fire.dist2 %in% foc.fire.name &
 #                   salv.cat %in% foc.salv.cat &
 #                   site.prepped %in% foc.site.prepped &
@@ -339,19 +423,24 @@ all.selected.plots <- rbind(all.selected.plots,selected.plots)
 # 
 # # define study range using only plots near seed source
 # d.foc.overall.forenv <- d.foc.overall %>%
-#   filter(dist.non.high < 80)
+#   filter(dist.non.high > 120)
 # 
 # focal.env.range <- get.overall.env.range(plt.yrs=foc.yrs.pltd,plots=d.foc.overall.forenv)
-# 
+# focal.env.range$elev.high = 2100
+# focal.env.range$rad.high = 7000
+# focal.env.range$elev.low = 1400
+# focal.env.range$rad.low = 2000
 # 
 # 
 # ## specify plots for which to target matching geocells
 # geocell.scoping.plots <- all.selected.plots # everything that's already been selected for this fire
 # 
+# min.homogeneity <- 0
+# 
 # 
 # ## determine the env. quads
-# rad.cats <- 2
-# elev.cats <- 2
+# rad.cats <- 3
+# elev.cats <- 3
 # subquads.goal <- 2  ## this is for how many subquads to try to fill
 # 
 # env.quads <- define.quadrants(focal.env.range,rad.cats,elev.cats)
@@ -361,7 +450,7 @@ all.selected.plots <- rbind(all.selected.plots,selected.plots)
 # ## subset to the relevant plots
 # d.foc.yr <- d.foc.overall %>%
 #   filter(first.pltd.yr == 3 &
-#            type == "treatment" &
+#            type == "internal" &
 #            dist.non.high > 120)
 # 
 # 
@@ -377,7 +466,7 @@ all.selected.plots <- rbind(all.selected.plots,selected.plots)
 #            replanted %in% foc.replanted &
 #            thinned %in% foc.thinned &
 #            yr.pltd %in% foc.yrs.pltd &
-#            dist.non.high > 120 &
+#            dist.non.high < 90 &
 #            rank == 1)
 # 
 # existing.plots.avoid.pre <- existing.plots.avoid.pre[rep(seq_len(nrow(existing.plots.avoid.pre)), each=3),]
@@ -393,93 +482,98 @@ all.selected.plots <- rbind(all.selected.plots,selected.plots)
 # 
 # # now we have selected.plots for this mgmt.type
 # 
-# selected.plots$plt.cat = 2 # 2 means: perimeter, no management, broad env. range
-# selected.plots$plt.seeddist = "F"
+# selected.plots$plt.cat = 3 # 2 means: perimeter, no management, broad env. range
+# selected.plots$plt.seeddist = "N"
 # 
 # all.selected.plots <- rbind(all.selected.plots,selected.plots)
 # 
 # 
-# 
-# 
 
 
 
-# 
-# #### 1.f. Moontelope planted yr 3 internal far from seed source full range ####
-# 
-# d.trt <- d.full[d.full$type %in% c("internal"),] ## remove the paired "control" plots because they do not have the environemntal data associated with them
-# 
-# #remove plots that are in between 80 and 120 m from seed source (for them, no value stored for dist.nonhigh) (this is only removing internal plots, as perimeter plots were already removed earlier in the script)
-# # and which had roadsode salvage stringers
-# d.trt <- d.trt %>%
-#   filter(!is.na(dist.nonhigh)) %>%
-#   filter(f.s.stringer == "no")
-# 
-# 
-# ### Determine the env. range for which to get data ###
-# 
-# ## Specify fire and management of interest ##
-# 
-# foc.fire.name <- "2007MOONTELOPE - Plumas NF"
-# foc.salv.cat <- "neither"
-# foc.site.prepped <- "no"
-# foc.released <- "no"
-# foc.replanted <- "no"
-# foc.thinned <- "no"
-# foc.yrs.pltd <- c("3")
-# 
-# d.foc.overall <- d.trt %>%
-#   dplyr::filter(fire.dist2 %in% foc.fire.name &
-#                   salv.cat %in% foc.salv.cat &
-#                   site.prepped %in% foc.site.prepped &
-#                   release.txt %in% foc.released &
-#                   replanted %in% foc.replanted &
-#                   thinned %in% foc.thinned &
-#                   yr.pltd %in% foc.yrs.pltd)
-# 
-# # define study range using only plots near seed source
-# d.foc.overall.forenv <- d.foc.overall %>%
-#   filter(dist.non.high > 120)
-# 
-# focal.env.range <- get.overall.env.range(plt.yrs=foc.yrs.pltd,plots=d.foc.overall.forenv)
-# # alternative focal.env.range <- data.frame(elev.low=custom.elev.low,elev.high=custom.elev.high,rad.low=custom.rad.low,rad.high=custom.rad.high)
-# 
-# 
-# 
-# 
-# 
-# ## specify plots for which to target matching geocells
-# geocell.scoping.plots <- NULL
-# 
-# ## specify plots for which to avoid placing new plots that are spatially or environmentally close
-# existing.plots.avoid <- NULL
-# 
-# ## determine the env. quads
-# rad.cats <- 3
-# elev.cats <- 3
-# subquads.goal <- 3  ## this is for how many subquads to try to fill
-# 
-# env.quads <- define.quadrants(focal.env.range,rad.cats,elev.cats)
-# sub.quads.df <- define.subquads(env.quads)
-# 
-# 
-# ## subset to the relevant plots
-# d.foc.yr <- d.foc.overall %>%
-#   filter(first.pltd.yr == 3 &
-#            type == "internal" &
-#            dist.non.high > 120)
-# 
-# 
-# # select plots
-# 
-# source("scripts/site-selection/plot_stratification_geo.R")
-# # now we have selected.plots for this mgmt.type
-# 
-# selected.plots$plt.cat = 3 # 3 means: internal, no management, broad env. range
-# selected.plots$plt.seeddist = "F"
-# 
-# all.selected.plots <- rbind(all.selected.plots,selected.plots)
-# 
+
+
+
+#### 1.f. Moontelope planted yr 3 internal far from seed source full range ####
+
+d.trt <- d.full[d.full$type %in% c("internal"),] ## remove the paired "control" plots because they do not have the environemntal data associated with them
+
+#remove plots that are in between 80 and 120 m from seed source (for them, no value stored for dist.nonhigh) (this is only removing internal plots, as perimeter plots were already removed earlier in the script)
+# and which had roadsode salvage stringers
+d.trt <- d.trt %>%
+  filter(!is.na(dist.nonhigh)) %>%
+  filter(f.s.stringer == "no")
+
+
+### Determine the env. range for which to get data ###
+
+## Specify fire and management of interest ##
+
+foc.fire.name <- "2007MOONTELOPE - Plumas NF"
+foc.salv.cat <- c("both","planted","bothPost","plantedPost")
+foc.site.prepped <- "no"
+foc.released <- "no"
+foc.replanted <- "no"
+foc.thinned <- "no"
+foc.yrs.pltd <- c("3")
+
+d.foc.overall <- d.trt %>%
+  dplyr::filter(fire.dist2 %in% foc.fire.name &
+                  salv.cat %in% foc.salv.cat &
+                  site.prepped %in% foc.site.prepped &
+                  release.txt %in% foc.released &
+                  replanted %in% foc.replanted &
+                  thinned %in% foc.thinned &
+                  yr.pltd %in% foc.yrs.pltd)
+
+# define study range using only plots near seed source
+d.foc.overall.forenv <- d.foc.overall %>%
+  filter(dist.non.high > 120)
+
+focal.env.range <- get.overall.env.range(plt.yrs=foc.yrs.pltd,plots=d.foc.overall.forenv)
+# alternative focal.env.range <- data.frame(elev.low=custom.elev.low,elev.high=custom.elev.high,rad.low=custom.rad.low,rad.high=custom.rad.high)
+
+
+
+
+
+## specify plots for which to target matching geocells
+geocell.scoping.plots <- NULL
+
+## specify plots for which to avoid placing new plots that are spatially or environmentally close
+existing.plots.avoid <- NULL
+
+## determine the env. quads
+rad.cats <- 3
+elev.cats <- 3
+subquads.goal <- 3  ## this is for how many subquads to try to fill
+
+env.quads <- define.quadrants(focal.env.range,rad.cats,elev.cats)
+sub.quads.df <- define.subquads(env.quads)
+
+
+## subset to the relevant plots
+d.foc.yr <- d.foc.overall %>%
+  filter(first.pltd.yr == 3 &
+           type == "internal" &
+           dist.non.high > 120)
+
+
+# select plots
+
+source("scripts/site-selection/plot_stratification_geo.R")
+# now we have selected.plots for this mgmt.type
+
+selected.plots <- d.foc.yr
+
+
+selected.plots$plt.cat = 3 # 3 means: internal, no management, broad env. range
+selected.plots$plt.seeddist = "F"
+selected.plots$rank = 1
+selected.plots$tier = 1
+
+all.selected.plots <- st_rbind_all(all.selected.plots,selected.plots)
+
 
 
 
@@ -549,7 +643,7 @@ all.selected.plots.w.names <- all.selected.plots.w.names %>%
 all.selected.plots.w.names <- all.selected.plots.w.names %>%
   arrange(geogrid.cell.id,long)
 
-starting.map.id <- 2000
+starting.map.id <- 4000
 map.ids <- starting.map.id:(starting.map.id+nrow(all.selected.plots.w.names)-1)
 all.selected.plots.w.names$plot.id.map <- map.ids
 all.selected.plots.w.names$plot.id.gps.pre <- paste0(all.selected.plots.w.names$plot.fire,map.ids)
@@ -615,14 +709,18 @@ sel.p <- sel.p %>%
 sel.p <- sel.p %>%
   select(plot.id.gps,plot.id.map,plot.code,plot.iter:plot.type,map.cat,everything())
 
+st_write(sel.p,"data/site-selection/output/selected-plots/moontelope_v4.gpkg",delete_dsn=TRUE)
 
+sel.p <- sel.p %>%
+  filter(!(plot.id.map %in% c(4244,4251,4250,4170,4169,4246)))
 
-st_write(sel.p,"data/site-selection/output/selected-plots/moontelope_v3_priHomogeneity.gpkg",delete_dsn=TRUE)
+st_write(sel.p,"data/site-selection/output/selected-plots/moontelope_v4.gpkg",delete_dsn=TRUE)
+
 
 
 
 ### Export plot data table and GPS waypoints
-p <- st_read("data/site-selection/output/selected-plots/moontelope_v3_priHomogeneity.gpkg",stringsAsFactors=FALSE)
+p <- st_read("data/site-selection/output/selected-plots/moontelope_v4.gpkg",stringsAsFactors=FALSE)
 
 
 ### for each tier1 plot, determine acceptable tier2 and tier3 plots
@@ -669,14 +767,14 @@ p.table <- p2 %>%
 p.table <- p.table %>%
   mutate_at(vars(lat,long),format,nsmall=6)
   
-write.csv(p.table,"data/site-selection/output/selected-plots/wpt_table_moontelope_v2.csv")
+write.csv(p.table,"data/site-selection/output/selected-plots/wpt_table_moontelope_v4.csv")
   
   
 ### Export GPS waypoints
 wpts <- p %>%
   select(name=plot.id.gps)
   
-st_write(wpts,"data/site-selection/output/selected-plots/wpts_moontelope_v2.gpx",driver="GPX")
+st_write(wpts,"data/site-selection/output/selected-plots/wpts_moontelope_v4.gpx",driver="GPX",delete_dsn=TRUE)
 
 
 
