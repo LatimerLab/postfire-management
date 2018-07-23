@@ -13,7 +13,7 @@ source("scripts/site-selection/st_rbind_all.R")
 d.full <- st_read("data/site-selection/output/candidate-plots/candidate_plots_paired_filtered_cottonwood_v1.gpkg",stringsAsFactors=FALSE)
 # candidate_plots_paired_filtered_moontelope_v3
 d.full <- st_read("data/site-selection/output/candidate-plots/candidate_plots_paired_filtered_v5_amriv_widespacing_medfirebuff.gpkg",stringsAsFactors=FALSE)
-d.full <- st_read("data/site-selection/output/candidate-plots/candidate_plots_paired_filtered_all_45m-45m_v1.gpkg",stringsAsFactors=FALSE)
+d.full <- st_read("data/site-selection/output/candidate-plots/candidate_plots_paired_filtered_all_45m-45m_v1.gpkg",stringsAsFactors=FALSE) # for AmRiv new
 d.full <- st_read("data/site-selection/output/candidate-plots/candidate_plots_paired_filtered_moontelope_45m-45m_v1.gpkg",stringsAsFactors=FALSE)
 
 ## plots to avoid
@@ -1118,6 +1118,8 @@ st_write(wpts,"data/site-selection/output/selected-plots/wpts_power.gpx",driver=
 
 
 #### 3. AmRiv Fire ####
+# candidate_plots_paired_filtered_all_45m-45m_v1.gpkg
+
 
 all.selected.plots <- NULL
 
