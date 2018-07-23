@@ -13,6 +13,13 @@ d.foc.yr <- d.foc.yr %>%
   mutate(homogeneity = pmin(n.similar.adj.trt.plots,n.close.paired.plots),
          homogeneous = homogeneity > min.homogeneity)
 
+
+if(all(is.na(d.foc.yr$homogeneous))) {
+  d.foc.yr <- d.foc.yr %>%
+    mutate(homogeneity = 1,
+           homogeneous = TRUE)
+}
+
 g <- ggplot(d.foc.yr,aes(x=elev,y=rad,color=homogeneous)) +
   geom_point(size=2) +
   theme_bw(15) +
