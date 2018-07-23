@@ -5,13 +5,16 @@ library(sf)
 library(tidyverse)
 library(plotKML)
 
-focal_fire = "2008GOVERNMENT"
-focal_mgmt = c("salv: neither, prp: no, rel: e, thn: no, replt: no","salv: neither, prp: no, rel: e, thn: no, replt: YES")
+focal_fire = c("2007MOONLIGHT","2007ANTELOPE_CMPLX","2007MOONTELOPE")
+focal_mgmt = c("salv: neither, prp: no, rel: e, thn: no, replt: no","salv: neither, prp: no, rel: e, thn: no, replt: YES") # amriv
+focal_mgmt = c("salv: neither, prp: no, rel: no, thn: no, replt: no") # moontelope
+
+out_folder = c("Moontelope-v1")
 
 firesev  <- st_read("data/non-synced/existing-datasets/VegBurnSeverity_shp/veg_burn_severity.shp",stringsAsFactors=FALSE)
 
 firesev = firesev %>%
-  filter(VB_ID == focal_fire,
+  filter(VB_ID %in% focal_fire,
          BURNSEV %in% c(4),
          BEST_ASSES == "YES") %>%
   st_buffer(0) %>%
@@ -19,18 +22,20 @@ firesev = firesev %>%
   st_transform(3310)
 
 
-planting = st_read("data/site-selection/output/aggregated-management-history/shapefiles/management_history_summarized.gpkg") %>%
-  mutate(yr.fire.name = paste0(fire.year,fire.name))
+planting = st_read("data/site-selection/output/aggregated-management-history/shapefiles/management_history.gpkg") %>%
+  mutate(yr.fire.name = paste0(fire.year,fire.name)) %>%
+  st_transform(3310)
 
 ## find the planting units on the focal fire
 planting_overlaps = st_intersects(planting,firesev,sparse=FALSE)
 polygons_overlapped = rowSums(planting_overlaps) # sum across rows to see which planting polygons overlapped candidate plots
 planting_fire = planting[which(polygons_overlapped > 0),]
 
-candidate_plots = st_read("data/site-selection/output/candidate-plots/candidate_plots_paired_filtered_all_45m-45m_v1.gpkg")
+candidate_plots = st_read("data/site-selection/output/candidate-plots/candidate_plots_paired_filtered_all_45m-45m_v1.gpkg") # amriv
+candidate_plots = st_read("data/site-selection/output/candidate-plots/candidate_plots_paired_filtered_moontelope_45m-45m_v1.gpkg") # moontelope
 
 candidate_plots = candidate_plots %>%
-  filter(fire.name == focal_fire,
+  filter(fire.name %in% focal_fire,
          mgmt.factorial.nofire  %in% focal_mgmt)
 
 ## select the relevant planting polygons as the ones the selected plots overlap with
@@ -90,7 +95,7 @@ planting_perim_notcomparable = st_difference(planting_focal_perim,cand_plots_trt
 ### plot the focal area with a red outline; planting units with light green shading; two perim types colored
 
 ## write the comparable planting unit perimeter
-t = planting_perim_comparable %>% st_buffer(3) %>% st_simplify(dTolerance=0) %>% as("Spatial")
+t = planting_perim_comparable %>% st_buffer(5) %>% as("Spatial")
 kml(t,
     file.name = paste0("data/uav/site-selection/",out_folder,"/perim_comparable.kml"),
     colour="purple",
@@ -152,13 +157,13 @@ plots = plots %>%
   mutate(Long = as.numeric(Long)*-1,
          Lat = as.numeric(Lat)) %>%
   mutate(fire_code = str_sub(PlotID,start=1,end=1)) %>%
-  filter(fire_code == "C")
+  filter(fire_code == "A")
 
 plots_sp_point <- st_as_sf(plots, coords = c("Long", "Lat"), crs = 4326) %>%
   st_transform(3310)
 
 plots_sp_poly = plots_sp_point %>%
-  st_buffer(8)
+  st_buffer(15)
 
 
 kml(plots_sp_point %>% as("Spatial"),
