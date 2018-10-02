@@ -9,7 +9,7 @@
           <scale>0.5</scale>
         </LabelStyle>
         <IconStyle>
-          <color>#ff80c9fe</color>
+          <color>#ff1c19d7</color>
           <scale>0.5</scale>
           <Icon>
             <href>http://plotkml.r-forge.r-project.org/icon3.png</href>
@@ -69,7 +69,7 @@
           <scale>0.5</scale>
         </LabelStyle>
         <IconStyle>
-          <color>#ff80c9fe</color>
+          <color>#ff1c19d7</color>
           <scale>0.5</scale>
           <Icon>
             <href>http://plotkml.r-forge.r-project.org/icon3.png</href>
@@ -84,7 +84,7 @@
           <scale>0.5</scale>
         </LabelStyle>
         <IconStyle>
-          <color>#ff80c9fe</color>
+          <color>#ff1c19d7</color>
           <scale>0.5</scale>
           <Icon>
             <href>http://plotkml.r-forge.r-project.org/icon3.png</href>
@@ -99,7 +99,7 @@
           <scale>0.5</scale>
         </LabelStyle>
         <IconStyle>
-          <color>#ff1c19d7</color>
+          <color>#ffdbe6c7</color>
           <scale>0.5</scale>
           <Icon>
             <href>http://plotkml.r-forge.r-project.org/icon3.png</href>
@@ -129,7 +129,7 @@
           <scale>0.5</scale>
         </LabelStyle>
         <IconStyle>
-          <color>#ffdbe6c7</color>
+          <color>#ff1c19d7</color>
           <scale>0.5</scale>
           <Icon>
             <href>http://plotkml.r-forge.r-project.org/icon3.png</href>
@@ -234,7 +234,7 @@
           <scale>0.5</scale>
         </LabelStyle>
         <IconStyle>
-          <color>#ff1c19d7</color>
+          <color>#ff80c9fe</color>
           <scale>0.5</scale>
           <Icon>
             <href>http://plotkml.r-forge.r-project.org/icon3.png</href>
@@ -264,7 +264,7 @@
           <scale>0.5</scale>
         </LabelStyle>
         <IconStyle>
-          <color>#ffb67b2c</color>
+          <color>#ff1c19d7</color>
           <scale>0.5</scale>
           <Icon>
             <href>http://plotkml.r-forge.r-project.org/icon3.png</href>
@@ -309,7 +309,7 @@
           <scale>0.5</scale>
         </LabelStyle>
         <IconStyle>
-          <color>#ff80c9fe</color>
+          <color>#ff1c19d7</color>
           <scale>0.5</scale>
           <Icon>
             <href>http://plotkml.r-forge.r-project.org/icon3.png</href>
@@ -339,7 +339,7 @@
           <scale>0.5</scale>
         </LabelStyle>
         <IconStyle>
-          <color>#ffdbe6c7</color>
+          <color>#ff1c19d7</color>
           <scale>0.5</scale>
           <Icon>
             <href>http://plotkml.r-forge.r-project.org/icon3.png</href>
@@ -369,7 +369,7 @@
           <scale>0.5</scale>
         </LabelStyle>
         <IconStyle>
-          <color>#ffdbe6c7</color>
+          <color>#ff1c19d7</color>
           <scale>0.5</scale>
           <Icon>
             <href>http://plotkml.r-forge.r-project.org/icon3.png</href>
@@ -424,13 +424,478 @@
           <text>$[description]</text>
         </BalloonStyle>
       </Style>
+      <Style id="pnt29">
+        <LabelStyle>
+          <scale>0.5</scale>
+        </LabelStyle>
+        <IconStyle>
+          <color>#ff1c19d7</color>
+          <scale>0.5</scale>
+          <Icon>
+            <href>http://plotkml.r-forge.r-project.org/icon3.png</href>
+          </Icon>
+        </IconStyle>
+        <BalloonStyle>
+          <text>$[description]</text>
+        </BalloonStyle>
+      </Style>
+      <Style id="pnt30">
+        <LabelStyle>
+          <scale>0.5</scale>
+        </LabelStyle>
+        <IconStyle>
+          <color>#ff1c19d7</color>
+          <scale>0.5</scale>
+          <Icon>
+            <href>http://plotkml.r-forge.r-project.org/icon3.png</href>
+          </Icon>
+        </IconStyle>
+        <BalloonStyle>
+          <text>$[description]</text>
+        </BalloonStyle>
+      </Style>
+      <Style id="pnt31">
+        <LabelStyle>
+          <scale>0.5</scale>
+        </LabelStyle>
+        <IconStyle>
+          <color>#ff1c19d7</color>
+          <scale>0.5</scale>
+          <Icon>
+            <href>http://plotkml.r-forge.r-project.org/icon3.png</href>
+          </Icon>
+        </IconStyle>
+        <BalloonStyle>
+          <text>$[description]</text>
+        </BalloonStyle>
+      </Style>
+      <Style id="pnt32">
+        <LabelStyle>
+          <scale>0.5</scale>
+        </LabelStyle>
+        <IconStyle>
+          <color>#ff1c19d7</color>
+          <scale>0.5</scale>
+          <Icon>
+            <href>http://plotkml.r-forge.r-project.org/icon3.png</href>
+          </Icon>
+        </IconStyle>
+        <BalloonStyle>
+          <text>$[description]</text>
+        </BalloonStyle>
+      </Style>
+      <Style id="pnt33">
+        <LabelStyle>
+          <scale>0.5</scale>
+        </LabelStyle>
+        <IconStyle>
+          <color>#ffb67b2c</color>
+          <scale>0.5</scale>
+          <Icon>
+            <href>http://plotkml.r-forge.r-project.org/icon3.png</href>
+          </Icon>
+        </IconStyle>
+        <BalloonStyle>
+          <text>$[description]</text>
+        </BalloonStyle>
+      </Style>
+      <Style id="pnt34">
+        <LabelStyle>
+          <scale>0.5</scale>
+        </LabelStyle>
+        <IconStyle>
+          <color>#ff1c19d7</color>
+          <scale>0.5</scale>
+          <Icon>
+            <href>http://plotkml.r-forge.r-project.org/icon3.png</href>
+          </Icon>
+        </IconStyle>
+        <BalloonStyle>
+          <text>$[description]</text>
+        </BalloonStyle>
+      </Style>
+      <Style id="pnt35">
+        <LabelStyle>
+          <scale>0.5</scale>
+        </LabelStyle>
+        <IconStyle>
+          <color>#ff1c19d7</color>
+          <scale>0.5</scale>
+          <Icon>
+            <href>http://plotkml.r-forge.r-project.org/icon3.png</href>
+          </Icon>
+        </IconStyle>
+        <BalloonStyle>
+          <text>$[description]</text>
+        </BalloonStyle>
+      </Style>
+      <Style id="pnt36">
+        <LabelStyle>
+          <scale>0.5</scale>
+        </LabelStyle>
+        <IconStyle>
+          <color>#ff1c19d7</color>
+          <scale>0.5</scale>
+          <Icon>
+            <href>http://plotkml.r-forge.r-project.org/icon3.png</href>
+          </Icon>
+        </IconStyle>
+        <BalloonStyle>
+          <text>$[description]</text>
+        </BalloonStyle>
+      </Style>
+      <Style id="pnt37">
+        <LabelStyle>
+          <scale>0.5</scale>
+        </LabelStyle>
+        <IconStyle>
+          <color>#ff1c19d7</color>
+          <scale>0.5</scale>
+          <Icon>
+            <href>http://plotkml.r-forge.r-project.org/icon3.png</href>
+          </Icon>
+        </IconStyle>
+        <BalloonStyle>
+          <text>$[description]</text>
+        </BalloonStyle>
+      </Style>
+      <Style id="pnt38">
+        <LabelStyle>
+          <scale>0.5</scale>
+        </LabelStyle>
+        <IconStyle>
+          <color>#ff1c19d7</color>
+          <scale>0.5</scale>
+          <Icon>
+            <href>http://plotkml.r-forge.r-project.org/icon3.png</href>
+          </Icon>
+        </IconStyle>
+        <BalloonStyle>
+          <text>$[description]</text>
+        </BalloonStyle>
+      </Style>
+      <Style id="pnt39">
+        <LabelStyle>
+          <scale>0.5</scale>
+        </LabelStyle>
+        <IconStyle>
+          <color>#ff1c19d7</color>
+          <scale>0.5</scale>
+          <Icon>
+            <href>http://plotkml.r-forge.r-project.org/icon3.png</href>
+          </Icon>
+        </IconStyle>
+        <BalloonStyle>
+          <text>$[description]</text>
+        </BalloonStyle>
+      </Style>
+      <Style id="pnt40">
+        <LabelStyle>
+          <scale>0.5</scale>
+        </LabelStyle>
+        <IconStyle>
+          <color>#ff1c19d7</color>
+          <scale>0.5</scale>
+          <Icon>
+            <href>http://plotkml.r-forge.r-project.org/icon3.png</href>
+          </Icon>
+        </IconStyle>
+        <BalloonStyle>
+          <text>$[description]</text>
+        </BalloonStyle>
+      </Style>
+      <Style id="pnt41">
+        <LabelStyle>
+          <scale>0.5</scale>
+        </LabelStyle>
+        <IconStyle>
+          <color>#ff1c19d7</color>
+          <scale>0.5</scale>
+          <Icon>
+            <href>http://plotkml.r-forge.r-project.org/icon3.png</href>
+          </Icon>
+        </IconStyle>
+        <BalloonStyle>
+          <text>$[description]</text>
+        </BalloonStyle>
+      </Style>
+      <Style id="pnt42">
+        <LabelStyle>
+          <scale>0.5</scale>
+        </LabelStyle>
+        <IconStyle>
+          <color>#ff1c19d7</color>
+          <scale>0.5</scale>
+          <Icon>
+            <href>http://plotkml.r-forge.r-project.org/icon3.png</href>
+          </Icon>
+        </IconStyle>
+        <BalloonStyle>
+          <text>$[description]</text>
+        </BalloonStyle>
+      </Style>
+      <Style id="pnt43">
+        <LabelStyle>
+          <scale>0.5</scale>
+        </LabelStyle>
+        <IconStyle>
+          <color>#ff1c19d7</color>
+          <scale>0.5</scale>
+          <Icon>
+            <href>http://plotkml.r-forge.r-project.org/icon3.png</href>
+          </Icon>
+        </IconStyle>
+        <BalloonStyle>
+          <text>$[description]</text>
+        </BalloonStyle>
+      </Style>
+      <Style id="pnt44">
+        <LabelStyle>
+          <scale>0.5</scale>
+        </LabelStyle>
+        <IconStyle>
+          <color>#ff1c19d7</color>
+          <scale>0.5</scale>
+          <Icon>
+            <href>http://plotkml.r-forge.r-project.org/icon3.png</href>
+          </Icon>
+        </IconStyle>
+        <BalloonStyle>
+          <text>$[description]</text>
+        </BalloonStyle>
+      </Style>
+      <Style id="pnt45">
+        <LabelStyle>
+          <scale>0.5</scale>
+        </LabelStyle>
+        <IconStyle>
+          <color>#ff1c19d7</color>
+          <scale>0.5</scale>
+          <Icon>
+            <href>http://plotkml.r-forge.r-project.org/icon3.png</href>
+          </Icon>
+        </IconStyle>
+        <BalloonStyle>
+          <text>$[description]</text>
+        </BalloonStyle>
+      </Style>
+      <Style id="pnt46">
+        <LabelStyle>
+          <scale>0.5</scale>
+        </LabelStyle>
+        <IconStyle>
+          <color>#ff1c19d7</color>
+          <scale>0.5</scale>
+          <Icon>
+            <href>http://plotkml.r-forge.r-project.org/icon3.png</href>
+          </Icon>
+        </IconStyle>
+        <BalloonStyle>
+          <text>$[description]</text>
+        </BalloonStyle>
+      </Style>
+      <Style id="pnt47">
+        <LabelStyle>
+          <scale>0.5</scale>
+        </LabelStyle>
+        <IconStyle>
+          <color>#ff1c19d7</color>
+          <scale>0.5</scale>
+          <Icon>
+            <href>http://plotkml.r-forge.r-project.org/icon3.png</href>
+          </Icon>
+        </IconStyle>
+        <BalloonStyle>
+          <text>$[description]</text>
+        </BalloonStyle>
+      </Style>
+      <Style id="pnt48">
+        <LabelStyle>
+          <scale>0.5</scale>
+        </LabelStyle>
+        <IconStyle>
+          <color>#ff1c19d7</color>
+          <scale>0.5</scale>
+          <Icon>
+            <href>http://plotkml.r-forge.r-project.org/icon3.png</href>
+          </Icon>
+        </IconStyle>
+        <BalloonStyle>
+          <text>$[description]</text>
+        </BalloonStyle>
+      </Style>
+      <Style id="pnt49">
+        <LabelStyle>
+          <scale>0.5</scale>
+        </LabelStyle>
+        <IconStyle>
+          <color>#ff1c19d7</color>
+          <scale>0.5</scale>
+          <Icon>
+            <href>http://plotkml.r-forge.r-project.org/icon3.png</href>
+          </Icon>
+        </IconStyle>
+        <BalloonStyle>
+          <text>$[description]</text>
+        </BalloonStyle>
+      </Style>
+      <Style id="pnt50">
+        <LabelStyle>
+          <scale>0.5</scale>
+        </LabelStyle>
+        <IconStyle>
+          <color>#ff1c19d7</color>
+          <scale>0.5</scale>
+          <Icon>
+            <href>http://plotkml.r-forge.r-project.org/icon3.png</href>
+          </Icon>
+        </IconStyle>
+        <BalloonStyle>
+          <text>$[description]</text>
+        </BalloonStyle>
+      </Style>
+      <Style id="pnt51">
+        <LabelStyle>
+          <scale>0.5</scale>
+        </LabelStyle>
+        <IconStyle>
+          <color>#ff1c19d7</color>
+          <scale>0.5</scale>
+          <Icon>
+            <href>http://plotkml.r-forge.r-project.org/icon3.png</href>
+          </Icon>
+        </IconStyle>
+        <BalloonStyle>
+          <text>$[description]</text>
+        </BalloonStyle>
+      </Style>
+      <Style id="pnt52">
+        <LabelStyle>
+          <scale>0.5</scale>
+        </LabelStyle>
+        <IconStyle>
+          <color>#ff1c19d7</color>
+          <scale>0.5</scale>
+          <Icon>
+            <href>http://plotkml.r-forge.r-project.org/icon3.png</href>
+          </Icon>
+        </IconStyle>
+        <BalloonStyle>
+          <text>$[description]</text>
+        </BalloonStyle>
+      </Style>
+      <Style id="pnt53">
+        <LabelStyle>
+          <scale>0.5</scale>
+        </LabelStyle>
+        <IconStyle>
+          <color>#ffdbe6c7</color>
+          <scale>0.5</scale>
+          <Icon>
+            <href>http://plotkml.r-forge.r-project.org/icon3.png</href>
+          </Icon>
+        </IconStyle>
+        <BalloonStyle>
+          <text>$[description]</text>
+        </BalloonStyle>
+      </Style>
+      <Style id="pnt54">
+        <LabelStyle>
+          <scale>0.5</scale>
+        </LabelStyle>
+        <IconStyle>
+          <color>#ff1c19d7</color>
+          <scale>0.5</scale>
+          <Icon>
+            <href>http://plotkml.r-forge.r-project.org/icon3.png</href>
+          </Icon>
+        </IconStyle>
+        <BalloonStyle>
+          <text>$[description]</text>
+        </BalloonStyle>
+      </Style>
+      <Style id="pnt55">
+        <LabelStyle>
+          <scale>0.5</scale>
+        </LabelStyle>
+        <IconStyle>
+          <color>#ff1c19d7</color>
+          <scale>0.5</scale>
+          <Icon>
+            <href>http://plotkml.r-forge.r-project.org/icon3.png</href>
+          </Icon>
+        </IconStyle>
+        <BalloonStyle>
+          <text>$[description]</text>
+        </BalloonStyle>
+      </Style>
+      <Style id="pnt56">
+        <LabelStyle>
+          <scale>0.5</scale>
+        </LabelStyle>
+        <IconStyle>
+          <color>#ff1c19d7</color>
+          <scale>0.5</scale>
+          <Icon>
+            <href>http://plotkml.r-forge.r-project.org/icon3.png</href>
+          </Icon>
+        </IconStyle>
+        <BalloonStyle>
+          <text>$[description]</text>
+        </BalloonStyle>
+      </Style>
+      <Style id="pnt57">
+        <LabelStyle>
+          <scale>0.5</scale>
+        </LabelStyle>
+        <IconStyle>
+          <color>#ff1c19d7</color>
+          <scale>0.5</scale>
+          <Icon>
+            <href>http://plotkml.r-forge.r-project.org/icon3.png</href>
+          </Icon>
+        </IconStyle>
+        <BalloonStyle>
+          <text>$[description]</text>
+        </BalloonStyle>
+      </Style>
+      <Style id="pnt58">
+        <LabelStyle>
+          <scale>0.5</scale>
+        </LabelStyle>
+        <IconStyle>
+          <color>#ff1c19d7</color>
+          <scale>0.5</scale>
+          <Icon>
+            <href>http://plotkml.r-forge.r-project.org/icon3.png</href>
+          </Icon>
+        </IconStyle>
+        <BalloonStyle>
+          <text>$[description]</text>
+        </BalloonStyle>
+      </Style>
+      <Style id="pnt59">
+        <LabelStyle>
+          <scale>0.5</scale>
+        </LabelStyle>
+        <IconStyle>
+          <color>#ff1c19d7</color>
+          <scale>0.5</scale>
+          <Icon>
+            <href>http://plotkml.r-forge.r-project.org/icon3.png</href>
+          </Icon>
+        </IconStyle>
+        <BalloonStyle>
+          <text>$[description]</text>
+        </BalloonStyle>
+      </Style>
       <Placemark>
-        <name>2</name>
+        <name>0</name>
         <styleUrl>#pnt1</styleUrl>
         <Point>
           <extrude>1</extrude>
           <altitudeMode>clampToGround</altitudeMode>
-          <coordinates>-120.61319,40.10696,0</coordinates>
+          <coordinates>-120.84389,40.24183,0</coordinates>
         </Point>
       </Placemark>
       <Placemark>
@@ -439,7 +904,7 @@
         <Point>
           <extrude>1</extrude>
           <altitudeMode>clampToGround</altitudeMode>
-          <coordinates>-120.72232,40.22400,0</coordinates>
+          <coordinates>-120.84489,40.24163,0</coordinates>
         </Point>
       </Placemark>
       <Placemark>
@@ -448,43 +913,43 @@
         <Point>
           <extrude>1</extrude>
           <altitudeMode>clampToGround</altitudeMode>
-          <coordinates>-120.75043,40.24451,0</coordinates>
-        </Point>
-      </Placemark>
-      <Placemark>
-        <name>1</name>
-        <styleUrl>#pnt4</styleUrl>
-        <Point>
-          <extrude>1</extrude>
-          <altitudeMode>clampToGround</altitudeMode>
-          <coordinates>-120.62488,40.10215,0</coordinates>
+          <coordinates>-120.78340,40.23621,0</coordinates>
         </Point>
       </Placemark>
       <Placemark>
         <name>2</name>
-        <styleUrl>#pnt5</styleUrl>
+        <styleUrl>#pnt4</styleUrl>
         <Point>
           <extrude>1</extrude>
           <altitudeMode>clampToGround</altitudeMode>
-          <coordinates>-120.75085,40.24487,0</coordinates>
-        </Point>
-      </Placemark>
-      <Placemark>
-        <name>1</name>
-        <styleUrl>#pnt6</styleUrl>
-        <Point>
-          <extrude>1</extrude>
-          <altitudeMode>clampToGround</altitudeMode>
-          <coordinates>-120.62411,40.10269,0</coordinates>
+          <coordinates>-120.78343,40.23528,0</coordinates>
         </Point>
       </Placemark>
       <Placemark>
         <name>0</name>
+        <styleUrl>#pnt5</styleUrl>
+        <Point>
+          <extrude>1</extrude>
+          <altitudeMode>clampToGround</altitudeMode>
+          <coordinates>-120.83483,40.24004,0</coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>0</name>
+        <styleUrl>#pnt6</styleUrl>
+        <Point>
+          <extrude>1</extrude>
+          <altitudeMode>clampToGround</altitudeMode>
+          <coordinates>-120.83478,40.23923,0</coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>3</name>
         <styleUrl>#pnt7</styleUrl>
         <Point>
           <extrude>1</extrude>
           <altitudeMode>clampToGround</altitudeMode>
-          <coordinates>-120.62724,40.15541,0</coordinates>
+          <coordinates>-120.81793,40.25852,0</coordinates>
         </Point>
       </Placemark>
       <Placemark>
@@ -493,16 +958,16 @@
         <Point>
           <extrude>1</extrude>
           <altitudeMode>clampToGround</altitudeMode>
-          <coordinates>-120.72292,40.22404,0</coordinates>
+          <coordinates>-120.61319,40.10696,0</coordinates>
         </Point>
       </Placemark>
       <Placemark>
-        <name>5</name>
+        <name>0</name>
         <styleUrl>#pnt9</styleUrl>
         <Point>
           <extrude>1</extrude>
           <altitudeMode>clampToGround</altitudeMode>
-          <coordinates>-120.61379,40.10712,0</coordinates>
+          <coordinates>-120.72232,40.22400,0</coordinates>
         </Point>
       </Placemark>
       <Placemark>
@@ -511,7 +976,7 @@
         <Point>
           <extrude>1</extrude>
           <altitudeMode>clampToGround</altitudeMode>
-          <coordinates>-120.62751,40.15588,0</coordinates>
+          <coordinates>-120.75043,40.24451,0</coordinates>
         </Point>
       </Placemark>
       <Placemark>
@@ -520,7 +985,7 @@
         <Point>
           <extrude>1</extrude>
           <altitudeMode>clampToGround</altitudeMode>
-          <coordinates>-120.68411,40.15946,0</coordinates>
+          <coordinates>-120.62488,40.10215,0</coordinates>
         </Point>
       </Placemark>
       <Placemark>
@@ -529,16 +994,16 @@
         <Point>
           <extrude>1</extrude>
           <altitudeMode>clampToGround</altitudeMode>
-          <coordinates>-120.68507,40.15917,0</coordinates>
+          <coordinates>-120.75085,40.24487,0</coordinates>
         </Point>
       </Placemark>
       <Placemark>
-        <name>2</name>
+        <name>1</name>
         <styleUrl>#pnt13</styleUrl>
         <Point>
           <extrude>1</extrude>
           <altitudeMode>clampToGround</altitudeMode>
-          <coordinates>-120.68022,40.16087,0</coordinates>
+          <coordinates>-120.62411,40.10269,0</coordinates>
         </Point>
       </Placemark>
       <Placemark>
@@ -547,7 +1012,7 @@
         <Point>
           <extrude>1</extrude>
           <altitudeMode>clampToGround</altitudeMode>
-          <coordinates>-120.67915,40.16071,0</coordinates>
+          <coordinates>-120.62724,40.15541,0</coordinates>
         </Point>
       </Placemark>
       <Placemark>
@@ -556,16 +1021,16 @@
         <Point>
           <extrude>1</extrude>
           <altitudeMode>clampToGround</altitudeMode>
-          <coordinates>-120.61914,40.15768,0</coordinates>
+          <coordinates>-120.72292,40.22404,0</coordinates>
         </Point>
       </Placemark>
       <Placemark>
-        <name>0</name>
+        <name>2</name>
         <styleUrl>#pnt16</styleUrl>
         <Point>
           <extrude>1</extrude>
           <altitudeMode>clampToGround</altitudeMode>
-          <coordinates>-120.61973,40.15832,0</coordinates>
+          <coordinates>-120.61379,40.10712,0</coordinates>
         </Point>
       </Placemark>
       <Placemark>
@@ -574,16 +1039,16 @@
         <Point>
           <extrude>1</extrude>
           <altitudeMode>clampToGround</altitudeMode>
-          <coordinates>-120.61847,40.15891,0</coordinates>
+          <coordinates>-120.81820,40.25768,0</coordinates>
         </Point>
       </Placemark>
       <Placemark>
-        <name>12</name>
+        <name>0</name>
         <styleUrl>#pnt18</styleUrl>
         <Point>
           <extrude>1</extrude>
           <altitudeMode>clampToGround</altitudeMode>
-          <coordinates>-120.61835,40.15792,0</coordinates>
+          <coordinates>-120.72451,40.19584,0</coordinates>
         </Point>
       </Placemark>
       <Placemark>
@@ -592,7 +1057,7 @@
         <Point>
           <extrude>1</extrude>
           <altitudeMode>clampToGround</altitudeMode>
-          <coordinates>-120.62747,40.12978,0</coordinates>
+          <coordinates>-120.72489,40.19661,0</coordinates>
         </Point>
       </Placemark>
       <Placemark>
@@ -601,16 +1066,16 @@
         <Point>
           <extrude>1</extrude>
           <altitudeMode>clampToGround</altitudeMode>
-          <coordinates>-120.62699,40.12907,0</coordinates>
+          <coordinates>-120.68471,40.19762,0</coordinates>
         </Point>
       </Placemark>
       <Placemark>
-        <name>1</name>
+        <name>0</name>
         <styleUrl>#pnt21</styleUrl>
         <Point>
           <extrude>1</extrude>
           <altitudeMode>clampToGround</altitudeMode>
-          <coordinates>-120.62013,40.12249,0</coordinates>
+          <coordinates>-120.68365,40.19769,0</coordinates>
         </Point>
       </Placemark>
       <Placemark>
@@ -619,16 +1084,16 @@
         <Point>
           <extrude>1</extrude>
           <altitudeMode>clampToGround</altitudeMode>
-          <coordinates>-120.61864,40.12243,0</coordinates>
+          <coordinates>-120.67249,40.17933,0</coordinates>
         </Point>
       </Placemark>
       <Placemark>
-        <name>4</name>
+        <name>0</name>
         <styleUrl>#pnt23</styleUrl>
         <Point>
           <extrude>1</extrude>
           <altitudeMode>clampToGround</altitudeMode>
-          <coordinates>-120.60724,40.09804,0</coordinates>
+          <coordinates>-120.67356,40.17965,0</coordinates>
         </Point>
       </Placemark>
       <Placemark>
@@ -637,16 +1102,16 @@
         <Point>
           <extrude>1</extrude>
           <altitudeMode>clampToGround</altitudeMode>
-          <coordinates>-120.60558,40.09926,0</coordinates>
+          <coordinates>-120.65341,40.15721,0</coordinates>
         </Point>
       </Placemark>
       <Placemark>
-        <name>6</name>
+        <name>0</name>
         <styleUrl>#pnt25</styleUrl>
         <Point>
           <extrude>1</extrude>
           <altitudeMode>clampToGround</altitudeMode>
-          <coordinates>-120.60631,40.10030,0</coordinates>
+          <coordinates>-120.62751,40.15588,0</coordinates>
         </Point>
       </Placemark>
       <Placemark>
@@ -655,7 +1120,7 @@
         <Point>
           <extrude>1</extrude>
           <altitudeMode>clampToGround</altitudeMode>
-          <coordinates>-120.60499,40.09981,0</coordinates>
+          <coordinates>-120.68411,40.15946,0</coordinates>
         </Point>
       </Placemark>
       <Placemark>
@@ -664,7 +1129,7 @@
         <Point>
           <extrude>1</extrude>
           <altitudeMode>clampToGround</altitudeMode>
-          <coordinates>-120.60595,40.10119,0</coordinates>
+          <coordinates>-120.68507,40.15917,0</coordinates>
         </Point>
       </Placemark>
       <Placemark>
@@ -673,7 +1138,286 @@
         <Point>
           <extrude>1</extrude>
           <altitudeMode>clampToGround</altitudeMode>
+          <coordinates>-120.68022,40.16087,0</coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>0</name>
+        <styleUrl>#pnt29</styleUrl>
+        <Point>
+          <extrude>1</extrude>
+          <altitudeMode>clampToGround</altitudeMode>
+          <coordinates>-120.67915,40.16071,0</coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>0</name>
+        <styleUrl>#pnt30</styleUrl>
+        <Point>
+          <extrude>1</extrude>
+          <altitudeMode>clampToGround</altitudeMode>
+          <coordinates>-120.61914,40.15768,0</coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>0</name>
+        <styleUrl>#pnt31</styleUrl>
+        <Point>
+          <extrude>1</extrude>
+          <altitudeMode>clampToGround</altitudeMode>
+          <coordinates>-120.61973,40.15832,0</coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>0</name>
+        <styleUrl>#pnt32</styleUrl>
+        <Point>
+          <extrude>1</extrude>
+          <altitudeMode>clampToGround</altitudeMode>
+          <coordinates>-120.61847,40.15891,0</coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>16</name>
+        <styleUrl>#pnt33</styleUrl>
+        <Point>
+          <extrude>1</extrude>
+          <altitudeMode>clampToGround</altitudeMode>
+          <coordinates>-120.61835,40.15792,0</coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>0</name>
+        <styleUrl>#pnt34</styleUrl>
+        <Point>
+          <extrude>1</extrude>
+          <altitudeMode>clampToGround</altitudeMode>
+          <coordinates>-120.62747,40.12978,0</coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>0</name>
+        <styleUrl>#pnt35</styleUrl>
+        <Point>
+          <extrude>1</extrude>
+          <altitudeMode>clampToGround</altitudeMode>
+          <coordinates>-120.62699,40.12907,0</coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>0</name>
+        <styleUrl>#pnt36</styleUrl>
+        <Point>
+          <extrude>1</extrude>
+          <altitudeMode>clampToGround</altitudeMode>
+          <coordinates>-120.62013,40.12249,0</coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>0</name>
+        <styleUrl>#pnt37</styleUrl>
+        <Point>
+          <extrude>1</extrude>
+          <altitudeMode>clampToGround</altitudeMode>
+          <coordinates>-120.61864,40.12243,0</coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>0</name>
+        <styleUrl>#pnt38</styleUrl>
+        <Point>
+          <extrude>1</extrude>
+          <altitudeMode>clampToGround</altitudeMode>
+          <coordinates>-120.60724,40.09804,0</coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>0</name>
+        <styleUrl>#pnt39</styleUrl>
+        <Point>
+          <extrude>1</extrude>
+          <altitudeMode>clampToGround</altitudeMode>
+          <coordinates>-120.60558,40.09926,0</coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>0</name>
+        <styleUrl>#pnt40</styleUrl>
+        <Point>
+          <extrude>1</extrude>
+          <altitudeMode>clampToGround</altitudeMode>
+          <coordinates>-120.60631,40.10030,0</coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>0</name>
+        <styleUrl>#pnt41</styleUrl>
+        <Point>
+          <extrude>1</extrude>
+          <altitudeMode>clampToGround</altitudeMode>
+          <coordinates>-120.60499,40.09981,0</coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>0</name>
+        <styleUrl>#pnt42</styleUrl>
+        <Point>
+          <extrude>1</extrude>
+          <altitudeMode>clampToGround</altitudeMode>
+          <coordinates>-120.60595,40.10119,0</coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>0</name>
+        <styleUrl>#pnt43</styleUrl>
+        <Point>
+          <extrude>1</extrude>
+          <altitudeMode>clampToGround</altitudeMode>
           <coordinates>-120.60439,40.10092,0</coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>0</name>
+        <styleUrl>#pnt44</styleUrl>
+        <Point>
+          <extrude>1</extrude>
+          <altitudeMode>clampToGround</altitudeMode>
+          <coordinates>-120.61795,40.11608,0</coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>0</name>
+        <styleUrl>#pnt45</styleUrl>
+        <Point>
+          <extrude>1</extrude>
+          <altitudeMode>clampToGround</altitudeMode>
+          <coordinates>-120.62401,40.11402,0</coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>0</name>
+        <styleUrl>#pnt46</styleUrl>
+        <Point>
+          <extrude>1</extrude>
+          <altitudeMode>clampToGround</altitudeMode>
+          <coordinates>-120.62482,40.11348,0</coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>0</name>
+        <styleUrl>#pnt47</styleUrl>
+        <Point>
+          <extrude>1</extrude>
+          <altitudeMode>clampToGround</altitudeMode>
+          <coordinates>-120.63142,40.16008,0</coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>0</name>
+        <styleUrl>#pnt48</styleUrl>
+        <Point>
+          <extrude>1</extrude>
+          <altitudeMode>clampToGround</altitudeMode>
+          <coordinates>-120.63136,40.15738,0</coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>0</name>
+        <styleUrl>#pnt49</styleUrl>
+        <Point>
+          <extrude>1</extrude>
+          <altitudeMode>clampToGround</altitudeMode>
+          <coordinates>-120.63101,40.15870,0</coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>0</name>
+        <styleUrl>#pnt50</styleUrl>
+        <Point>
+          <extrude>1</extrude>
+          <altitudeMode>clampToGround</altitudeMode>
+          <coordinates>-120.65354,40.15860,0</coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>0</name>
+        <styleUrl>#pnt51</styleUrl>
+        <Point>
+          <extrude>1</extrude>
+          <altitudeMode>clampToGround</altitudeMode>
+          <coordinates>-120.61237,40.09573,0</coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>0</name>
+        <styleUrl>#pnt52</styleUrl>
+        <Point>
+          <extrude>1</extrude>
+          <altitudeMode>clampToGround</altitudeMode>
+          <coordinates>-120.61186,40.09492,0</coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>3</name>
+        <styleUrl>#pnt53</styleUrl>
+        <Point>
+          <extrude>1</extrude>
+          <altitudeMode>clampToGround</altitudeMode>
+          <coordinates>-120.61781,40.11526,0</coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>0</name>
+        <styleUrl>#pnt54</styleUrl>
+        <Point>
+          <extrude>1</extrude>
+          <altitudeMode>clampToGround</altitudeMode>
+          <coordinates>-120.61820,40.11578,0</coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>0</name>
+        <styleUrl>#pnt55</styleUrl>
+        <Point>
+          <extrude>1</extrude>
+          <altitudeMode>clampToGround</altitudeMode>
+          <coordinates>-120.61680,40.11556,0</coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>0</name>
+        <styleUrl>#pnt56</styleUrl>
+        <Point>
+          <extrude>1</extrude>
+          <altitudeMode>clampToGround</altitudeMode>
+          <coordinates>-120.72682,40.21975,0</coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>0</name>
+        <styleUrl>#pnt57</styleUrl>
+        <Point>
+          <extrude>1</extrude>
+          <altitudeMode>clampToGround</altitudeMode>
+          <coordinates>-120.72631,40.22052,0</coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>0</name>
+        <styleUrl>#pnt58</styleUrl>
+        <Point>
+          <extrude>1</extrude>
+          <altitudeMode>clampToGround</altitudeMode>
+          <coordinates>-120.84695,40.24274,0</coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>0</name>
+        <styleUrl>#pnt59</styleUrl>
+        <Point>
+          <extrude>1</extrude>
+          <altitudeMode>clampToGround</altitudeMode>
+          <coordinates>-120.84708,40.24186,0</coordinates>
         </Point>
       </Placemark>
     </Folder>
