@@ -6,7 +6,7 @@ library(readxl)
 
 #### Convenience functions ####
 
-
+#### ** Compile and clean data ** ####
 
 #### Load the raw field data ####
 
@@ -66,13 +66,6 @@ prefire_trees = read.csv("data/field-processed/compiled-uncleaned/prefire_trees.
 
 
 
-
-
-
-
-
-
-
 #### Clean field data ####
 
 ## Function to replace a given value with another
@@ -82,25 +75,58 @@ fix_val = function(df,column,from,to) {
 }
 
 
-
-
 ### Plots
-
 plots = fix_val(plots,"Lat",30.50467,38.50467)
 plots = fix_val(plots,"LiveOverstory","O",0)
 plots = fix_val(plots,"LiveUnderstory","O.5",0.5)
-
-##!!TO-DO: Pull in nearest QUKE and QUCH if in tree data
-
+##!!TO-DO: Pull in nearest QUKE and QUCH if in tree data; correct the "4 or 5" fire sev
 
 
 ### Seedlings
-
 seedlings_plot = fix_val(seedlings_plot,"Bearing",1001,101)
 seedlings_plot = fix_val(seedlings_plot,"DBH","0/5",0.5)
 seedlings_plot = fix_val(seedlings_plot,"CompCover","O",0)
 seedlings_plot = fix_val(seedlings_plot,"CompHeight","9S",95) ##!! confirm C2006C
 seedlings_plot = fix_val(seedlings_plot,"CompHeight","00",0) ##!! confirm E0054I
+
+
+### Shrubs
+shrubs = fix_val(shrubs,"PctDead","S",5) ##!! confirm A4177C
+
+
+#### Write cleaned field data, read again to re-interpret numeric columns ####
+
+## write
+write.csv(plots,"data/field-processed/compiled-cleaned/plots.csv",row.names=FALSE)
+write.csv(shrubs,"data/field-processed/compiled-cleaned/shrubs.csv",row.names=FALSE)
+write.csv(seed_trees,"data/field-processed/compiled-cleaned/seed_trees.csv",row.names=FALSE)
+write.csv(cwd,"data/field-processed/compiled-cleaned/cwd.csv",row.names=FALSE)
+write.csv(subsample_threshold,"data/field-processed/compiled-cleaned/subsample_threshold.csv",row.names=FALSE)
+write.csv(seedlings_plot,"data/field-processed/compiled-cleaned/seedlings_plot.csv",row.names=FALSE)
+write.csv(seedlings_transect,"data/field-processed/compiled-cleaned/seedlings_transect.csv",row.names=FALSE)
+write.csv(seedlings_dead,"data/field-processed/compiled-cleaned/seedlings_dead.csv",row.names=FALSE)
+write.csv(prefire_trees,"data/field-processed/compiled-cleaned/prefire_trees.csv",row.names=FALSE)
+
+## read
+plots = read.csv("data/field-processed/compiled-cleaned/plots.csv",stringsAsFactors = FALSE)
+shrubs = read.csv("data/field-processed/compiled-cleaned/shrubs.csv",stringsAsFactors = FALSE)
+seed_trees = read.csv("data/field-processed/compiled-cleaned/seed_trees.csv",stringsAsFactors = FALSE)
+cwd = read.csv("data/field-processed/compiled-cleaned/cwd.csv",stringsAsFactors = FALSE)
+subsample_threshold = read.csv("data/field-processed/compiled-cleaned/subsample_threshold.csv",stringsAsFactors = FALSE)
+seedlings_plot = read.csv("data/field-processed/compiled-cleaned/seedlings_plot.csv",stringsAsFactors = FALSE)
+seedlings_transect = read.csv("data/field-processed/compiled-cleaned/seedlings_transect.csv",stringsAsFactors = FALSE)
+seedlings_dead = read.csv("data/field-processed/compiled-cleaned/seedlings_dead.csv",stringsAsFactors = FALSE)
+prefire_trees = read.csv("data/field-processed/compiled-cleaned/prefire_trees.csv",stringsAsFactors = FALSE)
+
+
+
+#### ** Process data ** ####
+
+
+
+
+
+
 
 
 
