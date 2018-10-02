@@ -2,56 +2,111 @@ setwd("~/UC Davis/Research Projects/Post-fire management/postfire-management")
 
 library(tidyverse)
 library(sf)
+library(readxl)
 
 #### Convenience functions ####
 
-st_drop_geometry <- function(x) {
-  if(inherits(x,"sf")) {
-    x <- st_set_geometry(x, NULL)
-    class(x) <- 'data.frame'
-  }
-  return(x)
+
+
+#### Load the raw field data ####
+
+## function to open a tab from all spreadsheets and compile
+compile_tab = function(tab_name) {
+  na_vals = c("","NA","MA") # MA because there was a typo
+  tab_a = read_excel("data/field-raw/Latimer_JFSP_2018_Data_Spreadsheet_CM.xlsx",sheet = tab_name,na=na_vals)
+  tab_b = read_excel("data/field-raw/Latimer_JFSP_2018_Data_Spreadsheet_AG.xlsx",sheet = tab_name,na=na_vals)
+  tab_c = read_excel("data/field-raw/Latimer_JFSP_2018_Data_Spreadsheet_KD.xlsx",sheet = tab_name,na=na_vals)
+  tab_d = read_excel("data/field-raw/Latimer_JFSP_2018_Data_Spreadsheet_NB.xlsx",sheet = tab_name,na=na_vals)
+  tab_e = read_excel("data/field-raw/Latimer_JFSP_2018_Data_Spreadsheet_KD2.xlsx",sheet = tab_name)
+  
+  compiled = bind_rows(tab_a,tab_b,tab_c,tab_d,tab_e)
+  
+  # make NAs (actual missing values) into 
+  # make "NA"s (character strings) into blanks (no)
+  
+  
+  return(compiled)
+}
+
+plots = compile_tab("Plot")
+shrubs = compile_tab("Shrub")
+seed_trees = compile_tab("SeedTree")
+cwd = compile_tab("CWD")
+subsample_threshold = compile_tab("SubsampleThreshold")
+seedlings_plot = compile_tab("Seedlings_Plot")
+seedlings_transect = compile_tab("Seedlings_Transect")
+seedlings_dead = compile_tab("Seedlings_Dead")
+prefire_trees = compile_tab("PrefireTrees")
+
+
+#### Interpret number columns as numeric ####
+
+## Need to write to CSV then read back in
+write.csv(plots,"data/field-processed/compiled-uncleaned/plots.csv",row.names=FALSE)
+write.csv(shrubs,"data/field-processed/compiled-uncleaned/shrubs.csv",row.names=FALSE)
+write.csv(seed_trees,"data/field-processed/compiled-uncleaned/seed_trees.csv",row.names=FALSE)
+write.csv(cwd,"data/field-processed/compiled-uncleaned/cwd.csv",row.names=FALSE)
+write.csv(subsample_threshold,"data/field-processed/compiled-uncleaned/subsample_threshold.csv",row.names=FALSE)
+write.csv(seedlings_plot,"data/field-processed/compiled-uncleaned/seedlings_plot.csv",row.names=FALSE)
+write.csv(seedlings_transect,"data/field-processed/compiled-uncleaned/seedlings_transect.csv",row.names=FALSE)
+write.csv(seedlings_dead,"data/field-processed/compiled-uncleaned/seedlings_dead.csv",row.names=FALSE)
+write.csv(prefire_trees,"data/field-processed/compiled-uncleaned/prefire_trees.csv",row.names=FALSE)
+
+plots = read.csv("data/field-processed/compiled-uncleaned/plots.csv",stringsAsFactors = FALSE)
+shrubs = read.csv("data/field-processed/compiled-uncleaned/shrubs.csv",stringsAsFactors = FALSE)
+seed_trees = read.csv("data/field-processed/compiled-uncleaned/seed_trees.csv",stringsAsFactors = FALSE)
+cwd = read.csv("data/field-processed/compiled-uncleaned/cwd.csv",stringsAsFactors = FALSE)
+subsample_threshold = read.csv("data/field-processed/compiled-uncleaned/subsample_threshold.csv",stringsAsFactors = FALSE)
+seedlings_plot = read.csv("data/field-processed/compiled-uncleaned/seedlings_plot.csv",stringsAsFactors = FALSE)
+seedlings_transect = read.csv("data/field-processed/compiled-uncleaned/seedlings_transect.csv",stringsAsFactors = FALSE)
+seedlings_dead = read.csv("data/field-processed/compiled-uncleaned/seedlings_dead.csv",stringsAsFactors = FALSE)
+prefire_trees = read.csv("data/field-processed/compiled-uncleaned/prefire_trees.csv",stringsAsFactors = FALSE)
+
+
+
+
+
+
+
+
+
+
+
+
+#### Clean field data ####
+
+## Function to replace a given value with another
+fix_val = function(df,column,from,to) {
+  df[which(df[,column] == from),column] = to
+  return(df)
 }
 
 
 
 
-#### Load the raw field data ####
-library(readxl)
-plots_a = read_excel("data/field-raw/Latimer_JFSP_2018_Data_Spreadsheet_CM.xlsx",sheet = "Plot")
-plots_b = read_excel("data/field-raw/Latimer_JFSP_2018_Data_Spreadsheet_AG.xlsx",sheet = "Plot")
-plots_c = read_excel("data/field-raw/Latimer_JFSP_2018_Data_Spreadsheet_KD.xlsx",sheet = "Plot")
-plots_d = read_excel("data/field-raw/Latimer_JFSP_2018_Data_Spreadsheet_NB.xlsx",sheet = "Plot")
-plots_e = read_excel("data/field-raw/Latimer_JFSP_2018_Data_Spreadsheet_KD2.xlsx",sheet = "Plot")
+### Plots
+
+plots = fix_val(plots,"Lat",30.50467,38.50467)
+plots = fix_val(plots,"LiveOverstory","O",0)
+plots = fix_val(plots,"LiveUnderstory","O.5",0.5)
+
+##!!TO-DO: Pull in nearest QUKE and QUCH if in tree data
 
 
-seedlings_a = read_excel("data/field-raw/Latimer_JFSP_2018_Data_Spreadsheet_CM.xlsx",sheet = "Seedlings_Plot")
-seedlings_b = read_excel("data/field-raw/Latimer_JFSP_2018_Data_Spreadsheet_AG.xlsx",sheet = "Seedlings_Plot")
-seedlings_c = read_excel("data/field-raw/Latimer_JFSP_2018_Data_Spreadsheet_KD.xlsx",sheet = "Seedlings_Plot")
-seedlings_d = read_excel("data/field-raw/Latimer_JFSP_2018_Data_Spreadsheet_NB.xlsx",sheet = "Seedlings_Plot")
-seedlings_e = read_excel("data/field-raw/Latimer_JFSP_2018_Data_Spreadsheet_KD2.xlsx",sheet = "Seedlings_Plot")
 
-plots = bind_rows(plots_a,plots_b,plots_c,plots_d,plots_e)
-seedlings = bind_rows(seedlings_a,seedlings_b,seedlings_c,seedlings_d,plots_e)
+### Seedlings
 
-#### Clean field data ####
+seedlings_plot = fix_val(seedlings_plot,"Bearing",1001,101)
+seedlings_plot = fix_val(seedlings_plot,"DBH","0/5",0.5)
+seedlings_plot = fix_val(seedlings_plot,"CompCover","O",0)
+seedlings_plot = fix_val(seedlings_plot,"CompHeight","9S",95) ##!! confirm C2006C
+seedlings_plot = fix_val(seedlings_plot,"CompHeight","00",0) ##!! confirm E0054I
 
-## correct a bad latitude
-plots = plots %>%
-  mutate(Lat = ifelse(Lat == 30.50467,38.50467,Lat))
 
-## correct a bad bearing
-seedlings[which(seedlings$Bearing == 1001),"Bearing"] = 101
 
 
 
 #### Apply expansion factors etc. ####
-
-# make numeric columns numeric
-seedlings = seedlings %>%
-  mutate_at(vars(DBH,TotHeight,BudScars,Sprouts,CompCover,CompHeight),funs(as.numeric))
-plots = plots %>%
-  mutate_at(vars(Aspect,SlopeDeg,LgRocks,Litter,WoodyDebris,BasalVeg,Forbs,ForbHt,Grasses,GrassHt,Shrubs,ShrubHt,LiveOverstory,LiveUnderstory,SeedWallConifer),funs(as.numeric))
 
 
 
