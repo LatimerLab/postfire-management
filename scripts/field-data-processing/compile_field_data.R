@@ -31,8 +31,8 @@ seedlings_c = read_excel("data/field-raw/Latimer_JFSP_2018_Data_Spreadsheet_KD.x
 seedlings_d = read_excel("data/field-raw/Latimer_JFSP_2018_Data_Spreadsheet_NB.xlsx",sheet = "Seedlings_Plot")
 seedlings_e = read_excel("data/field-raw/Latimer_JFSP_2018_Data_Spreadsheet_KD2.xlsx",sheet = "Seedlings_Plot")
 
-plots = bind_rows(plots_a,plots_b,plots_c,plots_d)
-seedlings = bind_rows(seedlings_a,seedlings_b,seedlings_c,seedlings_d)
+plots = bind_rows(plots_a,plots_b,plots_c,plots_d,plots_e)
+seedlings = bind_rows(seedlings_a,seedlings_b,seedlings_c,seedlings_d,plots_e)
 
 #### Clean field data ####
 
@@ -52,6 +52,13 @@ seedlings = seedlings %>%
   mutate_at(vars(DBH,TotHeight,BudScars,Sprouts,CompCover,CompHeight),funs(as.numeric))
 plots = plots %>%
   mutate_at(vars(Aspect,SlopeDeg,LgRocks,Litter,WoodyDebris,BasalVeg,Forbs,ForbHt,Grasses,GrassHt,Shrubs,ShrubHt,LiveOverstory,LiveUnderstory,SeedWallConifer),funs(as.numeric))
+
+
+
+#### Write compiled plot data ####
+
+write.csv(plots,"data/field-processed/plots.csv",row.names=FALSE)
+
 
 
 

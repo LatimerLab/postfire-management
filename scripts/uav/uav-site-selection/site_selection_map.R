@@ -11,6 +11,15 @@ focal_mgmt = c("salv: neither, prp: no, rel: no, thn: no, replt: no") # moontelo
 
 out_folder = c("Moontelope-v1")
 
+
+
+focal_fire = c("2004POWER")
+focal_mgmt = c("salv: neither, prp: no, rel: e, thn: no, replt: no") # power
+
+out_folder = c("Power-v1")
+
+
+
 firesev  <- st_read("data/non-synced/existing-datasets/VegBurnSeverity_shp/veg_burn_severity.shp",stringsAsFactors=FALSE)
 
 firesev = firesev %>%
@@ -33,6 +42,7 @@ planting_fire = planting[which(polygons_overlapped > 0),]
 
 candidate_plots = st_read("data/site-selection/output/candidate-plots/candidate_plots_paired_filtered_all_45m-45m_v1.gpkg") # amriv
 candidate_plots = st_read("data/site-selection/output/candidate-plots/candidate_plots_paired_filtered_moontelope_45m-45m_v1.gpkg") # moontelope
+candidate_plots = st_read("data/site-selection/output/candidate-plots/candidate_plots_paired_filtered_v3_medspacing.gpkg") # power
 
 candidate_plots = candidate_plots %>%
   filter(fire.name %in% focal_fire,
@@ -114,29 +124,50 @@ kml(planting_focal_data %>% as("Spatial"),
 )
 
 
-
-
-
-
-
-#### load the surveyed plots (for coordinates) and trees (for drone training data availability) data
+#### Load the raw field data ####
 library(readxl)
 plots_a = read_excel("data/field-raw/Latimer_JFSP_2018_Data_Spreadsheet_CM.xlsx",sheet = "Plot")
 plots_b = read_excel("data/field-raw/Latimer_JFSP_2018_Data_Spreadsheet_AG.xlsx",sheet = "Plot")
 plots_c = read_excel("data/field-raw/Latimer_JFSP_2018_Data_Spreadsheet_KD.xlsx",sheet = "Plot")
 plots_d = read_excel("data/field-raw/Latimer_JFSP_2018_Data_Spreadsheet_NB.xlsx",sheet = "Plot")
+plots_e = read_excel("data/field-raw/Latimer_JFSP_2018_Data_Spreadsheet_KD2.xlsx",sheet = "Plot")
+
 
 seedlings_a = read_excel("data/field-raw/Latimer_JFSP_2018_Data_Spreadsheet_CM.xlsx",sheet = "Seedlings_Plot")
 seedlings_b = read_excel("data/field-raw/Latimer_JFSP_2018_Data_Spreadsheet_AG.xlsx",sheet = "Seedlings_Plot")
 seedlings_c = read_excel("data/field-raw/Latimer_JFSP_2018_Data_Spreadsheet_KD.xlsx",sheet = "Seedlings_Plot")
 seedlings_d = read_excel("data/field-raw/Latimer_JFSP_2018_Data_Spreadsheet_NB.xlsx",sheet = "Seedlings_Plot")
+seedlings_e = read_excel("data/field-raw/Latimer_JFSP_2018_Data_Spreadsheet_KD2.xlsx",sheet = "Seedlings_Plot")
 
 plots = bind_rows(plots_a,plots_b,plots_c,plots_d)
 seedlings = bind_rows(seedlings_a,seedlings_b,seedlings_c,seedlings_d)
 
+#### Clean field data ####
+
+## correct a bad latitude
+plots = plots %>%
+  mutate(Lat = ifelse(Lat == 30.50467,38.50467,Lat))
+
+## correct a bad bearing
+seedlings[which(seedlings$Bearing == 1001),"Bearing"] = 101
+
+
+
+#### Apply expansion factors etc. ####
+
+# make numeric columns numeric
+seedlings = seedlings %>%
+  mutate_at(vars(DBH,TotHeight,BudScars,Sprouts,CompCover,CompHeight),funs(as.numeric))
+plots = plots %>%
+  mutate_at(vars(Aspect,SlopeDeg,LgRocks,Litter,WoodyDebris,BasalVeg,Forbs,ForbHt,Grasses,GrassHt,Shrubs,ShrubHt,LiveOverstory,LiveUnderstory,SeedWallConifer),funs(as.numeric))
+
+
+
 ## determine how many over trees
 seedlings_agg = seedlings %>%
-  filter(OMU == "O") %>%
+  filter((OMU == "O" | CompType %in% c("C","CS","FC","SC","GSC","SGC","SHC")) &
+          TotHeight > 150 &
+           ((TotHeight - CompHeight) > 100) | CompType %in% c("C","CS","FC","SC","GSC","SGC","SHC")) %>%
   group_by(PlotID) %>%
   summarize(n_over = n())
 
@@ -157,7 +188,7 @@ plots = plots %>%
   mutate(Long = as.numeric(Long)*-1,
          Lat = as.numeric(Lat)) %>%
   mutate(fire_code = str_sub(PlotID,start=1,end=1)) %>%
-  filter(fire_code == "A")
+  filter(fire_code == "B")
 
 plots_sp_point <- st_as_sf(plots, coords = c("Long", "Lat"), crs = 4326) %>%
   st_transform(3310)
