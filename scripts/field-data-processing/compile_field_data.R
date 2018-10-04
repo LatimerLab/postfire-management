@@ -11,66 +11,40 @@ deg2rad <- function(deg) {(deg * pi) / (180)}
 rad2deg <- function(rad) {(rad*180)/pi}
 
 adjust_point_for_slope = function(point_radius,point_bearing,slope,aspect) {
-  
   max_slope_reduction = cos(deg2rad(slope)) # this is how much a radius would be reduced by if it was exactly down the slope
-  
   major_radius = point_radius
   minor_radius = point_radius * max_slope_reduction
-  
   x_offset = major_radius * cos(deg2rad(aspect))*cos(deg2rad(point_bearing)) + minor_radius * sin(deg2rad(aspect)) * sin(deg2rad(point_bearing))
   y_offset = minor_radius * cos(deg2rad(aspect))*sin(deg2rad(point_bearing)) - major_radius * sin(deg2rad(aspect)) * cos(deg2rad(point_bearing))
-  
   offsets = c(x_offset,y_offset)
-  
   new_radius = sqrt(x_offset^2 + y_offset^2)
-  
   return(offsets)
-
-  
 }
 
 
 adjust_distance_for_slope = function(point_radius,point_bearing,slope,aspect,type) {
-  
   ## make an ellipse
-  
   offsets = matrix(nrow=360,ncol=2)
-  
   for(i in 1:360) {
-    
     offset =  adjust_point_for_slope(point_radius,i,slope,aspect)
-    
     x = offset[1]
     y = offset[2]
-    
-
-    
     offsets[i,] = offset
-    
   }
   
   lookup = data.frame(offsets)
-  
   names(lookup) = c("x","y")
   
   # for each point, get the angle and radius
   lookup$angle = atan(lookup$y/lookup$x) %>% rad2deg
   lookup$radius = radius = sqrt(lookup$x^2 + lookup$y^2)
   lookup$angle = (lookup$angle - 90) *-1
-  
   point_bearing = point_bearing %% 180
-  
   closest_row = which.min(abs(lookup$angle - point_bearing))
   radius = lookup[closest_row,"radius"]
-  
-  
+
   return(radius)
-  
-  
-  
 }
-
-
 
 
 
