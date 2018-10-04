@@ -22,7 +22,7 @@ adjust_point_for_slope = function(point_radius,point_bearing,slope,aspect) {
 }
 
 
-adjust_distance_for_slope = function(point_radius,point_bearing,slope,aspect,type) {
+adjust_distance_for_slope = function(point_radius,point_bearing,slope,aspect) {
   ## make an ellipse
   offsets = matrix(nrow=360,ncol=2)
   for(i in 1:360) {
@@ -134,6 +134,7 @@ fix_val = function(df,column,from,to) {
 
 ### Plots
 plots = fix_val(plots,"Lat",30.50467,38.50467)
+plots = fix_val(plots,"Long",120.34401,120.54401)
 plots = fix_val(plots,"LiveOverstory","O",0)
 plots = fix_val(plots,"LiveUnderstory","O.5",0.5)
 plots = fix_val(plots,"PlotID","E00521","E0052I")
@@ -470,7 +471,7 @@ for(i in 1:nrow(plots_sp)) {
     
     bearing = angles[j]
     
-    offsets = adjust_point_for_slope(radius,bearing,slope,aspect,type="offsets")
+    offsets = adjust_point_for_slope(radius,bearing,slope,aspect)
     
     x_perim = x_coord + offsets[1]
     y_perim = y_coord + offsets[2]
@@ -480,7 +481,6 @@ for(i in 1:nrow(plots_sp)) {
   }
   
   plot_perim = st_polygon(list(perim_coords)) %>% st_sfc %>% st_sf
-  plot(plot_perim)
   plot_perims[[i]] = plot_perim
   
 }
