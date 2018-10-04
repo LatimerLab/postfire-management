@@ -5,7 +5,16 @@ This repository contains the code and data associated with the quantitative aspe
 
 Files not related to analytical components of the project (e.g., field visit notes and presentations) are stored in the project Box folder: https://ucdavis.box.com/v/postfire-management. Contact me for access.
 
-### Description of GitHub repository file structure
+### Summary of repository organization and key files
+
+
+
+
+
+
+<details><summary>Detailed description of plot selection-related scripts and data files</summary>
+<p>
+
 The list below describes how files are organized in this repo, with **_bold italic_** text indicating folders and **bold** text indicating files.
 
   * **_data_**: data files used by and produced by scripts/analysis
@@ -56,3 +65,6 @@ The list below describes how files are organized in this repo, with **_bold ital
       * **summarize_aggregated_postfire_management_spatial.R**: Add additional fields (derived from operations on the original fields) to the aggregated management history geospatial layer (management_history.gpkg). Example derived field is "not salvaged but planted". Output file is "management_history_summarized.gpkg"
       
     * **paired_plot_selection_spatial.R**: Take the summarized (flattened) layer of FACTS "slices" as well as other input layers such as fire perimeters, severity, DEM, and ownership and produce sets of paired candidate sampling points that are on opposite sides of a planting boundary but otherwise comparable. Output file (geospatial) is "candidate_plots_paired.gpkg"
+
+</p>
+</details>
