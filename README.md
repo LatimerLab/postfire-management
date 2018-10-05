@@ -7,10 +7,18 @@ Files not related to analytical components of the project (e.g., field visit not
 
 ### Summary of repository organization and key files
 
+The data files for analysis are in data/field-processed/compiled-processed/. These data files have been cleaned and pre-processed based on raw data (e.g., fuels data has been converted from counts to Mg/ha; density of subsampled trees has been increased to account for subsampling). The raw entered data are in data/field-raw. The script to process the raw data is scripts/field-data-carpentry/compile_field_data.R
 
+There are multiple .csv files to accommodate the nested structure of the data. Tables can be loaded and joined in R using the column PlotID.
 
+Important aspects of plot, tree, and seedling data:
+* Plot area has been computed based on slope area (what we measured on the ground) and slope area (what you see from above). The area is different for seedlings vs. pre-fire trees due to the way we masured distances for each. Therefore, we should work with densities, not counts.
+* Plot type can be "treated", "untreated", or "internal". Internal plots are treated (except for a few control plots on the Cottonwood fire) and have no paired untreated plots. They exist primarily on the Cottonwood Fire and are mostly used for drone ground truthing.
+* Climate and topocliate data (extracted by script scripts/field-data-carpentry/extract_gis_data_at_plots.R) are in the processed plots data file.
+* Each row of seedling data represents a seedling surveyed in the plot. However, because some plots were subsampled, we need to interpret seedlings as densities, and when aggregating seedling values to a plot-level summary, we need to use those density values rather than conts. Each seedlings has two density values, one computed based on the slope-area of the plot (the amount of ground area), and one computed based on the horizontal area (the area from above). For seedlings, I think slope area makes the most sense.
+* Examples of some basic analysis (including dealing with seedling densities as opposed to counts) is in the script scripts/field-data-analysis/field_data_analysis.R
 
-
+Spatial data (plot perimeters and stem maps) are in data/field-processed/spatial/
 
 <details><summary>Detailed description of plot selection-related scripts and data files</summary>
 <p>
