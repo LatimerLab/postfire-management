@@ -387,7 +387,14 @@ plots = plots %>%
   mutate(Subsampled = PlotID %in% plots_subsampled)
 ##!! TO-DO: above is based on trees; make sure it conforms to plot-level records of subsampling too
 
-
+# Names of fires
+plots = plots %>%
+  mutate(Fire = recode(fire_code,
+                       A = "MoonAnt",
+                       B = "AmRiv",
+                       C = "Power",
+                       D = "Piute",
+                       E = "Ctnwd"))
 
 
 
