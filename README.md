@@ -5,7 +5,7 @@ This repository contains the code and data associated with the quantitative aspe
 
 Files not related to analytical components of the project (e.g., field visit notes and presentations) are stored in the project Box folder: https://ucdavis.box.com/v/postfire-management. Contact me for access.
 
-### Summary of repository organization and key files
+### Summary of repository organization, key files, and data details
 
 The data files for analysis are in data/field-processed/compiled-processed/. These data files have been cleaned and pre-processed based on raw data (e.g., fuels data has been converted from counts to Mg/ha; density of subsampled trees has been increased to account for subsampling). The raw entered data are in data/field-raw. The script to process the raw data is scripts/field-data-carpentry/compile_field_data.R
 
