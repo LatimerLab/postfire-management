@@ -15,6 +15,7 @@ Important aspects of plot, tree, and seedling data:
 * Plot area has been computed based on slope area (what we measured on the ground) and slope area (what you see from above). The area is different for seedlings vs. pre-fire trees due to the way we masured distances for each. Therefore, we should work with densities, not counts.
 * Plot type can be "treated", "untreated", or "internal". Internal plots are treated (except for a few control plots on the Cottonwood fire) and have no paired untreated plots. They exist primarily on the Cottonwood Fire and are mostly used for drone ground truthing.
 * Climate and topocliate data (extracted by script scripts/field-data-carpentry/extract_gis_data_at_plots.R) are in the processed plots data file.
+* The seedling data file to use is seedlings_plot.csv. The other has seedlings that were <25 cm and thus only sampled in the transects.
 * Each row of seedling data represents a seedling surveyed in the plot. However, because some plots were subsampled, we need to interpret seedlings as densities, and when aggregating seedling values to a plot-level summary, we need to use those density values rather than conts. Each seedlings has two density values, one computed based on the slope-area of the plot (the amount of ground area), and one computed based on the horizontal area (the area from above). For seedlings, I think slope area makes the most sense.
 * Examples of some basic analysis (including dealing with seedling densities as opposed to counts) is in the script scripts/field-data-analysis/field_data_analysis.R
 
