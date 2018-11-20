@@ -58,6 +58,21 @@ ggplot(d_long,aes(x=Fire,y=value,color=Type)) +
   theme_bw(12) +
   facet_wrap(~metric,scales="free")
 
+## specifically plot density of pines that are above shrubs
+d_foc = d_long %>%
+  filter(metric == "pine_density_over") %>%
+  mutate(Type = recode(Type,control="unplanted",treatment="planted"),
+         Type = factor(Type,levels=c("unplanted","planted")),
+         value = ifelse(value == 0,value,value + runif(n=length(value),-15,15)) )
+  
+ggplot(d_foc,aes(x=Fire,y=value/2.47,color=Type)) +
+  geom_point(position=position_jitterdodge(dodge.width=0.5,jitter.width=0.25),size=4) +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme_bw(25) +
+  lims(y=c(0,250)) +
+  labs(x="Fire",y="Seedlings / acre") +
+  scale_color_brewer(palette="Set1")
+
 
 
 ## plot relationship between environmental vars and response vars
