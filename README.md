@@ -1,4 +1,4 @@
-# Post-fire forest management
+# Post-fire forest management (edit from Derek)
 A project to evaluate the effects of management practices (particularly tree planting) on post-fire forest recovery.
 
 This repository contains the code and data associated with the quantitative aspects of the project (currently, selection of candidate study sites). Large data files that cannot be synced to this repository are located here: https://ucdavis.box.com/v/pfm-non-synced. Once the GitHub repo is cloned to a local computer, the "non-synced" Box folder can simply be copied into the "data" folder.
