@@ -417,10 +417,23 @@ plots = left_join(plots,oaks,by="PlotID")
 
 
 
+#### Check for consistent subsample threshold between the two tables where reported ####
 
+## Make sure that seedlings recorded as subsampled in the seedling table are also marked as subsampled in the subsample table and that we didn't miss any
 
+subsample_data = subsample_threshold %>%
+  filter(Species != "NONE") %>%
+  select(PlotID,Species,Greater_Less) %>%
+  mutate(Subsample_Table = TRUE)
+  
+seedlings_check = seedlings_plot %>%
+  select(PlotID,Species,TotHeight,Sprouts,Subsample)
 
+seedlings_check = left_join(seedlings_check,subsample_data,by=c("PlotID","Species"))
 
+# Looks good. There are some seeded QUCH that were not marked as subsample in the seedling table whereas the subseample table said all resprouting QUCH were subsampled. That is fine.
+# There are two seedlings marked as subsampled in the seedling table but not in the subsample table, but that is because the seedling is a more generic version (e.g., FIR) of the species for which a subsample threshold is listed.
+# This means we can rely on the subsample flag as reported in the seedling table.
 
 
 
