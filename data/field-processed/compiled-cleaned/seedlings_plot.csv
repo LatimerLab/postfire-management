@@ -79,7 +79,7 @@
 "C1020T","PIJE",7.5,38,"O","Y","SD1","2.8",195,171,20,9,NA,"S","10","80","N",NA,"horizontal",NA
 "C1020T","PIJE",10.06,280,"O","Y","N","2.1",172,155,14,10,NA,"S","20","35","N","Distance with tape","slope","yes"
 "C1020T","PIPO",4.1,94,"O","Y","N","5.8",320,305,24,9,NA,"S","40","77","N","Distance with tape","slope","yes"
-"C1020T","PIJE",2,94,"O","Y","SD1","2.2",183,171,27,8,NA,"S","65","102","N",NA,"slope",NA
+"C1020T","PIJE",2,94,"O","Y","SD1","2.2",183,171,27,8,NA,"S","65","102","N",NA,"horizontal",NA
 "C1020T","PIJE",3.4,332,"O","Y","N","3.1",190,159,25,7,NA,"S","40","58","N",NA,"horizontal",NA
 "C1020T","PIJE",3.17,130,"O","Y","N","2",157,148,21,9,NA,"S","75","70","N",NA,"slope",NA
 "C1020T","PIJE",4.5,308,"O","Y","N","4.5",223,203,53,9,NA,"S","10","22","N",NA,"horizontal",NA
@@ -1607,7 +1607,7 @@
 "D1092T","PIPJ",5.6,44,"M","N","N",NA,66,50,5,5,NA,"GF","100","28","N",NA,"horizontal",NA
 "D1092T","QUKE",7.89,41,"O","N",NA,"4.1",280,NA,NA,NA,8,"SG","100","35","N",NA,"slope",NA
 "D1099T","PIPJ",1.95,66,"O","U","N",NA,73,79,19,5,NA,"SFG","40","15","N",NA,"slope",NA
-"D1099T","PIPJ",9.319,101,"O","Y","N",NA,89,79,15,8,NA,"SG","70","20","N",NA,"slope",NA
+"D1099T","PIPJ",9.19,101,"O","Y","N",NA,89,79,15,8,NA,"SG","70","20","N",NA,"slope",NA
 "D1099T","QUKE",6.5,204,"O","N",NA,"10.3",500,NA,NA,NA,7,"G","100","25","N",NA,"horizontal",NA
 "D1099T","PIPJ",11.02,163,"O","U","N",NA,84,67,8,5,NA,"SG","60","25","N",NA,"slope",NA
 "B1007T","QUCH",4.13,333,"O","N",NA,"4.0",215,NA,NA,NA,3,"S","80","38","N",NA,"slope",NA
@@ -1904,6 +1904,47 @@
 "D1100T","PIPJ",11.24,272,"O","U","N",NA,59,56,5,5,NA,"S","40","40","N",NA,"slope",NA
 "D1100T","PIPJ",11.24,272,"O","U","N",NA,58,55,5,5,NA,"S","40","40","N",NA,"slope",NA
 "D1100T","PIPJ",3,308,"U","N","N",NA,40,30,8,3,NA,"S","50","60","N",NA,"horizontal",NA
+"D1100C","PIPJ",2.21,332,"O","N","SD1",NA,36,30,4,6,NA,"SG","40","50","N",NA,"slope",NA
+"D1100C","QUKE",10.23,257,"O","N",NA,NA,69,NA,NA,NA,NA,"SG","50","55","N","SEEDED","slope","no"
+"D1100C","PIPJ",4.52,313,"O","U","N",NA,36,33,4,6,NA,"G","80","25","N",NA,"slope",NA
+"D1100C","PIPJ",7.7,178,"M","U","SD2",NA,36,30,9,6,NA,"GH","50","25","N",NA,"horizontal",NA
+"D1100C","QUKE",8,176,"O","N",NA,NA,52,NA,NA,NA,2,"GS","40","50","N",NA,"horizontal",NA
+"D1100C","PIPJ",5.89,286,"M","U","SD1",NA,81,60,10,7,NA,"SGC","50","80","N","COMING OUT OF GROUND AT SAME POINT","slope","no"
+"D1100C","PIPJ",5.89,286,"M","U","SD1",NA,61,53,12,6,NA,"SGC","50","80","N",NA,"slope",NA
+"D1100C","PIPJ",5,180,"U","N","N",NA,30,25,5,6,NA,"S","70","70","N",NA,"horizontal",NA
+"D1100C","PIPJ",4.9,184,"U","N","N",NA,30,25,5,6,NA,"S","70","70","N",NA,"horizontal",NA
+"D1100C","PIPJ",3.95,287,"O","N","N",NA,68,56,9,7,NA,"GSC","90","50","N","COMING OUT OF GROUND AT SAME POINT","slope","no"
+"D1100C","PIPJ",3.95,287,"O","N","N",NA,51,49,11,5,NA,"GSC","90","50","N","COMING OUT OF GROUND AT SAME POINT","slope","no"
+"D1100C","PIPJ",3.95,287,"O","N","N",NA,82,66,13,6,NA,"GSC","90","50","N","COMING OUT OF GROUND AT SAME POINT","slope","no"
+"D1100C","PIPJ",3.95,287,"O","N","N",NA,65,57,11,5,NA,"GSC","90","50","N","COMING OUT OF GROUND AT SAME POINT","slope","no"
+"D1100C","PIPJ",3.95,287,"O","N","N",NA,76,65,11,5,NA,"GSC","90","50","N","COMING OUT OF GROUND AT SAME POINT","slope","no"
+"D1100C","PIPJ",3.95,287,"O","N","N",NA,60,48,8,4,NA,"GSC","90","50","N","COMING OUT OF GROUND AT SAME POINT","slope","no"
+"D1100C","PIPJ",4.1,178,"M","U","SD2",NA,37,36,6,5,NA,"FS","60","50","N",NA,"horizontal",NA
+"D1100C","QUKE",5.1,160,"O","N",NA,"4.4",315,NA,NA,NA,3,"H","40","240","N",NA,"horizontal",NA
+"D1100C","QUKE",7.5,15,"M","N",NA,NA,40,NA,NA,NA,NA,"S","20","65","N","SEEDED","horizontal","no"
+"D1100C","QUKE",8.05,297,"O","N",NA,"4.5",420,NA,NA,NA,14,"SG","90","110","N",NA,"slope",NA
+"D1100C","QUKE",8.2,38,"M","N",NA,NA,40,NA,NA,NA,NA,"S","10","60","N","SEEDED","horizontal","no"
+"D1100C","QUKE",5,135,"O","N",NA,"4.1",360,NA,NA,NA,8,"H","20","230","N",NA,"horizontal",NA
+"D1100C","PIPJ",9.71,278,"O","U","N","1",140,124,18,8,NA,"GS","40","90","N",NA,"slope",NA
+"D1100C","PIPJ",7.1,126,"M","N","SD2",NA,51,46,8,6,NA,"HF","90","45","N",NA,"horizontal",NA
+"D1100C","PIPJ",7.1,126,"U","N","SD2",NA,33,30,5,5,NA,"HC","90","40","N",NA,"horizontal",NA
+"D1100C","PIPJ",6.7,45,"M","N","N",NA,27,21,4,5,NA,"S","50","85","N","SEEDED","horizontal","no"
+"D1100C","QUKE",4.37,230,"O","N",NA,"3.4",380,NA,NA,NA,23,"SG","80","90","N",NA,"slope",NA
+"D1100C","QUKE",9.5,120,"M","N",NA,NA,79,NA,NA,NA,NA,"SH","40","85","N",NA,"horizontal",NA
+"D1100C","PIPJ",4.13,197,"U","N","SD1",NA,89,75,16,6,NA,"SH","95","140","N",NA,"slope",NA
+"D1100C","QUKE",8.4,104,"O","N",NA,"5.6",400,NA,NA,NA,7,"SG","80","80","N",NA,"horizontal",NA
+"D1100C","PIPJ",8.3,107,"U","N","N",NA,52,45,6,4,NA,"H","100","250","N",NA,"horizontal",NA
+"D1100C","PIPJ",4.24,204,"U","N","N",NA,28,25,3,3,NA,"SHC","80","130","N","COMING OUT OF GROUND AT SAME POINT","slope","no"
+"D1100C","PIPJ",4.24,204,"U","N","N",NA,55,49,7,5,NA,"SHC","80","130","N","COMING OUT OF GROUND AT SAME POINT","slope","no"
+"D1100C","PIPJ",4.24,204,"U","N","N",NA,32,28,5,4,NA,"SHC","80","130","N","COMING OUT OF GROUND AT SAME POINT","slope","no"
+"D1100C","PIPJ",4.24,204,"U","N","N",NA,29,27,3,4,NA,"SHC","80","130","N","COMING OUT OF GROUND AT SAME POINT","slope","no"
+"D1100C","ABMA",5.5,198,"N","N","N",NA,38,36,3,7,NA,"S","60","95","N",NA,"horizontal",NA
+"D1100C","PIPJ",4.05,197,"U","N","N",NA,25,18,5,3,NA,"HSC","70","100","N","COMING OUT OF GROUND AT SAME POINT","slope","no"
+"D1100C","PIPJ",4.05,197,"M","N","N",NA,25,21,9,3,NA,"HSC","70","100","N","COMING OUT OF GROUND AT SAME POINT","slope","no"
+"D1100C","PIPJ",4.05,197,"M","N","N",NA,28,22,5,3,NA,"HSC","70","100","N","COMING OUT OF GROUND AT SAME POINT","slope","no"
+"D1100C","PIPJ",4.05,197,"M","N","N",NA,28,25,8,3,NA,"HSC","70","100","N","COMING OUT OF GROUND AT SAME POINT","slope","no"
+"D1100C","PIPJ",4.05,197,"M","N","N",NA,30,27,4,4,NA,"HSC","70","100","N","COMING OUT OF GROUND AT SAME POINT","slope","no"
+"D1100C","PIPJ",4.05,197,"M","N","N",NA,31,27,3,4,NA,"HSC","70","100","N","COMING OUT OF GROUND AT SAME POINT","slope","no"
 "E0047I","PIPJ",3.23,354,"O","U","N",NA,102,94,5,12,NA,"S","100","65","N",NA,"slope",NA
 "E0047I","PIPJ",6.75,83,"O","U","SD2","1.4",146,143,4,15,NA,"S","100","90","N",NA,"slope",NA
 "E0047I","PIPJ",1.7,190,"O","Y","N",NA,106,102,5,14,NA,"S","50","90","N","BROUSE DAMAGE","horizontal","no"

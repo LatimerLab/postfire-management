@@ -1,4 +1,4 @@
-"PlotID","Species","Cover","Density","Height","PctDead","X__1"
+"PlotID","Species","Cover","Density","Height","PctDead","..7"
 "C1030C","ARCPAT","40","L","90","0.5",NA
 "C1030C","CEACOR","30","M","60","10",NA
 "C1030C","QUEVAC","10","M","32","5",NA
@@ -352,6 +352,7 @@
 "D1011T","RIBCER","10","M","120","10",NA
 "D1100T","ARCPAT","50","L","92","0.5",NA
 "D1100T","CEACOR","10","H","50","20",NA
+"D1100C","ARCPAT","50","L","105","30",NA
 "E0047I","CEAVEL","80","M","100","30",NA
 "E0047I","PRUVIR","10","L","120","5",NA
 "E0041I","CEAVEL","50","M","40","50",NA
