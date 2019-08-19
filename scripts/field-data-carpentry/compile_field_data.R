@@ -298,12 +298,6 @@ plots = plots %>%
 
 
 
-
-#### Calculate pre-fire oak distances (TO-DO) ####
-##(see plot B1024C comment for example)
-
-
-
 #### Apply expansion factors when subsampled ####
 ##!! TO-DO: check whether table of subsample thresholds matches subsample column of seedlings_plot datasheet
 
@@ -357,6 +351,75 @@ seedlings_plot = seedlings_plot %>%
 seedlings_plot = seedlings_plot %>%
   mutate(DensitySlope = ExpansionFactor/SlopeAreaSeedlings,
          DensityHorizontal = ExpansionFactor/HorizontalAreaSeedlings)
+
+
+
+
+
+#### Calculate pre-fire oak distances ####
+
+## Use resprouting oaks, assuming that any pre-fire oak will be resprouting
+## Make a data frame of oaks and their quadrants
+
+oaks_plot = seedlings_plot %>%
+  filter(Species %in% c("QUKE","QUCH")) %>%
+  mutate(Quadrant = cut(Bearing,breaks=c(-1,90,180,270,361),labels=c("SW","NW","NE","SE")) %>% as.character) %>%
+  filter(!is.na(Quadrant))
+
+# For each plot-species-quadrant combination, keep only the closest oak
+oaks_plot = oaks_plot %>%
+  group_by(PlotID,Species,Quadrant) %>%
+  summarize(Distance=min(SlopeDistance))
+
+# Make a comparable data frame for out-of-plot oaks
+
+oaks_outplot = plots %>%
+  select(PlotID,contains("Quke"),contains("Quch")) %>%
+  mutate_at(vars(-PlotID),as.numeric) %>%
+  gather(key="SpQuad",value="Distance",-PlotID) %>%
+  mutate(Species = str_sub(SpQuad,1,4) %>% toupper,
+         Quadrant = str_sub(SpQuad,5,6)) %>%
+  filter(!is.na(Distance)) %>%
+  select(PlotID,Species,Quadrant,Distance)
+
+oaks = bind_rows(oaks_plot,oaks_outplot)
+
+# For each plot-species-quadrant combination, keep only the closest oak
+oaks_bysp = oaks %>%
+  group_by(PlotID,Species,Quadrant) %>%
+  summarize(Distance=min(Distance)) %>%
+  ungroup()
+
+# For each plot-quadrant combination, keep only the closest oak
+oaks_overall = oaks %>%
+  group_by(PlotID,Quadrant) %>%
+  summarize(Distance=min(Distance)) %>%
+  mutate(Species = "QUXX") %>%
+  ungroup()
+
+oaks = bind_rows(oaks_bysp,oaks_overall)
+
+# make the data frame wide
+oaks = oaks %>%
+  arrange(Species) %>%
+  mutate(SpQuad = paste(Species,Quadrant,sep="_")) %>%
+  select(PlotID,SpQuad,Distance) %>%
+  spread(key=SpQuad,value=Distance)
+
+
+## Append this to the plot data frame in place of the existing oak data (which is only out-of-plot oaks)
+plots = plots %>%
+  select(-contains("Quch"),-contains("Quke"))
+
+plots = left_join(plots,oaks,by="PlotID")
+
+
+
+
+
+
+
+
 
 
 
