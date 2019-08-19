@@ -12,7 +12,7 @@ The data files for analysis are in data/field-processed/compiled-processed/. The
 There are multiple .csv files to accommodate the nested structure of the data. Tables can be loaded and joined in R using the column PlotID.
 
 Important aspects of plot, tree, and seedling data:
-* Plot area has been computed based on slope area (what we measured on the ground) and slope area (what you see from above). The area is different for seedlings vs. pre-fire trees due to the way we masured distances for each. Therefore, we should work with densities, not counts.
+* Plot area has been computed based on slope area (what we measured on the ground) and horizontal area (what you see from above). The area is different for seedlings vs. pre-fire trees due to the way we masured distances for each. Therefore, we should work with densities, not counts.
 * Plot type can be "treated", "untreated", or "internal". Internal plots are treated (except for a few control plots on the Cottonwood fire) and have no paired untreated plots. They exist primarily on the Cottonwood Fire and are mostly used for drone ground truthing.
 * Climate and topocliate data (extracted by script scripts/field-data-carpentry/extract_gis_data_at_plots.R) are in the processed plots data file.
 * The seedling data file to use is seedlings_plot.csv. The other has seedlings that were <25 cm and thus only sampled in the transects.
