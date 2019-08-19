@@ -299,7 +299,6 @@ plots = plots %>%
 
 
 #### Apply expansion factors when subsampled ####
-##!! TO-DO: check whether table of subsample thresholds matches subsample column of seedlings_plot datasheet
 
 # If plot was a drone subsample plot, do not consider the tree a subsample (subsample should indicate transect subsample only)
 plot_last_letter = str_sub(seedlings_plot$PlotID,-1,-1)
@@ -465,7 +464,6 @@ plots = plots %>%
 plots_subsampled = unique(seedlings_plot[seedlings_plot$Subsample == "Y",]$PlotID)
 plots = plots %>%
   mutate(Subsampled = PlotID %in% plots_subsampled)
-##!! TO-DO: above is based on trees; make sure it conforms to plot-level records of subsampling too
 
 # Names of fires
 plots = plots %>%
