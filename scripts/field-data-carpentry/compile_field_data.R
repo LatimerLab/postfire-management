@@ -60,7 +60,7 @@ compile_tab = function(tab_name) {
   tab_b = read_excel("data/field-raw/Latimer_JFSP_2018_Data_Spreadsheet_AG.xlsx",sheet = tab_name,na=na_vals)
   tab_c = read_excel("data/field-raw/Latimer_JFSP_2018_Data_Spreadsheet_KD.xlsx",sheet = tab_name,na=na_vals)
   tab_d = read_excel("data/field-raw/Latimer_JFSP_2018_Data_Spreadsheet_NB.xlsx",sheet = tab_name,na=na_vals)
-  tab_e = read_excel("data/field-raw/Latimer_JFSP_2018_Data_Spreadsheet_KD2.xlsx",sheet = tab_name)
+  tab_e = read_excel("data/field-raw/Latimer_JFSP_2018_Data_Spreadsheet_KD2.xlsx",sheet = tab_name,na=na_vals)
   
   compiled = bind_rows(tab_a,tab_b,tab_c,tab_d,tab_e)
   
@@ -98,7 +98,7 @@ seedlings_plot[which(seedlings_plot$distance_estimate == "yes"),"DistanceMetric"
 
 #### Interpret number columns as numeric ####
 
-## Need to write to CSV then read back in
+## Easiest way seems to be to write to CSV then read back in
 write.csv(plots,"data/field-processed/compiled-uncleaned/plots.csv",row.names=FALSE)
 write.csv(shrubs,"data/field-processed/compiled-uncleaned/shrubs.csv",row.names=FALSE)
 write.csv(seed_trees,"data/field-processed/compiled-uncleaned/seed_trees.csv",row.names=FALSE)
@@ -150,7 +150,8 @@ plots = plots %>%
 
 # fix a column name
 plots = plots %>%
-  rename(FuelELitter2 = "FuelELitter1__1")
+  rename(FuelELitter2 = "FuelELitter1..46",
+    FuelELitter2 = "FuelELitter1..46")
 
 plots[plots$PlotID == "A1147T",c("SlopeDeg","Aspect")] = c(0,0) ##!! TEMPORARY until we extract these
 
