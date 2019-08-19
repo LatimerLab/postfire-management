@@ -95,6 +95,12 @@ seedlings_plot$distance_estimate = ifelse(measure_w_tape,"yes","no")
 seedlings_plot[which(seedlings_plot$distance_estimate == "yes"),"DistanceMetric"] = "slope"
 
 
+#### Correct ambiguous data entries ####
+
+plots[which(plots$FireSev == "4 OR 5"),"FireSev"] = 4.5
+
+
+
 
 #### Interpret number columns as numeric ####
 
@@ -150,7 +156,7 @@ plots = plots %>%
 
 # fix a column name
 plots = plots %>%
-  rename(FuelELitter2 = "FuelELitter1..46",
+  rename(FuelELitter1 = "FuelELitter1..45",
     FuelELitter2 = "FuelELitter1..46")
 
 plots[plots$PlotID == "A1147T",c("SlopeDeg","Aspect")] = c(0,0) ##!! TEMPORARY until we extract these
