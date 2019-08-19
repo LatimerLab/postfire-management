@@ -161,9 +161,6 @@ plots = plots %>%
 
 plots[plots$PlotID == "A1147T",c("SlopeDeg","Aspect")] = c(0,0) ##!! TEMPORARY until we extract these
 
-  
-##!!TO-DO: correct the "4 or 5" fire sev
-
 
 ### Seedlings
 seedlings_plot = fix_val(seedlings_plot,"Bearing",1001,101)
