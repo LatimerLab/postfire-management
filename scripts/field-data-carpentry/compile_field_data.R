@@ -620,7 +620,8 @@ seedlings_sp = seedlings_map %>%
 ## write seedling data
 st_write(seedlings_sp,"data/field-processed/spatial/seedlings.gpkg",delete_dsn = TRUE)
 
+
 seedlings_sp_over = seedlings_sp %>%
-  filter(OMU == "O")
+  filter(OMU == "O" | DronePlotTree == TRUE) %>% # This is because a few drone plot trees don't have OMU recorded, but we only recorded the drone plot seedlings if they were O
+  mutate(OMU = "O")
 st_write(seedlings_sp_over,"data/field-processed/spatial/seedlings_over.gpkg",delete_dsn = TRUE)
-##!!!! NOTE that this will exclude some drone seedlings because a few drone plots had no O/M/U recorded. Perhaps figure out if they were all O and if so, mark them as such so they get exported with this shapefile
