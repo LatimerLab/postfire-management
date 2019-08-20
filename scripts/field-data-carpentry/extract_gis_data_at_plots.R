@@ -26,6 +26,13 @@ plots_sp$normal_annual_precip = extract(ppt,plots_sp,method="bilinear")
 dem = raster("data/non-synced/existing-datasets/DEM/CAmerged12_albers2.tif")
 plots_sp$elev = extract(dem,plots_sp,method="bilinear")
 
+## compute and extract slope and aspect
+slope = terrain(dem,opt=c("slope"),unit="degrees")
+aspect = terrain(dem,opt=c("aspect"),unit="degrees")
+
+plots_sp$slope_dem = extract(slope,plots_sp,method="bilinear")
+plots_sp$aspect_dem = extract(aspect,plots_sp,method="bilinear")
+
 ## extract solar rad
 rad_march = raster("data/non-synced/existing-datasets/solar radiation/march_rad.tif")
 plots_sp$rad_march = extract(rad_march,plots_sp,method="bilinear")
@@ -33,5 +40,5 @@ plots_sp$rad_march = extract(rad_march,plots_sp,method="bilinear")
 ## turn plots back to non-spatial
 plots = plots_sp %>% st_set_geometry(NULL)
 
-## load data
+## write data
 write.csv(plots,"data/field-processed/compiled-processed/plots_w_gis_data.csv",row.names = FALSE)
