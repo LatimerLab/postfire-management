@@ -27,7 +27,7 @@ plots_sp$normal_annual_precip = extract(ppt,plots_sp,method="bilinear")
 dem = raster("data/non-synced/existing-datasets/DEM/CAmerged12_albers2.tif")
 plots_sp$elev = extract(dem,plots_sp,method="bilinear")
 
-## compute and extract slope and aspect
+## compute and extract slope and aspect (takes ~ 15 minutes)
 slope = terrain(dem,opt=c("slope"),unit="degrees")
 aspect = terrain(dem,opt=c("aspect"),unit="degrees")
 
@@ -38,7 +38,49 @@ plots_sp$aspect_dem = extract(aspect,plots_sp,method="bilinear")
 rad_march = raster("data/non-synced/existing-datasets/solar radiation/march_rad.tif")
 plots_sp$rad_march = extract(rad_march,plots_sp,method="bilinear")
 
-## turn plots back to non-spatial
+
+
+#### Extract and summarize management history ####
+
+## load and extract management data
+facts = st_read("data/site-selection/output/aggregated-management-history/shapefiles/management_history_summarized.gpkg")
+
+facts_simple = facts %>%
+  dplyr::select(salvage,prep.nyears,release.years.post,thin.years.post,replant.years.post,planting.years.post)
+  
+names(facts_simple)[1:(length(names(facts_simple))-1)] = paste0("facts.",names(facts_simple))[1:(length(names(facts_simple))-1)]
+
+plots_sp_facts = st_intersection(plots_sp,facts_simple)
+
+
+## Determine whether planted/unplanted pairs are both salvaged, both not, or just one or the other salvaged
+# Actually we don't have to do that because at least according to FACTS, none of our unplanted plots were in salvaged land. Want to check this with field-based observations though.
+
+## Test summarizing our plots based on management year breakdowns to see if we need to make the classifications coarser.
+
+plots_summary = plots_sp_facts %>%
+  mutate(FireID = str_sub(PlotID,1,1)) %>%
+  group_by(FireID,facts.salvage,facts.prep.nyears,facts.release.years.post,facts.thin.years.post,facts.replant.years.post,facts.planting.years.post) %>%
+  summarize(nplots = n())
+
+# The above summary shows that we need to simplify a few facts variables
+# Also it shows that no plots were thinned or prepped!
+
+## Simplify the FACTS variables and rerun the summary
+plots_sp_facts = plots_sp_facts %>%
+  mutate(facts.released = ifelse(facts.release.years.post != "","YES","no"),
+         facts.replanted = ifelse(facts.replant.years.post != "","YES","no")) %>%
+  mutate(facts.planting.first.year = str_sub(facts.planting.years.post,1,1))
+  
+plots_summary = plots_sp_facts %>%
+  mutate(FireID = str_sub(PlotID,1,1)) %>%
+  group_by(FireID,facts.salvage,facts.released,facts.replanted,facts.planting.first.year) %>%
+  summarize(nplots = n())
+
+# Now it looks good
+
+
+## turn plots back to non-spatial for writing to CSV
 plots = plots_sp %>% st_set_geometry(NULL)
 
 ## write data
