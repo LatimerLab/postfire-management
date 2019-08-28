@@ -4,6 +4,7 @@ library(tidyverse)
 library(raster)
 library(sf)
 
+
 ## load data
 plots = read.csv("data/field-processed/compiled-processed/plots.csv",stringsAsFactors = FALSE)
 
@@ -52,13 +53,26 @@ names(facts_simple)[1:(length(names(facts_simple))-1)] = paste0("facts.",names(f
 
 plots_sp_facts = st_intersection(plots_sp,facts_simple)
 
+## Add back the plots that did not intersect with FACTS layers (st_intersection drops them)
+plots_dropped = setdiff(plots_sp$PlotID,plots_sp_facts$PlotID)
+plots_sp_dropped = plots_sp[plots_sp$PlotID %in% plots_dropped,]
+
+cols_needed = names(plots_sp_facts)
+missing = setdiff(cols_needed,names(plots_sp_dropped))
+plots_sp_dropped[missing] = NA
+plots_sp_dropped = plots_sp_dropped[cols_needed]
+
+plots_sp_facts = rbind(plots_sp_facts,plots_sp_dropped)
+
 
 ## Determine whether planted/unplanted pairs are both salvaged, both not, or just one or the other salvaged
 # Actually we don't have to do that because at least according to FACTS, none of our unplanted plots were in salvaged land. Want to check this with field-based observations though.
 
 ## Test summarizing our plots based on management year breakdowns to see if we need to make the classifications coarser.
 
-plots_summary = plots_sp_facts %>%
+plots_sp_facts_planted = plots_sp_facts[!is.na(plots_sp_facts$facts.planting.years.post),]
+
+plots_summary = plots_sp_facts_planted %>%
   mutate(FireID = str_sub(PlotID,1,1)) %>%
   group_by(FireID,facts.salvage,facts.prep.nyears,facts.release.years.post,facts.thin.years.post,facts.replant.years.post,facts.planting.years.post) %>%
   summarize(nplots = n())
@@ -72,7 +86,9 @@ plots_sp_facts = plots_sp_facts %>%
          facts.replanted = ifelse(facts.replant.years.post != "","YES","no")) %>%
   mutate(facts.planting.first.year = str_sub(facts.planting.years.post,1,1))
   
-plots_summary = plots_sp_facts %>%
+plots_sp_facts_planted = plots_sp_facts[!is.na(plots_sp_facts$facts.planting.years.post),]
+
+plots_summary = plots_sp_facts_planted %>%
   mutate(FireID = str_sub(PlotID,1,1)) %>%
   group_by(FireID,facts.salvage,facts.released,facts.replanted,facts.planting.first.year) %>%
   summarize(nplots = n())
@@ -81,7 +97,7 @@ plots_summary = plots_sp_facts %>%
 
 
 ## turn plots back to non-spatial for writing to CSV
-plots = plots_sp %>% st_set_geometry(NULL)
+plots = plots_sp_facts %>% st_set_geometry(NULL)
 
 ## write data
 write.csv(plots,"data/field-processed/compiled-processed/plots_w_gis_data.csv",row.names = FALSE)
