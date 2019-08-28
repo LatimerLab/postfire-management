@@ -2,6 +2,7 @@ setwd("C:/Users/DYoung/Documents/UC Davis/Research Projects/Post-fire management
 
 library(tidyverse)
 library(raster)
+library(sf)
 
 ## load data
 plots = read.csv("data/field-processed/compiled-processed/plots.csv",stringsAsFactors = FALSE)
