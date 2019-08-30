@@ -2,6 +2,7 @@ setwd("C:/Users/DYoung/Documents/UC Davis/Research Projects/Post-fire management
 
 library(tidyverse)
 library(lme4)
+library(gridExtra)
 
 ## load data
 plots = read.csv("data/field-processed/compiled-processed/plots_w_gis_data.csv",stringsAsFactors = FALSE)
@@ -13,6 +14,56 @@ seedlings_plot = read.csv("data/field-processed/compiled-processed/seedlings_plo
 seedlings_transect = read.csv("data/field-processed/compiled-processed/seedlings_transect.csv",stringsAsFactors = FALSE)
 seedlings_dead = read.csv("data/field-processed/compiled-processed/seedlings_dead.csv",stringsAsFactors = FALSE)
 prefire_trees = read.csv("data/field-processed/compiled-processed/prefire_trees.csv",stringsAsFactors = FALSE)
+
+
+#### Data prep that applies to more than one section below ####
+
+# get the nearest seed tree by plot
+nearest_seed_tree = seed_trees %>%
+  group_by(PlotID) %>%
+  summarize(MinSeedDist = min(Distance))
+
+# append it to the main plot data
+plots = left_join(plots,nearest_seed_tree,by="PlotID")
+
+
+
+
+#### Make figures of the environmental and management variability on each fire ####
+
+plots_figure = plots %>%
+  mutate(facts.salvage = recode(facts.salvage,yes="YES",no="no")) %>%
+  mutate(facts.mgt.summ = paste0("salv = ",facts.salvage,", rplt = ",facts.replanted,", rel = ",facts.released)) %>%
+  mutate(facts.planting.first.year = as.character(facts.planting.first.year)) %>%
+  mutate(SeedTreeLT80m = !((MinSeedDist > 80) | is.na(MinSeedDist))) %>%
+  filter(Type %in% c("treatment","internal"))
+
+
+
+# List to store the figures
+g = list()
+
+for(fire in unique(plots$Fire)) {
+  
+  plots_figure_fire = plots_figure %>%
+    filter(Fire == fire)
+  
+  g[[fire]] = ggplot(plots_figure_fire,aes(x=elev,y=rad_march,color=facts.planting.first.year,pch=Type,alpha=SeedTreeLT80m)) +
+    geom_point(size=3) +
+    facet_wrap(facts.mgt.summ~.) +
+    theme_bw(14) +
+    labs(title=fire) +
+    scale_alpha_manual(values = c(0.3,1))
+  
+}
+
+
+pdf("figures/stratification.pdf",10,6)
+for (i in 1:length(g)) {
+  print(g[[i]])
+}
+dev.off()
+
 
 
 
