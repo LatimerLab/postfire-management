@@ -36,7 +36,8 @@ plots_figure = plots %>%
   mutate(facts.mgt.summ = paste0("salv = ",facts.salvage,", rplt = ",facts.replanted,", rel = ",facts.released)) %>%
   mutate(facts.planting.first.year = as.character(facts.planting.first.year)) %>%
   mutate(SeedTreeLT80m = !((MinSeedDist > 80) | is.na(MinSeedDist))) %>%
-  filter(Type %in% c("treatment","internal"))
+  filter(Type %in% c("treatment","internal")) %>%
+  mutate(Type = factor(Type,levels=c("treatment","internal")))
 
 
 
@@ -53,7 +54,12 @@ for(fire in unique(plots$Fire)) {
     facet_wrap(facts.mgt.summ~.) +
     theme_bw(14) +
     labs(title=fire) +
-    scale_alpha_manual(values = c(0.3,1))
+    scale_alpha_manual(values = c(0.3,1)) +
+    scale_shape_manual(values= c("internal" = 17, "treatment" = 16)) +
+    scale_color_manual(name="Planting year", values = c("1"="#A2CD5A","2"="#6495ED","3"="#FF7F00"),na.value=1) +
+    guides(shape = guide_legend(order=1),
+           color = guide_legend(order=2),
+           alpha = guide_legend(order=3))
   
 }
 
