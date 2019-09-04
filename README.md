@@ -78,7 +78,7 @@ The list below describes how files are organized in this repo, with **_bold ital
 </p>
 </details>
 
-### Data compilation pipeline
+### Data compilation workflow
 
 This section describes the scripts used to compile and prepare the data for analysis. These scripts produce the data stored in `data/field-processed/compiled-processed` and `data/field-processed/spatial`. The scripts for compiling/preparing the data are in `scripts/field-data-carpentry`.
 
