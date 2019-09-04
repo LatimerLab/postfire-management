@@ -1,3 +1,6 @@
+# IMPORTANT: This repo is not current. Current development is on the LatimerLab account:
+https://github.com/LatimerLab/postfire-management
+
 # Post-fire forest management
 A project to evaluate the effects of management practices (particularly tree planting) on post-fire forest recovery.
 
