@@ -7,19 +7,19 @@ Files not related to analytical components of the project (e.g., field visit not
 
 ### Summary of repository organization, key files, and data details
 
-The data files for analysis are in data/field-processed/compiled-processed/. These data files have been cleaned and pre-processed based on raw data (e.g., fuels data has been converted from counts to Mg/ha; density of subsampled trees has been increased to account for subsampling). The raw entered data are in data/field-raw. The script to process the raw data is scripts/field-data-carpentry/compile_field_data.R
+The data files for analysis are in `data/field-processed/compiled-processed/`. These data files have been cleaned and pre-processed based on raw data (e.g., fuels data has been converted from counts to Mg/ha; density of subsampled trees has been increased to account for subsampling). The raw entered data are in `data/field-raw`. The scripts to process and compile the raw data are `scripts/field-data-carpentry/compile_field_data.R` and then `scripts/field-data-carpentry/extract_gis_data_at_plots.R`.
 
-There are multiple .csv files to accommodate the nested structure of the data. Tables can be loaded and joined in R using the column PlotID.
+There are multiple .csv data files to accommodate the nested structure of the data. Tables can be loaded and joined in R using the column PlotID.
 
 Important aspects of plot, tree, and seedling data:
 * Plot area has been computed based on slope area (what we measured on the ground) and horizontal area (what you see from above). The area is different for seedlings vs. pre-fire trees due to the way we masured distances for each. Therefore, we should work with densities, not counts.
 * Plot type can be "treated", "untreated", or "internal". Internal plots may be planted ("treated") or unplanted and are not paired with other plots. They exist primarily on the Cottonwood Fire.
-* Climate and topoclimate data (extracted by script scripts/field-data-carpentry/extract_gis_data_at_plots.R) are in the processed plots data file.
-* The seedling data file to use is seedlings_plot.csv. The other has seedlings that were <25 cm and thus only sampled in the transects.
+* Climate and topoclimate data (extracted by script `scripts/field-data-carpentry/extract_gis_data_at_plots.R`) are in the processed plots data file (`data/field-processed/compiled-processed/plots_w_gis_data.R`).
+* The seedling data file to use is `seedlings_plot.csv`. The other has seedlings that were <25 cm and thus only sampled in the transects.
 * Each row of seedling data represents a seedling surveyed in the plot. However, because some plots were subsampled, we need to interpret seedlings as densities, and when aggregating seedling values to a plot-level summary, we need to use those density values rather than counts. Each seedlings has two density values, one computed based on the slope-area of the plot (the amount of ground area), and one computed based on the horizontal area (the area from above). For seedlings, I think slope area makes the most sense.
-* Examples of some basic analysis (including dealing with seedling densities as opposed to counts) is in the script scripts/field-data-analysis/field_data_analysis.R
+* Examples of some basic analysis (including dealing with seedling densities as opposed to counts) is in the script `scripts/field-data-analysis/field_data_analysis.R`
 
-Spatial data (plot perimeters and stem maps) are in data/field-processed/spatial/
+Spatial data (plot perimeters and stem maps) are in `data/field-processed/spatial/`
 
 <details><summary>Detailed description of plot selection-related scripts and data files</summary>
 <p>
@@ -84,4 +84,4 @@ This section describes the scripts used to compile and prepare the data for anal
 
 1. `compile_field_data.R`: Loads raw entered field data (from `data/field-raw`). Calculates distances and areas (slope and horizontal). Stores an intermediate set of data files in `data/field-processed/compiled-uncleaned` but this should never be needed for direct use. Cleans data by correcting typos (fixes are hard-coded into the script). Stores another intermediate set of data files in `data/field-processed/compiled-cleaned` but this should also never be needed for direct use. Processes data by calculating fuel loads, calculating tree densities, calculating pre-fire oak distances. Store status flags like "drone subsample" and "internal", "treatment", or "control", names of fires, etc. Write processed data (for analysis) to `data/field-processed/compiled-processed`. Creates and writes spatial data (seedling stem maps, plot perimeters, plot points) to `data/field-processed/spatial`.
 
-2. `extract_gis_data_at_plots.R`: At each plot location, extracts data from GIS layers, including elevation, slope, aspect, solar radiation, precip, management history. Summarizes management history. Writes augmented plot data (which can be unsed for analysis as `data/field-processed/compiled-processed/plots_w_gis_data.csv`".
+2. `extract_gis_data_at_plots.R`: At each plot location, extracts data from GIS layers, including elevation, slope, aspect, solar radiation, precip, management history. Summarizes management history. Writes augmented plot data (which can be unsed for analysis as `data/field-processed/compiled-processed/plots_w_gis_data.csv`.
