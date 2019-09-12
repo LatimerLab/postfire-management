@@ -1,4 +1,4 @@
-setwd("C:/Users/DYoung/Documents/UC Davis/Research Projects/Post-fire management/postfire-management")
+#setwd("C:/Users/DYoung/Documents/UC Davis/Research Projects/Post-fire management/postfire-management")
 
 library(tidyverse)
 library(lme4)
@@ -18,13 +18,13 @@ prefire_trees = read.csv("data/field-processed/compiled-processed/prefire_trees.
 
 #### Data prep that applies to more than one section below ####
 
-# get the nearest seed tree by plot
+# get the nearest seed tree by plot; creates var MinSeedDist of the closest seed tree
 nearest_seed_tree = seed_trees %>%
   group_by(PlotID) %>%
   summarize(MinSeedDist = min(Distance))
 
 # append it to the main plot data
-plots = left_join(plots,nearest_seed_tree,by="PlotID")
+plots = left_join(plots,nearest_seed_tree,by="PlotID") #adds MinSeedDist to plots
 
 
 
@@ -77,13 +77,13 @@ dev.off()
 #### Analysis of paired plots ####
 
 plots = plots %>%
-  filter(Type %in% c("treatment","control"))
+  filter(Type %in% c("treatment","control")) #ignoring non-paired plots for now
 
 # capture species more generally
 seedlings_plot <- seedlings_plot %>%
-  mutate(Species = recode(Species,PIPO = "PIPJ",PIJE = "PIPJ")) %>%
-  mutate(Pine = Species %in% c("PIPJ","PILA"),
-         ShadeTol = Species %in% c("ABCO","ABMA","CADE"))
+  mutate(Species = recode(Species,PIPO = "PIPJ",PIJE = "PIPJ")) %>% # combine pines.
+  mutate(Pine = Species %in% c("PIPJ","PILA"), # creates T/F column for Pine
+         ShadeTol = Species %in% c("ABCO","ABMA","CADE")) # creates T/F column for Firs and incense cedar
 
 # summarize trees by plot
 seedl_summ <- seedlings_plot %>%
@@ -97,10 +97,10 @@ seedl_summ <- seedlings_plot %>%
             tree_density_over = sum(DensitySlope * (OMU=="O")))
 
 # combine with plot data
-d <- left_join(plots,seedl_summ,by="PlotID")
+d <- left_join(plots,seedl_summ,by="PlotID")  # join densities to plot data
 
 d <- d %>%
-  mutate_at(vars(pine_density,tree_density,tot_ht,pine_density_over,tree_density_over), funs(ifelse(is.na(.),0,.)))
+  mutate_at(vars(pine_density,tree_density,tot_ht,pine_density_over,tree_density_over), funs(ifelse(is.na(.),0,.))) # Give 0 density if not present
 
 ## make it long form so we can plot them as panels
 
@@ -109,8 +109,12 @@ d_long <- d %>%
 
 
 ## plot distribution of response vars by fire and treated status
-ggplot(d_long,aes(x=Fire,y=value,color=Type)) +
-  geom_point(position=position_jitterdodge(dodge.width=0.5,jitter.width=0.15),size=3) +
+ggplot(d_long,aes(x=interaction(Type, Fire), y=log(value+1),color=Type)) +
+  geom_violin(size = 1) +
+  #geom_boxplot(width=0.1) +
+  #geom_jitter(width = .02, alpha = .25) +
+  geom_dotplot(binaxis='y', method = "histodot", stackdir='center',binwidth = .2, dotsize=.7,  aes(x = interaction(Type, Fire), fill = Type)) +
+  #geom_point(position=position_jitterdodge(dodge.width=0.5,jitter.width=0.15),size=3) +
   theme(plot.title = element_text(hjust = 0.5)) +
   theme_bw(12) +
   facet_wrap(~metric,scales="free")
@@ -122,10 +126,12 @@ d_foc = d_long %>%
          Type = factor(Type,levels=c("unplanted","planted")),
          value = ifelse(value == 0,value,value + runif(n=length(value),-15,15)) )
   
-ggplot(d_foc,aes(x=Fire,y=value/2.47,color=Type)) +
-  geom_point(position=position_jitterdodge(dodge.width=0.5,jitter.width=0.25),size=4) +
+ggplot(d_foc,aes(x=interaction(Type, Fire),y=value/2.47,color=Type)) +
+  #geom_point(position=position_jitterdodge(dodge.width=0.5,jitter.width=0.25),size=4) +
+  geom_violin(size = 1) +
+  geom_dotplot(binaxis='y', method = "histodot", stackdir='center',binwidth = 5, dotsize=.7,  aes(x = interaction(Type, Fire), fill = Type)) +
   theme(plot.title = element_text(hjust = 0.5)) +
-  theme_bw(25) +
+  theme_bw() +
   lims(y=c(0,250)) +
   labs(x="Fire",y="Seedlings / acre") +
   scale_color_brewer(palette="Set1")
@@ -134,8 +140,8 @@ ggplot(d_foc,aes(x=Fire,y=value/2.47,color=Type)) +
 
 ## plot relationship between environmental vars and response vars
 d_plotting = d_long %>%
-  filter(metric %in% c("pine_density"),
-         !(Fire %in% "Ctnwd"))
+  filter(metric %in% c("pine_density"))#,
+        # !(Fire %in% "Ctnwd"))
 
 ggplot(d_plotting,aes(x=rad_march,y=value,color=Type)) +
   geom_point() +
@@ -149,7 +155,7 @@ response_var = "value"
 pred_vars_num = c("elev","rad_march")
 pred_vars_chr = c("Type","Fire")
 
-focal_vars = c(response_var,pred_vars)
+focal_vars = c(response_var,pred_vars_num, pred_vars_chr)
 
 d_mod = d_long %>%
   filter(metric %in% "pine_density",
@@ -158,8 +164,9 @@ d_mod = d_long %>%
   mutate_at(pred_vars_num,funs((.-mean(.))/sd(.))) %>%
   mutate(pine_presence = value > 0)
   
-m = glmer(pine_presence ~ elev + rad_march + Type + (1+elev|Fire), data=d_mod,family="binomial") # Type is whether treated
+m = glmer(pine_presence ~ elev + rad_march + Type + (1|Fire), data=d_mod, family="binomial") # Type is whether treated
 summary(m)
+plot(allEffects(m))
 
 
 
