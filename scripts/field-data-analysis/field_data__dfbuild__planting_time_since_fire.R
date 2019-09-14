@@ -105,6 +105,8 @@ explore <- ggplot(plot_dhm_long, aes(x=interaction(Type, Fire), y=log(value+1),c
 ggsave(explore, file = "C:/Users/Quinn Sorenson/Desktop/lotsOplots.pdf", width = 60, height = 40, limitsize = FALSE)
 
 
+##### Create function to plot vars and apply to all var combinations -------------------------------------------------
+
 enviroPlots <- function(met, enviro, trans = "none") {
   assign(paste0(enviro, ".plot.", if (trans == "log") { paste0("log.", met) } else { met }), ggplot(plot_dhm_long %>% filter(met.type == met), 
                                                                                            aes(x = get(enviro), y = if (trans == "log") { log(value+1) } 
@@ -121,7 +123,6 @@ ggsave(get(paste0(enviro, ".plot.", if (trans == "log") { paste0("log.", met) } 
        width = 18, height = 11, limitsize = FALSE)
 } # Function plotting data by response var = met, environmental variable, and log+1 transformtion or not.
 
-enviroPlots("dens", "elev", "none")
 
 metVars <- plot_dhm_long %>% select(met.type) %>% unique %>% as.matrix() %>% as.vector() #extracting response vars from dataset
 enviroVars <- c("elev", "rad_march", "slope_dem") #environmental vars
