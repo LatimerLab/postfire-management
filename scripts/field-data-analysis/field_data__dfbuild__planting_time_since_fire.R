@@ -50,7 +50,7 @@ seedl_dhm <- seedlings_plot %>%
             dens.shadeTol = sum(DensitySlope),
             dens.oak = sum(DensitySlope*oak),
             dens.conif = sum(DensitySlope*conif),
-            ave.ht.all = mean(TotHeight * DensitySlope),
+            aveht.all = mean(TotHeight * DensitySlope),
             ave.ht.yelPine = mean(TotHeight * DensitySlope*yelPine),
             ave.ht.pine = mean(TotHeight * DensitySlope*pine),
             ave.ht.shadeTol = mean(TotHeight * DensitySlope),
@@ -74,15 +74,22 @@ seedl_dhm <- seedlings_plot %>%
             tot.mass.shadeTol = sum(TotHeight^2 * DensitySlope),
             tot.mass.oak = sum(TotHeight^2 * DensitySlope*oak),
             tot.mass.conif = sum(TotHeight^2 * DensitySlope*conif))
+ 
 
 
 # combine with plot data
-plot_dhm <- left_join(plots, seedl_dhm, by="PlotID")  # join densities to plot data
+plot_dhm <- plots %>%
+  mutate(fsplanted = ifelse(!is.na(facts.planting.first.year), "planted", "unplanted")) %>% # create a variable for whether were planted or not
+  mutate(PairID = ifelse(Type == "internal" & fire_code == "E", "Eint", PlotID_notype)) %>% #creates new PlotID where all the intenal plots at one site are within one pair
+  mutate(PairID = ifelse(Type == "internal" & fire_code == "A", "Aint", PlotID_notype)) %>%         
+  left_join(seedl_dhm, by="PlotID")  # join densities to plot data
 
 ## make it long form so we can plot them as panels
 
 plot_dhm_long <- plot_dhm %>%
-  gather(key="metric",value="value", colnames(seedl_dhm) %>% .[.!= "PlotID"])
+  gather(key="metric",value="value", colnames(seedl_dhm) %>% .[.!= "PlotID"]) %>%
+  mutate(value = ifelse(is.na(value), 0, value)) %>% #assign 0 to na values
+  mutate(met.type = str_replace(metric, "\\.[^.]+$" , ""))
 
 
 ## plot distribution of response vars by fire and treated status
@@ -97,27 +104,41 @@ explore <- ggplot(plot_dhm_long, aes(x=interaction(Type, Fire), y=log(value+1),c
   facet_wrap(~metric,scales="free")
 ggsave(explore, file = "C:/Users/Quinn Sorenson/Desktop/lotsOplots.pdf", width = 60, height = 40, limitsize = FALSE)
 
-## specifically plot density of pines that are above shrubs
-d_foc = d_long %>%
-  filter(metric == "pine_density_over") %>%
-  mutate(Type = recode(Type,control="unplanted",treatment="planted"),
-         Type = factor(Type,levels=c("unplanted","planted")),
-         value = ifelse(value == 0,value,value + runif(n=length(value),-15,15)) )
 
-ggplot(d_foc,aes(x=interaction(Type, Fire),y=value/2.47,color=Type)) +
-  #geom_point(position=position_jitterdodge(dodge.width=0.5,jitter.width=0.25),size=4) +
-  geom_violin(size = 1) +
-  geom_dotplot(binaxis='y', method = "histodot", stackdir='center',binwidth = 5, dotsize=.7,  aes(x = interaction(Type, Fire), fill = Type)) +
+enviroPlots <- function(met, enviro, trans = "none") {
+  assign(paste0(enviro, ".plot.", if (trans == "log") { paste0("log.", met) } else { met }), ggplot(plot_dhm_long %>% filter(met.type == met), 
+                                                                                           aes(x = get(enviro), y = if (trans == "log") { log(value+1) } 
+                                                                                               else { value }, color = fsplanted)) +
+  geom_smooth(method = "lm", size = 1.5) +
+  geom_point(size = 2) +
+  ylab(if (trans == "log") { paste0("log.", met) } else { met }) +
+  scale_color_manual(values = c("#D5C332", "#048BA8")) +
   theme(plot.title = element_text(hjust = 0.5)) +
-  theme_bw() +
-  lims(y=c(0,250)) +
-  labs(x="Fire",y="Seedlings / acre") +
-  scale_color_brewer(palette="Set1")
+  theme_bw(12) +
+  facet_wrap(~Fire*metric, scales="free"))
+ggsave(get(paste0(enviro, ".plot.", if (trans == "log") { paste0("log.", met) } else { met })), 
+       file = paste0("figures/exploratory/", enviro, ".plot.", if (trans == "log") { paste0("log.", met) } else { met }, ".pdf"), 
+       width = 18, height = 11, limitsize = FALSE)
+} # Function plotting data by response var = met, environmental variable, and log+1 transformtion or not.
+
+enviroPlots("dens", "elev", "none")
+
+metVars <- plot_dhm_long %>% select(met.type) %>% unique %>% as.matrix() %>% as.vector() #extracting response vars from dataset
+enviroVars <- c("elev", "rad_march", "slope_dem") #environmental vars
+transVars <- c("log", "none") # with and with log transformation
+maxVarLength <- max(length(metVars), length(enviroVars), length(transVars)) # calcualte the longest vector
+allVars <- bind_cols(metVars %>% as_tibble(.rows = maxVarLength), enviroVars %>% as_tibble(.rows = maxVarLength), transVars %>% as_tibble(.rows = maxVarLength)) %>%
+  dplyr::rename("metVars" = value, "enviroVars" = value1 , "transVars" = value2 ) #transform variable vectors into tibbles to bind together and rename columns
+allVars <- allVars %>% tidyr::expand(metVars, enviroVars, transVars) %>% drop_na() # create dataframe with all combination of variables
+
+mapply(enviroPlots, allVars$metVars, allVars$enviroVars, allVars$transVars) #apply all combinations to graphing function... damn, thats a lot of graphs...
 
 
 
-## plot relationship between environmental vars and response vars
-d_plotting = d_long %>%
-  filter(metric %in% c("pine_density"))#,
-# !(Fire %in% "Ctnwd"))
+########################################################################################
+#################################   TRASH   ############################################
+########################################################################################
+
+
+plot_dhm %>%  filter(Type == "internal", fire_code != "E") #search for plots that are coded internal that arent in Cw site
 
