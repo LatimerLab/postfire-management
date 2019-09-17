@@ -1,6 +1,7 @@
-library(tidyverse)
 library(lme4)
 library(gridExtra)
+library(qpcR)
+library(tidyverse)
 
 #####  Buildup of dataframes for the folloing analyses ---------------------------------------------
 
@@ -37,7 +38,7 @@ seedlings_plot <- seedlings_plot %>%
   filter(DronePlotTree == FALSE) %>%
   mutate(yelPine = Species %in% c("PIPO", "PIJE", "PIPJ"), # combine yellowpines.
          pine = Species %in% c("PIPO", "PIJE", "PILA", "PIPJ"), # creates T/F column for Pine
-         shadeTol = Species %in% c("ABCO","ABMA","CADE"), # creates T/F column for Firs and incense cedar
+         shadeTol = Species %in% c("ABCO","ABMA","CADE", "FIR"), # creates T/F column for Firs and incense cedar
          oak = Species %in% c("QUKE", "QUCH"),
          conif = Species %in% c("PIPO", "PIJE", "PIPJ", "PILA", "ABCO", "ABMA", "CADE", "FIR", "PSME", "JUOC")) 
 
@@ -47,31 +48,35 @@ seedl_dhm <- seedlings_plot %>%
   summarize(dens.all = sum(DensitySlope),
             dens.yelPine = sum(DensitySlope*yelPine),
             dens.pine = sum(DensitySlope*pine),
-            dens.shadeTol = sum(DensitySlope),
+            dens.shadeTol = sum(DensitySlope*shadeTol),
             dens.oak = sum(DensitySlope*oak),
             dens.conif = sum(DensitySlope*conif),
-            aveht.all = mean(TotHeight * DensitySlope),
+            
+            ave.ht.all = mean(TotHeight * DensitySlope),
             ave.ht.yelPine = mean(TotHeight * DensitySlope*yelPine),
             ave.ht.pine = mean(TotHeight * DensitySlope*pine),
-            ave.ht.shadeTol = mean(TotHeight * DensitySlope),
+            ave.ht.shadeTol = mean(TotHeight * DensitySlope*shadeTol),
             ave.ht.oak = mean(TotHeight * DensitySlope*oak),
             ave.ht.conif = mean(TotHeight * DensitySlope*conif),
+            
             tot.ht.all = sum(TotHeight * DensitySlope),
             tot.ht.yelPine = sum(TotHeight * DensitySlope*yelPine),
             tot.ht.pine = sum(TotHeight * DensitySlope*pine),
-            tot.ht.shadeTol = sum(TotHeight * DensitySlope),
+            tot.ht.shadeTol = sum(TotHeight * DensitySlope*shadeTol),
             tot.ht.oak = sum(TotHeight * DensitySlope*oak),
             tot.ht.conif = sum(TotHeight * DensitySlope*conif),
+            
             ave.mass.all = mean(TotHeight^2 * DensitySlope),
             ave.mass.yelPine = mean(TotHeight^2 * DensitySlope*yelPine),
             ave.mass.pine = mean(TotHeight^2 * DensitySlope*pine),
-            ave.mass.shadeTol = mean(TotHeight^2 * DensitySlope),
+            ave.mass.shadeTol = mean(TotHeight^2 * DensitySlope*shadeTol),
             ave.mass.oak = mean(TotHeight^2 * DensitySlope*oak),
             ave.mass.conif = mean(TotHeight^2 * DensitySlope*conif),
+            
             tot.mass.all = sum(TotHeight^2 * DensitySlope),
             tot.mass.yelPine = sum(TotHeight^2 * DensitySlope*yelPine),
             tot.mass.pine = sum(TotHeight^2 * DensitySlope*pine),
-            tot.mass.shadeTol = sum(TotHeight^2 * DensitySlope),
+            tot.mass.shadeTol = sum(TotHeight^2 * DensitySlope*shadeTol),
             tot.mass.oak = sum(TotHeight^2 * DensitySlope*oak),
             tot.mass.conif = sum(TotHeight^2 * DensitySlope*conif))
  
@@ -127,9 +132,7 @@ ggsave(get(paste0(enviro, ".plot.", if (trans == "log") { paste0("log.", met) } 
 metVars <- plot_dhm_long %>% select(met.type) %>% unique %>% as.matrix() %>% as.vector() #extracting response vars from dataset
 enviroVars <- c("elev", "rad_march", "slope_dem") #environmental vars
 transVars <- c("log", "none") # with and with log transformation
-maxVarLength <- max(length(metVars), length(enviroVars), length(transVars)) # calcualte the longest vector
-allVars <- bind_cols(metVars %>% as_tibble(.rows = maxVarLength), enviroVars %>% as_tibble(.rows = maxVarLength), transVars %>% as_tibble(.rows = maxVarLength)) %>%
-  dplyr::rename("metVars" = value, "enviroVars" = value1 , "transVars" = value2 ) #transform variable vectors into tibbles to bind together and rename columns
+allVars <- as_tibble(qpcR:::cbind.na(metVars,enviroVars,transVars))
 allVars <- allVars %>% tidyr::expand(metVars, enviroVars, transVars) %>% drop_na() # create dataframe with all combination of variables
 
 mapply(enviroPlots, allVars$metVars, allVars$enviroVars, allVars$transVars) #apply all combinations to graphing function... damn, thats a lot of graphs...
@@ -143,3 +146,4 @@ mapply(enviroPlots, allVars$metVars, allVars$enviroVars, allVars$transVars) #app
 
 plot_dhm %>%  filter(Type == "internal", fire_code != "E") #search for plots that are coded internal that arent in Cw site
 
+cor(plots %>% dplyr::select(elev, rad_march, slope_dem),  use = "complete.obs", method = "pearson")
