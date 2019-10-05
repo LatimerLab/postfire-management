@@ -73,6 +73,18 @@ plots_sp_facts = plots_sp_facts %>%
                                    "Piute" = 2008))
 
 
+
+#### Pull in species planting records ####
+
+source("scripts/field-data-carpentry/extract_facts_species.R") # this stores the file species_per_plot.csv
+
+species_per_plot = read.csv("data/intermediate/species_per_plot.csv",header=TRUE)
+
+plots_sp_facts = left_join(plots_sp_facts,species_per_plot,by="PlotID")
+
+
+
+
 ## Determine whether planted/unplanted pairs are both salvaged, both not, or just one or the other salvaged
 # Actually we don't have to do that because at least according to FACTS, none of our unplanted plots were in salvaged land. Want to check this with field-based observations though.
 
