@@ -1,4 +1,4 @@
-setwd("~/UC Davis/Research Projects/Post-fire management/postfire-management")
+setwd("~/Research Projects/Post-fire management/postfire-management")
 
 library(tidyverse)
 library(sf)
@@ -469,8 +469,8 @@ plots = plots %>%
 plots = plots %>%
   mutate(Fire = recode(fire_code,
                        A = "MoonAnt",
-                       B = "AmRiv",
-                       C = "Power",
+                       B = "Power",
+                       C = "AmRiv",
                        D = "Piute",
                        E = "Ctnwd"))
 

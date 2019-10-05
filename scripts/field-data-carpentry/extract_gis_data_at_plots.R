@@ -1,4 +1,4 @@
-setwd("C:/Users/DYoung/Documents/UC Davis/Research Projects/Post-fire management/postfire-management")
+setwd("C:/Users/DYoung/Documents/Research Projects/Post-fire management/postfire-management")
 
 library(tidyverse)
 library(raster)
