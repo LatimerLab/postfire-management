@@ -36,9 +36,16 @@ plots_sp$slope_dem = raster::extract(slope,plots_sp,method="bilinear")
 plots_sp$aspect_dem = raster::extract(aspect,plots_sp,method="bilinear")
 
 ## extract solar rad
-rad_march = raster("data/non-synced/existing-datasets/solar radiation/march_rad.tif")
-plots_sp$rad_march = raster::extract(rad_march,plots_sp,method="bilinear")
-
+rad_winter = raster("data/non-synced/existing-datasets/solar radiation/rad_winter.tif")
+plots_sp$rad_winter = raster::extract(rad_winter,plots_sp,method="bilinear")
+rad_winter_spring = raster("data/non-synced/existing-datasets/solar radiation/rad_winter_spring.tif")
+plots_sp$rad_winter_spring = raster::extract(rad_winter_spring,plots_sp,method="bilinear")
+rad_spring = raster("data/non-synced/existing-datasets/solar radiation/rad_spring.tif")
+plots_sp$rad_spring = raster::extract(rad_spring,plots_sp,method="bilinear")
+rad_spring_summer = raster("data/non-synced/existing-datasets/solar radiation/rad_spring_summer.tif")
+plots_sp$rad_spring_summer = raster::extract(rad_spring_summer,plots_sp,method="bilinear")
+rad_summer = raster("data/non-synced/existing-datasets/solar radiation/rad_summer.tif")
+plots_sp$rad_summer = raster::extract(rad_summer,plots_sp,method="bilinear")
 
 
 #### Extract and summarize management history ####
