@@ -37,6 +37,9 @@ mapply(enviroPlots, allVars$metVars, allVars$enviroVars, allVars$transVars) #app
 
 cor(plots %>% dplyr::select(elev, rad_march, slope_dem, normal_annual_precip),  use = "complete.obs", method = "pearson")
 
+
+
+
 #####################################################################################
 #####################################################################################
 #  ___/-\___  #                  __                       .__                       #
