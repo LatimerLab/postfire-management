@@ -28,7 +28,7 @@ enviroPlots <- function(met, enviro, trans = "none") {
 } # Function plotting data by response var = met, environmental variable, and log+1 transformtion or not.
 
 metVars <- plot_dhm_long %>% select(met.type) %>% unique %>% as.matrix() %>% as.vector() #extracting response vars from dataset
-enviroVars <- c("elev", "rad_march", "slope_dem", "normal_annual_precip") #environmental vars
+enviroVars <- c("elev", "rad_spring_summer", "slope_dem", "normal_annual_precip") #environmental vars
 transVars <- c("log", "none") # with and with log transformation
 allVars <- as_tibble(qpcR:::cbind.na(metVars,enviroVars,transVars))
 allVars <- allVars %>% tidyr::expand(metVars, enviroVars, transVars) %>% drop_na() # create dataframe with all combination of variables
