@@ -16,10 +16,10 @@ seedlings_plot <- seedlings_plot %>%
 
 plots <- plots %>%
   mutate(fsplanted = ifelse(!is.na(facts.planting.first.year), "planted", "unplanted")) %>% # create a variable for whether were planted or no
-  mutate(PairID = str_sub(PlotID, 1,5)) %>%
-  mutate(planted_PIPO = ifelse(is.na(planted_PIPO) & Type == "treatment", "yes", planted_PIPO)) %>%
-  mutate(planted_PIJE = ifelse(is.na(planted_PIJE) & Type == "treatment" & Fire == "Ctnwd", "yes", planted_PIJE)) %>% 
-  mutate(plantingList = paste(ifelse(planted_ABCO == "no", NA,"ABCO"), 
+  mutate(PairID = str_sub(PlotID, 1,5)) %>% # make a pair ID
+  mutate(planted_PIPO = ifelse(is.na(planted_PIPO) & Type == "treatment", "yes", planted_PIPO)) %>% # Remove the NAs from the planted list
+  mutate(planted_PIJE = ifelse(is.na(planted_PIJE) & Type == "treatment" & Fire == "Ctnwd", "yes", planted_PIJE)) %>% # Remove the NAs from the planted list
+  mutate(plantingList = paste(ifelse(planted_ABCO == "no", NA,"ABCO"), #create a string with the planted species
                               ifelse(planted_CADE27 == "no", NA,"CADE"),
                               ifelse(planted_PIJE == "no", NA, "PIJE_PIPJ"),
                               ifelse(planted_PIPO == "no", NA, "PIPO_PIPJ"),
@@ -28,24 +28,25 @@ plots <- plots %>%
                               ifelse(planted_ABMA == "no", NA, "ABMA"),
                               ifelse(planted_SEGI2 == "no", NA, "SEGI"),
                               sep = "_"))
-plantedList <- plots %>% 
-  filter(fsplanted == "planted") %>% select(PairID, plantingList)
+plantedList <- plots %>% # assign planting list to nonplanted plots
+  filter(fsplanted == "planted") %>% 
+  select(PairID, plantingList)
 plots <- plots %>%
   select(-plantingList) %>%
-  left_join(plantedList, by = "PairID")
+  left_join(plantedList, by = "PairID") %>%
+  select(-facts.planting.first.year) %>%
+  left_join(plots %>% select(PairID, facts.planting.first.year) %>% filter(!is.na(facts.planting.first.year)), by ="PairID") %>%
+  select(-facts.released) %>%
+  left_join(plots %>% select(PairID, facts.released) %>% filter(!is.na(facts.released)), by ="PairID")
 
   
     
-
-
-
-
 ##### make summaries of each variable --------------------------------------------------------------
 
 # group species
 seedlings_plot <- seedlings_plot %>%
   filter(DronePlotTree == FALSE) %>%
-  left_join(plots %>% select(PlotID, plantingList), by = "PlotID") %>%
+  left_join(plots %>% select(PlotID, plantingList), by = "PlotID") %>% # adds planting list to each seedling
   mutate(yelPine = Species %in% c("PIPO", "PIJE", "PIPJ"), # combine yellowpines.
          pine = Species %in% c("PIPO", "PIJE", "PILA", "PIPJ"), # creates T/F column for Pine
          shadeTol = Species %in% c("ABCO","ABMA","CADE", "FIR"), # creates T/F column for Firs and incense cedar
@@ -102,10 +103,21 @@ seedl_dhm <- seedlings_plot %>%
  
 # combine with plot data
 plot_dhm <- plots %>%
-  mutate(fsplanted = ifelse(!is.na(facts.planting.first.year), "planted", "unplanted")) %>% # create a variable for whether were planted or not
+  #mutate(fsplanted = ifelse(!is.na(facts.planting.first.year), "planted", "unplanted")) %>% # create a variable for whether were planted or not
   mutate(PairID = ifelse(Type == "internal" & fire_code == "E", "Eint", PlotID_notype)) %>% #creates new PlotID where all the intenal plots at one site are within one pair
   mutate(PairID = ifelse(Type == "internal" & fire_code == "A", "Aint", PlotID_notype)) %>%         
   left_join(seedl_dhm, by="PlotID") 
+plot_dhm[c("dens.all", "dens.yelPine", "dens.pine", "dens.shadeTol", "dens.conif", "dens.planted", "ave.ht.all",
+    "ave.ht.yelPine", "ave.ht.pine",  "ave.ht.shadeTol", "ave.ht.conif", "ave.ht.planted", "tot.ht.all",
+    "tot.ht.yelPine", "tot.ht.pine", "tot.ht.shadeTol", "tot.ht.conif", "tot.ht.planted", "ave.mass.all",
+    "ave.mass.yelPine", "ave.mass.pine", "ave.mass.shadeTol", "ave.mass.conif", "ave.mass.planted", "tot.mass.all",
+    "tot.mass.yelPine", "tot.mass.pine", "tot.mass.shadeTol", "tot.mass.conif", "tot.mass.planted"
+    )][is.na(plot_dhm[c("dens.all", "dens.yelPine", "dens.pine", "dens.shadeTol", "dens.conif", "dens.planted", "ave.ht.all",
+                 "ave.ht.yelPine", "ave.ht.pine",  "ave.ht.shadeTol", "ave.ht.conif", "ave.ht.planted", "tot.ht.all",
+                 "tot.ht.yelPine", "tot.ht.pine", "tot.ht.shadeTol", "tot.ht.conif", "tot.ht.planted", "ave.mass.all",
+                 "ave.mass.yelPine", "ave.mass.pine", "ave.mass.shadeTol", "ave.mass.conif", "ave.mass.planted", "tot.mass.all",
+                 "tot.mass.yelPine", "tot.mass.pine", "tot.mass.shadeTol", "tot.mass.conif", "tot.mass.planted")])] <- 0 #replace NAs with 0s for the plots that were not in the seedling_plots df.
+
 
 ## make it long form so we can plot them as panels
 
