@@ -28,6 +28,20 @@ summary(Derek)
 plot(allEffects(Derek))
 
 
+### Make hypothetical data frames for prediction
+
+Shrubs_mean = mean(plot_dhm$Shrubs)
+ShurbHt_mean = mean(plot_dhm$ShrubHt)
+
+Shrubs_levels = seq(from=0,to=100,length.out=100)
+facts.planting.first.year_levels = c(1,2,3)
+fsplanted_levels = c("planted","unplanted")
+
+
+
+
+
+
 
 m1 <- lmer(ln.dens.planted ~ scale(slope_dem) + scale(elev) + 
              fsplanted*scale(normal_annual_precip) + (fsplanted*scale(normal_annual_precip)|Fire) + (1|Fire:PairID), data = plot_dhm)
