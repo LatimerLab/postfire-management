@@ -4,6 +4,7 @@ library(lmerTest)
 library(ggplot2)
 library(gridExtra)
 library(effects)
+library(merTools)
 
 load("output/plotSeedlingData.RData") #load R object: plot_dhm_long
 plot_dhm <- plot_dhm %>% 
@@ -13,6 +14,8 @@ plot_dhm <- plot_dhm %>%
   mutate(fsplanted = as.factor(fsplanted)) %>%
   mutate(facts.released = as.factor(facts.released)) %>%
   mutate(GrassHt = ifelse(is.na(GrassHt), 0, GrassHt)) %>%
+  mutate(SeedWallConifer = ifelse(is.na(SeedWallConifer), 500, SeedWallConifer)) %>%
+  mutate(neglog5SeedWallConifer = -logb(SeedWallConifer, base = exp(5))) %>%
   mutate(ShrubHt = ifelse(is.na(ShrubHt), 0, ShrubHt)) %>%
   mutate(ForbHt = ifelse(is.na(ForbHt), 0, ForbHt)) %>%
   mutate(totalCov = Shrubs + Grasses + Forbs) %>%
@@ -20,22 +23,97 @@ plot_dhm <- plot_dhm %>%
 
 ##### Model for Derek ----------------------------------------------------------------------------------
 
-Derek <- lmer(ln.dens.planted ~ scale(Shrubs)*facts.planting.first.year*fsplanted+scale(ShrubHt) +
+mod <- lmer(ln.dens.planted ~ scale(Shrubs)*facts.planting.first.year*fsplanted+scale(ShrubHt) +
                (1|Fire) + (1|Fire:PairID), data = plot_dhm)
 
-AIC(Derek)
-summary(Derek)
-plot(allEffects(Derek))
+AIC(mod)
+summary(mod)
+plot(allEffects(mod))
 
 
-### Make hypothetical data frames for prediction
+### Get predictions + redisuals for observed data points--to plot data on top of predictions
+
+obs = predict(mod, re.form=NA)
+obs_resid = (obs + resid(mod,re.form=NA)) %>% exp() 
+plot_dhm$obs_resid = obs_resid
+
+
+### Make hypothetical dataframe for prediction
 
 Shrubs_mean = mean(plot_dhm$Shrubs)
-ShurbHt_mean = mean(plot_dhm$ShrubHt)
+ShrubHt_mean = mean(plot_dhm$ShrubHt)
+neglog5SeedWallConifer_mean = -0.7 # mean(plot_dhm$neglog5SeedWallConifer)
 
 Shrubs_levels = seq(from=0,to=100,length.out=100)
 facts.planting.first.year_levels = c(1,2,3)
 fsplanted_levels = c("planted","unplanted")
+
+newdat = expand.grid(Shrubs = Shrubs_levels,
+                     facts.planting.first.year = facts.planting.first.year_levels,
+                     fsplanted = fsplanted_levels,
+                     ShrubHt = ShrubHt_mean,
+                     neglog5SeedWallConifer = neglog5SeedWallConifer_mean,
+                     Fire = "hypothetical",
+                     PairID = "hypothetical")
+
+
+pred = predict(mod,newdata = newdat, re.form=NA) %>% exp()
+
+pred_int = predictInterval(mod,newdata=newdat,which="fixed",level=0.95,n.sims=10000,include.resid.var=FALSE) %>% exp()
+
+dat_pred = newdat
+dat_pred = cbind(dat_pred,pred_int)
+
+
+dat_pred$pred = pred
+
+
+## Make nice names for plotting
+dat_pred = dat_pred %>%
+  mutate(facts.planting.first.year = recode(facts.planting.first.year,
+                                            "1" = "Planted 1 year post-fire",
+                                            "2" = "Planted 2 years post-fire",
+                                            "3" = "Planted 3 years post-fire"),
+         fsplanted = recode(fsplanted,
+                            planted = "Planted",
+                            unplanted = "Unplanted"))
+
+plot_dhm = plot_dhm %>%
+  mutate(facts.planting.first.year = recode(facts.planting.first.year,
+                                            "1" = "Planted 1 year post-fire",
+                                            "2" = "Planted 2 years post-fire",
+                                            "3" = "Planted 3 years post-fire"),
+         fsplanted = recode(fsplanted,
+                            planted = "Planted",
+                            unplanted = "Unplanted"))
+
+
+p = ggplot(dat_pred, aes(x=Shrubs,y=pred,color=fsplanted)) +
+  facet_wrap(~facts.planting.first.year) +
+  geom_ribbon(aes(ymin=lwr,ymax=upr,fill=fsplanted),color=NA,alpha=0.1) +
+  geom_line(size=0.8) +
+  geom_point(data=plot_dhm,aes(y=obs_resid),size=0.5) +
+  coord_cartesian(ylim = c(0, 500), xlim =c(0,100)) +
+  theme_bw(12) +
+  labs(y="Seedlings per hectare",x="Shrub cover (%)") +
+  theme(legend.title = element_blank(), panel.grid.minor = element_blank(), panel.grid.major=element_line(size=0.3)) +
+  scale_color_manual(values = c("darkcyan","darkorange")) +
+  scale_fill_manual(values = c("darkcyan","darkorange"))
+  
+Cairo("figures/shrub_year_planted_w_data.png",width=1600*2,height=600*2,res=200*2)
+p
+dev.off()
+
+  
+  
+  
+  
+  
+  
+#####################################
+
+
+
 
 
 
