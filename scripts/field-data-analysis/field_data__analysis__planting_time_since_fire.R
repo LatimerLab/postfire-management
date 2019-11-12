@@ -5,6 +5,7 @@ library(ggplot2)
 library(gridExtra)
 library(effects)
 library(merTools)
+library(Cairo)
 
 load("output/plotSeedlingData.RData") #load R object: plot_dhm_long
 plot_dhm <- plot_dhm %>% 
@@ -90,17 +91,17 @@ plot_dhm = plot_dhm %>%
 
 p = ggplot(dat_pred, aes(x=Shrubs,y=pred,color=fsplanted)) +
   facet_wrap(~facts.planting.first.year) +
-  geom_ribbon(aes(ymin=lwr,ymax=upr,fill=fsplanted),color=NA,alpha=0.1) +
+  geom_ribbon(aes(ymin=lwr,ymax=upr,fill=fsplanted),color=NA,alpha=0.2) +
   geom_line(size=0.8) +
-  geom_point(data=plot_dhm,aes(y=obs_resid),size=0.5) +
+  #geom_point(data=plot_dhm,aes(y=obs_resid),size=0.5) +
   coord_cartesian(ylim = c(0, 500), xlim =c(0,100)) +
   theme_bw(12) +
-  labs(y="Seedlings per hectare",x="Shrub cover (%)") +
+  labs(y="Seedlings / ha",x="Shrub cover (%)") +
   theme(legend.title = element_blank(), panel.grid.minor = element_blank(), panel.grid.major=element_line(size=0.3)) +
-  scale_color_manual(values = c("darkcyan","darkorange")) +
-  scale_fill_manual(values = c("darkcyan","darkorange"))
+  scale_color_manual(values = c("darkseagreen","darkorchid4")) +
+  scale_fill_manual(values = c("darkseagreen","darkorchid4"))
   
-Cairo("figures/shrub_year_planted_w_data.png",width=1600*2,height=600*2,res=200*2)
+Cairo("figures/shrub_year_planted.png",width=1600*2,height=600*2,res=200*2)
 p
 dev.off()
 
