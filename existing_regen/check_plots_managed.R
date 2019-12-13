@@ -91,4 +91,6 @@ plots = plots %>%
 plots_mgd = plots %>%
   filter(managed == 1)
 
+st_geometry(plots_mgd) = NULL
+
 write.csv(plots_mgd,"existing_regen/plots_exclude_FACTS.csv")

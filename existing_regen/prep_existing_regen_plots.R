@@ -52,7 +52,7 @@ plots = plots %>%
   mutate(survey_years_post = as.numeric(survey_year) - as.numeric(Year.of.Fire)) %>%
   select(Regen_Plot,Fire,Year.of.Fire,survey_years_post,Easting, Northing, SHRUB, dominant_shrub_ht_cm)
 
-
+write.csv(plots,"existing_regeplots_compiled_filtered.csv",row.names=FALSE)
 
 
 
