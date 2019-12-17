@@ -10,6 +10,9 @@ library(dynatopmodel)
 ## load data
 plots = read.csv("data/field-processed/compiled-processed/plots.csv",stringsAsFactors = FALSE)
 
+
+
+### For plots in geographic
 ## make plots spatial
 
 plots = plots %>%
@@ -18,6 +21,8 @@ plots = plots %>%
 
 plots_sp <- st_as_sf(plots, coords = c("Long","Lat"), crs = 4326) %>%
   st_transform(3310)
+
+
 
 # get Albers coordinates
 plots_sp = cbind(plots_sp,st_coordinates(plots_sp))
@@ -50,7 +55,7 @@ gc()
 
 topo_data = data.frame()
 
-## do topo indices by fire
+## do extractions by fire
 fires = unique(plots_sp$Fire)
 for(fire in fires) {
   
@@ -109,6 +114,7 @@ rad_spring_summer = raster("data/non-synced/existing-datasets/solar radiation/ra
 plots_sp$rad_spring_summer = raster::extract(rad_spring_summer,plots_sp,method="bilinear")
 rad_summer = raster("data/non-synced/existing-datasets/solar radiation/rad_summer.tif")
 plots_sp$rad_summer = raster::extract(rad_summer,plots_sp,method="bilinear")
+
 
 ## extract twi
 twi = raster("data/non-synced/existing-datasets/twi/twi_merged.tif")
