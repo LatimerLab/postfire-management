@@ -96,6 +96,9 @@ shr2 <- lmer(scale(asin(sqrt(Shrubs/100))) ~ scale(rad_winter)+scale(normal_annu
                #scale(slope_dem) + 
                #I(scale(slope_dem)^2) + 
                (1|Fire) + (1|Fire:PairID), data = plot_dhm)
+shr2 <- lmer(scale(asin(sqrt(Shrubs/100))) ~ scale(rad_winter)*scale(normal_annual_precip)+ scale(rad_winter)*scale(tmax)  +
+                 scale(tpi5000) + 
+               (1|Fire) + (1|Fire:PairID), data = plot_dhm)
 AIC(shr2)
 summary(shr2)
 plot(shr2)

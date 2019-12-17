@@ -89,6 +89,16 @@ ggplot(plot_dhm %>% filter(Type != "internal"), aes(x = interaction(facts.releas
   theme_bw(12) + 
   facet_wrap(~Fire, scales = "free")
 
+ggplot(plot_dhm %>% filter(Type != "internal"), aes(x = Fire, y = normal_annual_precip)) +
+  geom_violin(size = 1) +
+  #geom_boxplot(width=0.1) +
+  #geom_jitter(width = .02, alpha = .25) +
+  #scale_color_manual(values = c("#D5C332", "#048BA8")) +
+  #scale_fill_manual(values = c("#D5C332", "#048BA8")) +
+  geom_dotplot(binaxis='y', method = "histodot", stackdir='center',binwidth = .2, dotsize=.7) +
+  theme_bw(12) 
+
+
 #####  compare density of trees by time since planting ---------------------------
 
 
