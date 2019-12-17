@@ -40,9 +40,16 @@ step(shr1)
 AIC(shr1)
 summary(shr1)
 plot(allEffects(shr1))
-tab_model(shr1)
+tab_model(shr)
 
-shr1 <- lmer(ln.dens.conif ~ facts.planting.first.year*scale(Shrubs)*fsplanted + neglog5SeedWallConifer + scale(ShrubHt) + (1|Fire) + (1|Fire:PairID), data = plot_dhm)
+shr1 <- lmer(ln.dens.conif ~ 
+               #facts.planting.first.year*scale(Shrubs)*fsplanted + neglog5SeedWallConifer + scale(ShrubHt) + 
+               scale(tpi2000)*facts.planting.first.year +
+               scale(Shrubs)*scale(tmean) +
+               scale(tmean)*scale(normal_annual_precip) +
+               neglog5SeedWallConifer + 
+               #scale(ShrubHt) +
+               (1|Fire) + (1|Fire:PairID), data = plot_dhm)
 step(shr1)
 AIC(shr1)
 summary(shr1)
@@ -51,9 +58,9 @@ plot(allEffects(shr1))
 ##### biotic environment --------------------------------------------------------------------------------
 
 shr1 <- lmer(ln.dens.planted ~ scale(tpi2000)*facts.planting.first.year +
-               scale(Shrubs)*facts.planting.first.year*fsplanted +
+               scale(asin(sqrt(Shrubs/100)))*facts.planting.first.year*fsplanted +
                scale(tmean)*scale(normal_annual_precip) +
-              neglog5SeedWallConifer + scale(ShrubHt) +
+               neglog5SeedWallConifer + scale(ShrubHt) +
                (1|Fire) + (1|Fire:PairID), data = plot_dhm)
 
 AIC(shr1)
@@ -70,6 +77,37 @@ summary(shr1)
 plot(allEffects(shr1))
 
 #twi may be related to shrub cover?
+shr2 <- lmer(asin(sqrt(Shrubs/100)) ~ fsplanted*facts.released + (1|Fire) + (1|Fire:PairID), data = plot_dhm)
+plot(allEffects(shr2))
+
+
+shr2 <- lmer(scale(asin(sqrt(Shrubs/100))) ~ scale(rad_winter)+scale(normal_annual_precip) + 
+               I(scale(normal_annual_precip)^2) +
+               scale(rad_winter):I(scale(normal_annual_precip)^2) +
+               #I(scale(rad_winter)^2) +
+               #scale(normal_annual_precip)*I(scale(rad_winter)^2) +
+               #I(scale(rad_winter)^2)*I(scale(normal_annual_precip)^2) +
+               scale(tmean) + 
+               #poly(scale(elev), 2) + #does not improve
+               #scale(tmin) +
+               #scale(tmax) +
+               scale(twi) + 
+               I(scale(twi)^2) + 
+               #scale(slope_dem) + 
+               #I(scale(slope_dem)^2) + 
+               (1|Fire) + (1|Fire:PairID), data = plot_dhm)
+AIC(shr2)
+summary(shr2)
+plot(shr2)
+hist(resid(shr2))
+step(shr2)
+plot(allEffects(shr2))
+tab_model(shr2)
+
+
+plot(allEffects(shr2))
+
+cor(plots %>% dplyr::select(elev, rad_winter, slope_dem, normal_annual_precip, twi, tpi2000, tmax, tmin, tmean),  use = "complete.obs", method = "pearson")
 
 #####################################################################################
 #####################################################################################
