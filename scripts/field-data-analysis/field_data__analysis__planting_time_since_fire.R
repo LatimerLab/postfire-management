@@ -93,7 +93,7 @@ p = ggplot(dat_pred, aes(x=Shrubs,y=pred,color=fsplanted)) +
   facet_wrap(~facts.planting.first.year) +
   geom_ribbon(aes(ymin=lwr,ymax=upr,fill=fsplanted),color=NA,alpha=0.2) +
   geom_line(size=0.8) +
-  #geom_point(data=plot_dhm,aes(y=obs_resid),size=0.5) +
+  geom_point(data=plot_dhm,aes(y=obs_resid),size=0.5) +
   coord_cartesian(ylim = c(0, 500), xlim =c(0,100)) +
   theme_bw(12) +
   labs(y="Seedlings / ha",x="Shrub cover (%)") +
