@@ -4,6 +4,8 @@ library(tidyverse)
 library(brms)
 library(lme4)
 library(effects)
+library(lmerTest)
+library(MuMIn)
 
 ### Load the data
 d = read.csv("existing_regen/regen_plots_w_gis_data.csv",stringsAsFactors = FALSE) %>%
@@ -56,6 +58,45 @@ cor(observed,fitted)^2  # rough approximate R-sq of 0.22
 
 ### Run using lme4
 
+m4 <- lmer(scale(asin(sqrt(SHRUB/100))) ~ scale(normal_annual_precip)*scale(rad_winter) +
+               #I(scale(normal_annual_precip)^2) +
+               #scale(rad_winter):I(scale(normal_annual_precip)^2) +
+               #I(scale(rad_winter)^2) +
+               #scale(normal_annual_precip)*I(scale(rad_winter)^2) +
+               #I(scale(rad_winter)^2)*I(scale(normal_annual_precip)^2) +
+               #scale(tmean) + 
+               #poly(scale(elev), 2) + #does not improve
+               scale(tmin) +
+               #I(scale(tmin)^2) + # Quadratic does not improve
+               #scale(tmax) +
+               #scale(slope_dem) + 
+               #I(scale(slope_dem)^2) + 
+               scale(tpi5000) +
+               #I(scale(tpi5000)^2) + 
+               (1|Fire_and_Age), data = dl  %>% filter(X > -140000, Y > -250000))
+
+summary(m4)
+AIC(m4)
+plot(allEffects(m4))
+plot(m4)
+step(m4)
+r.squaredGLMM(m4)
+
+cor(dl %>% filter(X > -140000, Y > -250000) %>% 
+      dplyr::select(elev, rad_winter, slope_dem, normal_annual_precip, tpi5000, tmax, tmin, tmean),  use = "complete.obs", method = "pearson")
+
+#####################################################################################
+#####################################################################################
+#  ___/-\___  #                  __                       .__                       #
+# |---------| #                _/  |_____________    _____|  |__                    #
+#  |   |   |  #                \   __\_  __ \__  \  /  ___/  |  \                   #
+#  | | | | |  #                 |  |  |  | \// __ \_\___ \|   Y  \                  #
+#  | | | | |  #                 |__|  |__|  (____  /____  >___|  /                  #
+#  | | | | |  #                                  \/     \/     \/                   #
+#  |_______|  #######################################################################
+#####################################################################################
+
+
 m1 <- lmer(asin(sqrt(SHRUB)) ~ scale(normal_annual_precip) * scale(tmax) + scale(tpi5000) + (1|Fire_and_Age) + scale(rad_winter), data=dl)
 summary(m1)
 plot(m1)
@@ -71,10 +112,47 @@ m3 <- lmer(asin(sqrt(SHRUB)) ~  scale(normal_annual_precip)*scale(tmax)*scale(ra
              #scale(tmax) +
              #scale(twi) + 
              #I(scale(twi)^2) + 
-             #scale(tpi5000) +
+             scale(tpi5000) +
              (1|Fire_and_Age), data=dl)
 summary(m3)
 plot(allEffects(m3))
 plot(m3)
 
+summary(m1)
+plot(m1)
+
+m3 <- lmer(asin(sqrt(SHRUB)) ~  scale(normal_annual_precip)*scale(tmax)*scale(rad_winter) + 
+             #I(scale(normal_annual_precip)^2) +
+             #scale(tmax):I(scale(normal_annual_precip)^2) +
+             #I(scale(tmax)^2) +
+             #scale(normal_annual_precip)*I(scale(tmax)^2) +
+             #I(scale(tmax)^2)*I(scale(normal_annual_precip)^2) +
+             #poly(scale(elev), 2) + #does not improve
+             #scale(tmin) +
+             #scale(tmax) +
+             #scale(twi) + 
+             #I(scale(twi)^2) + 
+             scale(tpi5000) +
+             (1|Fire_and_Age), data=dl)
+summary(m3)
+plot(allEffects(m3))
+plot(m3)
+
+
+m3 <- lmer(asin(sqrt(SHRUB)) ~  scale(normal_annual_precip)*scale(tmax)*scale(rad_winter) + 
+             #I(scale(normal_annual_precip)^2) +
+             #scale(tmax):I(scale(normal_annual_precip)^2) +
+             #I(scale(tmax)^2) +
+             #scale(normal_annual_precip)*I(scale(tmax)^2) +
+             #I(scale(tmax)^2)*I(scale(normal_annual_precip)^2) +
+             #poly(scale(elev), 2) + #does not improve
+             #scale(tmin) +
+             #scale(tmax) +
+             #scale(twi) + 
+             #I(scale(twi)^2) + 
+             scale(tpi5000) +
+             (1|Fire_and_Age), data=dl  %>% filter(X > -140000, Y > -250000))
+summary(m3)
+plot(allEffects(m3))
+plot(m3)
 

@@ -21,10 +21,180 @@ plot_dhm <- plot_dhm %>%
   mutate(totalCov = Shrubs + Grasses + Forbs) %>%
   mutate(totalCovxHt = (Shrubs*ShrubHt + Grasses*GrassHt + Forbs*ForbHt))
 
+test <- plot_dhm %>% select(Fire, facts.planting.first.year)
+unique(test)
+
+##### biotic environment --------------------------------------------------------------------------------
+
+pltd <- lmer(ln.dens.planted ~ #scale(tpi2000)*facts.planting.first.year +
+               #scale(asin(sqrt(Shrubs/100)))*facts.planting.first.year*fsplanted +
+               scale(tmean)*scale(normal_annual_precip) +
+               neglog5SeedWallConifer + scale(ShrubHt) +
+               (1|Fire) + (1|Fire:PairID), data = plot_dhm)
+
+AIC(pltd)
+summary(pltd)
+plot(allEffects(pltd))
+r.squaredGLMM(pltd)
+
+
+conif <- lmer(ln.dens.conif ~ scale(rad_summer) + facts.planting.first.year*scale(Shrubs)*fsplanted + neglog5SeedWallConifer + scale(ShrubHt) + (1|Fire) + (1|Fire:PairID), data = plot_dhm)
+
+AIC(conif)
+summary(conif)
+plot(allEffects(conif))
+
+#summary(lm(tpi500~ twi + I(twi^2), , data = plot_dhm))
+plot(tpi500 ~ twi, data = plot_dhm)
+shr <- lmer(scale(asin(sqrt(Shrubs/100))) ~ scale(normal_annual_precip)*scale(rad_winter) + 
+               #I(scale(normal_annual_precip)^2) +
+               #scale(rad_winter):I(scale(normal_annual_precip)^2) +
+               #I(scale(rad_winter)^2) +
+               #scale(normal_annual_precip)*I(scale(rad_winter)^2) +
+               #I(scale(rad_winter)^2)*I(scale(normal_annual_precip)^2) +
+               #scale(tmean) + 
+               #poly(scale(elev), 2) + #does not improve
+               scale(tmin) +
+               #I(scale(tmin)^2) + Does not improve modl
+               #scale(tmax) +
+               #scale(slope_dem) + 
+               #I(scale(slope_dem)^2) + 
+               scale(twi) + 
+               I(scale(twi)^2) +
+               #scale(tpi500) + 
+               (1|Fire) + (1|Fire:PairID), data = plot_dhm)
+AIC(shr)
+summary(shr)
+plot(shr)
+hist(resid(shr))
+plot(allEffects(shr))
+r.squaredGLMM(shr)
+
+save(pltd, shr, file = "output/modelDataForPlots.RData")
+
+cor(plots %>% dplyr::select(elev, rad_winter, slope_dem, normal_annual_precip, twi, tpi100, tpi500, tpi2000, tpi5000, tmax, tmin, tmean),  use = "complete.obs", method = "pearson")
+
+##### SEM --------------------------------------------------------------------------------------
+
+
+library(piecewiseSEM)
+
+plot_dhm.sem <- plot_dhm %>%
+  mutate(ztpi2000 = scale(tpi2000)) %>%
+  mutate(zasShrubs = scale(asin(sqrt(Shrubs/100)))) %>%
+  mutate(ztmean = scale(tmean)) %>%
+  mutate(znormal_annual_precip = scale(normal_annual_precip)) %>%
+  mutate(zShrubHt = scale(ShrubHt)) %>%
+  mutate(zrad_winter = scale(rad_winter)) %>%
+  mutate(ztmin = scale(tmin)) %>%
+  mutate(ztpi500 = scale(tpi500)) %>%
+  mutate(fsplantedBin = as.numeric(ifelse(fsplanted == "planted", 1, 0)))
+
+sem.mods <- psem(
+  
+  lmer(ln.dens.planted ~ ztpi2000*facts.planting.first.year +
+         zasShrubs*facts.planting.first.year*fsplantedBin +
+         ztmean*znormal_annual_precip +
+         neglog5SeedWallConifer + zShrubHt +
+         (1|Fire) + (1|Fire:PairID), data = plot_dhm.sem),
+  
+  lmer(zasShrubs ~ znormal_annual_precip*zrad_winter + 
+                 #I(scale(normal_annual_precip)^2) +
+                 #scale(rad_winter):I(scale(normal_annual_precip)^2) +
+                 #I(scale(rad_winter)^2) +
+                 #scale(normal_annual_precip)*I(scale(rad_winter)^2) +
+                 #I(scale(rad_winter)^2)*I(scale(normal_annual_precip)^2) +
+                 #scale(tmean) + 
+                 #poly(scale(elev), 2) + #does not improve
+                 ztmin +
+                 #scale(tmax) +
+                 #scale(slope_dem) + 
+                 #I(scale(slope_dem)^2) + 
+                 scale(twi) + 
+                 I(scale(twi)^2) +
+                 ztpi500 + 
+                 (1|Fire) + (1|Fire:PairID), data = plot_dhm.sem)
+    )
+  
+  
+  
+sum.mod.1 <- summary(sem.mods)
+print(sum.mod.1)
+AIC(sem.mods, aicc = TRUE)
+
+
+##### Looking into concerns form audience at AFES -----------------------------------------------
+
+### Test for hump shaped relationship between shrub cover and tree dense.
+
+shr1 <- lmer(ln.dens.planted ~ scale(asin(sqrt(Shrubs/100)))*facts.planting.first.year*fsplanted +
+               #I(scale(asin(sqrt(Shrubs/100)))^2)*facts.planting.first.year +
+               #I(scale(asin(sqrt(Shrubs/100)))^2)*fsplanted + 
+               #I(scale(asin(sqrt(Shrubs/100)))^2)*facts.planting.first.year*fsplanted +
+               #I(scale(asin(sqrt(Shrubs/100)))^2)
+               scale(tpi2000)*facts.planting.first.year +
+               scale(tmean)*scale(normal_annual_precip) +
+               neglog5SeedWallConifer + scale(ShrubHt) +
+               (1|Fire) + (1|Fire:PairID), data = plot_dhm)
+summary(shr1)
+
+# NOPE, NOT QUADRATIC TERM FOR SHRUBS ^^^^^^
+
+
+
+#####################################################################################
+#####################################################################################
+#  ___/-\___  #                  __                       .__                       #
+# |---------| #                _/  |_____________    _____|  |__                    #
+#  |   |   |  #                \   __\_  __ \__  \  /  ___/  |  \                   #
+#  | | | | |  #                 |  |  |  | \// __ \_\___ \|   Y  \                  #
+#  | | | | |  #                 |__|  |__|  (____  /____  >___|  /                  #
+#  | | | | |  #                                  \/     \/     \/                   #
+#  |_______|  #######################################################################
+#####################################################################################
+
+### Test for hump shaped relationship between shrub cover and tree dense.
+
+shr1 <- lmer(ln.dens.planted ~ scale(asin(sqrt(Shrubs/100)))*facts.planting.first.year*fsplanted +
+               #I(scale(asin(sqrt(Shrubs/100)))^2)*facts.planting.first.year +
+               #I(scale(asin(sqrt(Shrubs/100)))^2)*fsplanted + 
+               #I(scale(asin(sqrt(Shrubs/100)))^2)*facts.planting.first.year*fsplanted +
+               #I(scale(asin(sqrt(Shrubs/100)))^2)
+               scale(tpi2000)*facts.planting.first.year +
+               scale(tmean)*scale(normal_annual_precip) +
+               neglog5SeedWallConifer + scale(ShrubHt) +
+               (1|Fire) + (1|Fire:PairID), data = plot_dhm)
+summary(shr1)
+
+# NOPE, NOT QUADRATIC TERM FOR SHRUBS ^^^^^^
+
+shr2 <- lmer(scale(asin(sqrt(Shrubs/100))) ~ scale(rad_winter)+scale(normal_annual_precip) + 
+               I(scale(normal_annual_precip)^2) +
+               scale(rad_winter):I(scale(normal_annual_precip)^2) +
+               #I(scale(rad_winter)^2) +
+               #scale(normal_annual_precip)*I(scale(rad_winter)^2) +
+               #I(scale(rad_winter)^2)*I(scale(normal_annual_precip)^2) +
+               scale(tmin) + 
+               #poly(scale(elev), 2) + #does not improve
+               #scale(tmin) +
+               #scale(tmax) +
+               #scale(twi) + 
+               #I(scale(twi)^2) + 
+               #scale(slope_dem) + 
+               #I(scale(slope_dem)^2) +
+               scale(tpi500) +
+               (1|Fire) 
+             + (1|Fire:PairID)
+             , data = plot_dhm)
+
+#twi may be related to shrub cover?
+shr2 <- lmer(asin(sqrt(Shrubs/100)) ~ fsplanted*facts.released + (1|Fire) + (1|Fire:PairID), data = plot_dhm)
+plot(allEffects(shr2))
+
 ##### Model for Derek ----------------------------------------------------------------------------------
 
 Derek <- lmer(ln.dens.planted ~ scale(Shrubs)*facts.planting.first.year*fsplanted+scale(ShrubHt) +
-               (1|Fire) + (1|Fire:PairID), data = plot_dhm)
+                (1|Fire) + (1|Fire:PairID), data = plot_dhm)
 
 AIC(Derek)
 summary(Derek)
@@ -55,70 +225,3 @@ AIC(shr1)
 summary(shr1)
 plot(allEffects(shr1))
 
-##### biotic environment --------------------------------------------------------------------------------
-
-shr1 <- lmer(ln.dens.planted ~ scale(tpi2000)*facts.planting.first.year +
-               scale(asin(sqrt(Shrubs/100)))*facts.planting.first.year*fsplanted +
-               scale(tmean)*scale(normal_annual_precip) +
-               neglog5SeedWallConifer + scale(ShrubHt) +
-               (1|Fire) + (1|Fire:PairID), data = plot_dhm)
-
-AIC(shr1)
-step(shr1)
-summary(shr1)
-plot(allEffects(shr1))
-tab_model(shr1)
-anova(shr1, shr2)
-
-shr1 <- lmer(ln.dens.conif ~ scale(rad_summer) + facts.planting.first.year*scale(Shrubs)*fsplanted + neglog5SeedWallConifer + scale(ShrubHt) + (1|Fire) + (1|Fire:PairID), data = plot_dhm)
-step(shr1)
-AIC(shr1)
-summary(shr1)
-plot(allEffects(shr1))
-
-#twi may be related to shrub cover?
-shr2 <- lmer(asin(sqrt(Shrubs/100)) ~ fsplanted*facts.released + (1|Fire) + (1|Fire:PairID), data = plot_dhm)
-plot(allEffects(shr2))
-
-
-shr2 <- lmer(scale(asin(sqrt(Shrubs/100))) ~ scale(rad_winter)+scale(normal_annual_precip) + 
-               I(scale(normal_annual_precip)^2) +
-               scale(rad_winter):I(scale(normal_annual_precip)^2) +
-               #I(scale(rad_winter)^2) +
-               #scale(normal_annual_precip)*I(scale(rad_winter)^2) +
-               #I(scale(rad_winter)^2)*I(scale(normal_annual_precip)^2) +
-               scale(tmean) + 
-               #poly(scale(elev), 2) + #does not improve
-               #scale(tmin) +
-               #scale(tmax) +
-               scale(twi) + 
-               I(scale(twi)^2) + 
-               #scale(slope_dem) + 
-               #I(scale(slope_dem)^2) + 
-               (1|Fire) + (1|Fire:PairID), data = plot_dhm)
-shr2 <- lmer(scale(asin(sqrt(Shrubs/100))) ~ scale(rad_winter)*scale(normal_annual_precip)+ scale(rad_winter)*scale(tmax)  +
-                 scale(tpi5000) + 
-               (1|Fire) + (1|Fire:PairID), data = plot_dhm)
-AIC(shr2)
-summary(shr2)
-plot(shr2)
-hist(resid(shr2))
-step(shr2)
-plot(allEffects(shr2))
-tab_model(shr2)
-
-
-plot(allEffects(shr2))
-
-cor(plots %>% dplyr::select(elev, rad_winter, slope_dem, normal_annual_precip, twi, tpi2000, tmax, tmin, tmean),  use = "complete.obs", method = "pearson")
-
-#####################################################################################
-#####################################################################################
-#  ___/-\___  #                  __                       .__                       #
-# |---------| #                _/  |_____________    _____|  |__                    #
-#  |   |   |  #                \   __\_  __ \__  \  /  ___/  |  \                   #
-#  | | | | |  #                 |  |  |  | \// __ \_\___ \|   Y  \                  #
-#  | | | | |  #                 |__|  |__|  (____  /____  >___|  /                  #
-#  | | | | |  #                                  \/     \/     \/                   #
-#  |_______|  #######################################################################
-#####################################################################################
