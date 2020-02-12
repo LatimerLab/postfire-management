@@ -1,0 +1,8 @@
+{
+"type": "FeatureCollection",
+"name": "focal_area_twi_test",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { }, "geometry": { "type": "Polygon", "coordinates": [ [ [ -120.280139004095219, 39.040916170319178 ], [ -120.109770775181673, 39.041050345435174 ], [ -120.115639996288166, 39.15435886244456 ], [ -120.283757508162026, 39.154220034121394 ], [ -120.280139004095219, 39.040916170319178 ] ] ] } }
+]
+}
