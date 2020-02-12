@@ -26,8 +26,8 @@ unique(test)
 
 ##### biotic environment --------------------------------------------------------------------------------
 
-pltd <- lmer(ln.dens.planted ~ #scale(tpi2000)*facts.planting.first.year +
-               #scale(asin(sqrt(Shrubs/100)))*facts.planting.first.year*fsplanted +
+pltd <- lmer(ln.dens.planted ~ scale(tpi2000)*facts.planting.first.year +
+               scale(asin(sqrt(Shrubs/100)))*facts.planting.first.year*fsplanted +
                scale(tmean)*scale(normal_annual_precip) +
                neglog5SeedWallConifer + scale(ShrubHt) +
                (1|Fire) + (1|Fire:PairID), data = plot_dhm)
@@ -38,7 +38,19 @@ plot(allEffects(pltd))
 r.squaredGLMM(pltd)
 
 
-conif <- lmer(ln.dens.conif ~ scale(rad_summer) + facts.planting.first.year*scale(Shrubs)*fsplanted + neglog5SeedWallConifer + scale(ShrubHt) + (1|Fire) + (1|Fire:PairID), data = plot_dhm)
+conif <- lmer(ln.dens.conif ~ scale(rad_summer) + 
+                facts.planting.first.year*scale(Shrubs)*fsplanted + 
+                neglog5SeedWallConifer + scale(ShrubHt) + (1|Fire) + (1|Fire:PairID), data = plot_dhm)
+
+AIC(conif)
+summary(conif)
+plot(allEffects(conif))
+
+conif <- lmer(ln.dens.conif ~ scale(tpi2000)*facts.planting.first.year +
+                fsplanted +#facts.planting.first.year*fsplanted +
+                scale(tmean)*scale(normal_annual_precip) +
+                neglog5SeedWallConifer + #scale(ShrubHt) +
+                (1|Fire) + (1|Fire:PairID), data = plot_dhm)
 
 AIC(conif)
 summary(conif)
