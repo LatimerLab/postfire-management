@@ -5,6 +5,7 @@ library(raster)
 library(sf)
 library(spatialEco)
 library(dynatopmodel)
+library(ncdf4)
 
 
 ## load data
@@ -49,8 +50,6 @@ dem_local = crop(dem,plots_vicinity %>% as("Spatial"))
 dem_local = mask(dem_local,plots_vicinity %>% as("Spatial"))
 dem_local = reclassify(dem_local,cbind(0,NA)) # set zero to nodata
 
-template = raster(xmn = -122055,xmx = 199924, ymn = -333167, ymx = 301365, resolution = 30,  crs = "+proj=aea +lat_1=34 +lat_2=40.5 +lat_0=0 +lon_0=-120 +x_0=0 +y_0=-4000000 +ellps=GRS80 +datum=NAD83 +units=m +no_defs")
-dem_reg = resample(dem_local,template)
 gc()
 
 topo_data = data.frame()
@@ -64,7 +63,7 @@ for(fire in fires) {
   plots_fire = plots_sp %>%
     filter(Fire == fire)
   
-  plots_fire_vicinity = st_buffer(plots_fire,20000) %>% st_union()
+  plots_fire_vicinity = st_buffer(plots_fire,ifelse(fire == "Piute",15000,20000)) %>% st_union()
   dem_local_fire = crop(dem_local,plots_fire_vicinity %>% as("Spatial"))
   dem_local_fire = mask(dem_local_fire,plots_fire_vicinity %>% as("Spatial"))
   # dem_reg_fire = crop(dem_reg,plots_fire_vicinity %>% as("Spatial"))
@@ -79,17 +78,24 @@ for(fire in fires) {
   tpi2000 = tpi(dem_local_fire,scale = round(2000/30))
   tpi5000 = tpi(dem_local_fire,scale = round(5000/30)) # this takes hours
 
-  # twi = upslope.area(dem_reg_fire,atb=TRUE)
+  
+  target_raster = raster(crs = crs(dem_local_fire), ext = extent(dem_local_fire), resolution = 30)
+  dem_resamp = raster::resample(dem_local_fire,target_raster)
+  dem_resamp[dem_resamp == 0] = NA
+  
+  
+  twi = upslope.area(dem_resamp,atb=TRUE)
 
-  tpi500_d = extract(tpi500, plots_fire, method="bilinear")
-  tpi100_d = extract(tpi100, plots_fire, method="bilinear")
-  tpi2000_d = extract(tpi2000, plots_fire, method="bilinear")
-  tpi5000_d = extract(tpi5000, plots_fire, method="bilinear")
-  # twi_d = extract(twi[["atb"]], plots_fire, method="bilinear")
-  # 
-  topo_data_fire = data.frame(PlotID = plots_fire$PlotID,tpi100 = tpi100_d, tpi500 = tpi500_d, tpi2000 = tpi2000_d, tpi5000 = tpi5000_d)
+  tpi500_d = raster::extract(tpi500, plots_fire, method="bilinear")
+  tpi100_d = raster::extract(tpi100, plots_fire, method="bilinear")
+  tpi2000_d = raster::extract(tpi2000, plots_fire, method="bilinear")
+  tpi5000_d = raster::extract(tpi5000, plots_fire, method="bilinear")
+  twi_d = raster::extract(twi[["atb"]], plots_fire, method="bilinear")
+   
+  topo_data_fire = data.frame(PlotID = plots_fire$PlotID,tpi100 = tpi100_d, tpi500 = tpi500_d, tpi2000 = tpi2000_d, tpi5000 = tpi5000_d, twi = twi_d)
   topo_data = bind_rows(topo_data,topo_data_fire)
 
+  gc()
   
 }
 
@@ -199,4 +205,4 @@ plots_summary = plots_sp_facts_planted %>%
 plots = plots_sp_facts %>% st_set_geometry(NULL)
 
 ## write data
-write.csv(plots,"data/field-processed/compiled-processed/plots_w_gis_data.csv",row.names = FALSE)
+write.csv(plots,"data/field-processed/compiled-processed/plots_w_gis_data_newTWI.csv",row.names = FALSE)
