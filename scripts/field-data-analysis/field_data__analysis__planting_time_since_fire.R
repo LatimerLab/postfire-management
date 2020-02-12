@@ -24,7 +24,7 @@ plot_dhm <- plot_dhm %>%
 test <- plot_dhm %>% select(Fire, facts.planting.first.year)
 unique(test)
 
-##### biotic environment --------------------------------------------------------------------------------
+##### final models for planted species and conifers --------------------------------------------------------------------------------
 
 pltd <- lmer(ln.dens.planted ~ scale(tpi2000)*facts.planting.first.year +
                scale(asin(sqrt(Shrubs/100)))*facts.planting.first.year*fsplanted +
@@ -47,13 +47,15 @@ summary(conif)
 plot(allEffects(conif))
 
 conif <- lmer(ln.dens.conif ~ scale(tpi2000)*facts.planting.first.year +
-                fsplanted +#facts.planting.first.year*fsplanted +
+                scale(asin(sqrt(Shrubs/100)))*facts.planting.first.year*fsplanted +
+                #fsplanted +#facts.planting.first.year*fsplanted +
                 scale(tmean)*scale(normal_annual_precip) +
                 neglog5SeedWallConifer + #scale(ShrubHt) +
                 (1|Fire) + (1|Fire:PairID), data = plot_dhm)
 
 AIC(conif)
 summary(conif)
+anova(conif)
 plot(allEffects(conif))
 
 #summary(lm(tpi500~ twi + I(twi^2), , data = plot_dhm))
