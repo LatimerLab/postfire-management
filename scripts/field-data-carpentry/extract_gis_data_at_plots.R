@@ -122,9 +122,9 @@ rad_summer = raster("data/non-synced/existing-datasets/solar radiation/rad_summe
 plots_sp$rad_summer = raster::extract(rad_summer,plots_sp,method="bilinear")
 
 
-## extract twi
-twi = raster("data/non-synced/existing-datasets/twi/twi_merged.tif")
-plots_sp$twi = raster::extract(twi,plots_sp,method="bilinear")
+# ## extract twi
+# twi = raster("data/non-synced/existing-datasets/twi/twi_merged.tif")
+# plots_sp$twi = raster::extract(twi,plots_sp,method="bilinear")
 
 #### Extract and summarize management history ####
 
