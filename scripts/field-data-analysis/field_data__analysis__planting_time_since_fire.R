@@ -26,7 +26,8 @@ unique(test)
 
 ##### final models for planted species and conifers --------------------------------------------------------------------------------
 
-pltd <- lmer(ln.dens.planted ~ scale(tpi2000)*facts.planting.first.year +
+#USE THIS MODEL FOR THE TOOL
+pltd <- lmer(ln.dens.planted ~ scale(tpi2000)*facts.planting.first.year + 
                scale(asin(sqrt(Shrubs/100)))*facts.planting.first.year*fsplanted +
                scale(tmean)*scale(normal_annual_precip) +
                neglog5SeedWallConifer + scale(ShrubHt) +
@@ -38,16 +39,8 @@ plot(allEffects(pltd))
 r.squaredGLMM(pltd)
 
 
-conif <- lmer(ln.dens.conif ~ scale(rad_summer) + 
-                facts.planting.first.year*scale(Shrubs)*fsplanted + 
-                neglog5SeedWallConifer + scale(ShrubHt) + (1|Fire) + (1|Fire:PairID), data = plot_dhm)
-
-AIC(conif)
-summary(conif)
-plot(allEffects(conif))
 
 conif <- lmer(ln.dens.conif ~ scale(tpi2000)*facts.planting.first.year +
-                scale(asin(sqrt(Shrubs/100)))*facts.planting.first.year*fsplanted +
                 #fsplanted +#facts.planting.first.year*fsplanted +
                 scale(tmean)*scale(normal_annual_precip) +
                 neglog5SeedWallConifer + #scale(ShrubHt) +
@@ -166,6 +159,15 @@ summary(shr1)
 #  | | | | |  #                                  \/     \/     \/                   #
 #  |_______|  #######################################################################
 #####################################################################################
+
+
+conif <- lmer(ln.dens.conif ~ scale(rad_summer) + 
+                facts.planting.first.year*scale(Shrubs)*fsplanted + 
+                neglog5SeedWallConifer + scale(ShrubHt) + (1|Fire) + (1|Fire:PairID), data = plot_dhm)
+
+AIC(conif)
+summary(conif)
+plot(allEffects(conif))
 
 ### Test for hump shaped relationship between shrub cover and tree dense.
 
