@@ -35,3 +35,23 @@ pltd <- lmer(ln.dens.planted ~ scale(tpi2000)*facts.planting.first.year +
 hist(plot_dhm$neglog5SeedWallConifer,nclass = 20)
 
 
+#### Predict to a landscape ####
+
+## trial landscape subset ##
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
