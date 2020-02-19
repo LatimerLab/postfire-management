@@ -49,4 +49,5 @@ vignettes/*.pdf
 
 # Directories with files too large to sync
 /data/non-synced/
-/management-tool/data/non-synced/
+/management-tool-prep/data/non-synced/
+/management-tool-app/data/
