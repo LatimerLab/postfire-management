@@ -24,9 +24,11 @@ basins_focal = basins_focal %>%
 
 twi_basin = function(basin_number) {
   
+  write("done",   paste0("management-tool-prep/data/non-synced/",basin_number,"_started.txt"))
+  
   basin_focal = basins_focal[basin_number,]
   
-  buffer_amount = ifelse(basin_number == 33, 4000, 3000)
+  buffer_amount = ifelse(basin_number %in% c(33,28), 4000, 3000)
   
   dem_basin = crop(dem, st_buffer(basin_focal,buffer_amount) )
   dem_basin = mask(dem_basin, st_buffer(basin_focal,buffer_amount) )
@@ -43,12 +45,13 @@ twi_basin = function(basin_number) {
   twi = crop(twi, st_buffer(basin_focal,100) )
   twi = mask(twi, st_buffer(basin_focal,100) )
   
+  write("done",   paste0("management-tool-prep/data/non-synced/",basin_number,"_finished.txt"))
+  
   return(twi)
-
 }
 
 basin_numbers = 1:nrow(basins_focal)
 
-plan(multiprocess)
+plan(multiprocess(workers=3))
 
 twis = future_map(basin_numbers,twi_basin,.progress = TRUE)
