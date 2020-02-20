@@ -2,10 +2,15 @@ library(shiny)
 library(ggplot2)
 library(raster)
 library(sf)
+library(dplyr)
+library(rgdal)
+library(lme4)
+
+options(shiny.sanitize.errors = FALSE)
 
 #### Globals: load pred raster, model, clip pred raster to temp focal area ####
 
-region = st_read("data/king_fire_perimeter.geojson")
+region = st_read("data/american_fire_perimeter.geojson")
 
 env = brick("data/env_raster_stack.tif")
 env = crop(env,region)
@@ -16,17 +21,34 @@ names(env_df) = c("x","y","tpi","ppt","tmean")
 env_df = env_df %>%
   rename(normal_annual_precip = ppt,
          tpi2000 = "tpi") %>%
-  mutate(tmean = tmean/100)
+  mutate(tmean = tmean/100,
+         tpi2000 = tpi2000)    ###!!! need to add /10 once re-generate the input rasters
 
 mod = readRDS("data/model.rds")
 
+
+summary(env_df$tmean)
+summary(env_df$tpi2000)
+summary(env_df$normal_annual_precip)
+
+
+
+dat = readRDS("data/data.rds")
+
+dat = dat %>%
+  select(tpi2000,facts.planting.first.year,Shrubs,fsplanted,tmean,normal_annual_precip,neglog5SeedWallConifer,ShrubHt) %>%
+  mutate(fsplanted = ifelse(fsplanted == "planted",1,0))
+
+summary(dat$tmean)
+summary(dat$tpi2000)
+summary(dat$normal_annual_precip)
 
 
 # Define UI for app that draws a histogram ----
 ui <- fluidPage(
   
   # App title ----
-  titlePanel("Hello Shiny!"),
+  titlePanel("PRESET - Post-fire reforestation success estimation tool"),
   
   # Sidebar layout with input and output definitions ----
   sidebarLayout(
@@ -55,11 +77,6 @@ ui <- fluidPage(
                   min = 1,
                   max = 3,
                   value = 2),
-      sliderInput(inputId = "seedwall",
-                  label = "Seed wall:",
-                  min = -1.2,
-                  max = -0.6,
-                  value = 0),
       radioButtons("planted", label = "Planted",
                    choices = list("Yes" = "planted", "No" = "unplanted"), 
                    selected = "planted")
@@ -75,6 +92,10 @@ ui <- fluidPage(
     )
   )
 )
+
+
+
+
 
 # Define server logic required to draw a histogram ----
 server <- function(input, output) {
@@ -95,18 +116,27 @@ server <- function(input, output) {
     
     ## Make model predictions
 
-    
     env_df = env_df %>%
       mutate(neglog5SeedWallConifer = input$seedwall,
              facts.planting.first.year = input$planted_year,
              fsplanted = input$planted,
-             Shrubs = asin(sqrt(input$shrub_cover/100)),
+             Shrubs = input$shrub_cover,
              ShrubHt = input$shrub_height)
     
-    pred = predict(mod,env_df,re.form=NA)
+    # env_df = env_df %>%
+    #   mutate(normal_annual_precip = 997.3,
+    #          tpi2000 = 14.6,
+    #          tmean = 2.06)
+
+    # env_df = env_df %>%
+    #   mutate(Shrubs = asin(sqrt(Shrubs/100)))
+    
+    pred = predict(mod,env_df,re.form=NA) %>% exp() - 24.99
+
+    pred[pred > 600] = 601
     
     env_df$pred = pred
-    
+        
     pred_raster = rasterFromXYZ(env_df %>% dplyr::select(x,y,pred))
     
     plot(pred_raster)

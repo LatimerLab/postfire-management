@@ -35,6 +35,8 @@ pltd <- lmer(ln.dens.planted ~ scale(tpi2000)*facts.planting.first.year +
 ## Save it
 saveRDS(pltd,"management-tool-prep/data/non-synced/for-tool/model.rds")
 
+saveRDS(plot_dhm,"management-tool-prep/data/non-synced/for-tool/data.rds")
+
 
 #### Stack and save env predictor rasters ####
 
@@ -44,7 +46,7 @@ tpi = raster("management-tool-prep/data/non-synced/intermediate/tpi2000.tif")
 ppt = raster("management-tool-prep/data/non-synced/intermediate/ppt.tif")
 tmean = raster("management-tool-prep/data/non-synced/intermediate/tmean.tif")
 
-env = stack(tpi,ppt,tmean*100) # mult tmean by 100 so it can be saved as an int to save space
+env = stack(tpi*10,ppt,tmean*100) # mult tmean by 100 so it can be saved as an int to save space
 env = crop(env,region %>% st_transform(projection(env)))
 env = mask(env,region %>% st_transform(projection(env)))
 
