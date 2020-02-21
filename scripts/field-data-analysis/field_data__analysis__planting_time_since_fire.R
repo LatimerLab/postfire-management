@@ -21,8 +21,8 @@ plot_dhm <- plot_dhm %>%
   mutate(totalCov = Shrubs + Grasses + Forbs) %>%
   mutate(totalCovxHt = (Shrubs*ShrubHt + Grasses*GrassHt + Forbs*ForbHt))
 
-test <- plot_dhm %>% select(Fire, facts.planting.first.year)
-unique(test)
+plant.yr.per.fire <- plot_dhm %>% select(Fire, facts.planting.first.year)
+unique(plant.yr.per.fire)
 
 ##### final models for planted species and conifers --------------------------------------------------------------------------------
 
@@ -38,8 +38,7 @@ summary(pltd)
 plot(allEffects(pltd))
 r.squaredGLMM(pltd)
 
-
-
+#All conifers model
 conif <- lmer(ln.dens.conif ~ scale(tpi2000)*facts.planting.first.year +
                 #fsplanted +#facts.planting.first.year*fsplanted +
                 scale(tmean)*scale(normal_annual_precip) +
@@ -52,7 +51,9 @@ anova(conif)
 plot(allEffects(conif))
 
 #summary(lm(tpi500~ twi + I(twi^2), , data = plot_dhm))
-plot(tpi500 ~ twi, data = plot_dhm)
+#plot(tpi500 ~ twi, data = plot_dhm)
+
+#Shrub model
 shr <- lmer(scale(asin(sqrt(Shrubs/100))) ~ scale(normal_annual_precip)*scale(rad_winter) + 
                #I(scale(normal_annual_precip)^2) +
                #scale(rad_winter):I(scale(normal_annual_precip)^2) +
@@ -68,7 +69,7 @@ shr <- lmer(scale(asin(sqrt(Shrubs/100))) ~ scale(normal_annual_precip)*scale(ra
                #I(scale(slope_dem)^2) + 
                scale(twi) + 
                I(scale(twi)^2) +
-               #scale(tpi500) + 
+               #scale(tpi500) +
                (1|Fire) + (1|Fire:PairID), data = plot_dhm)
 AIC(shr)
 summary(shr)
@@ -77,12 +78,44 @@ hist(resid(shr))
 plot(allEffects(shr))
 r.squaredGLMM(shr)
 
-save(pltd, shr, file = "output/modelDataForPlots.RData")
+#Shrub Height model, NOT COMPLETED
+shrht <- lmer(ShrubHt ~ scale(normal_annual_precip)*scale(rad_winter) + 
+                I(scale(normal_annual_precip)^2) +
+                scale(rad_winter):I(scale(normal_annual_precip)^2) +
+                I(scale(rad_winter)^2) +
+                #scale(normal_annual_precip)*I(scale(rad_winter)^2) +
+                #I(scale(rad_winter)^2)*I(scale(normal_annual_precip)^2) +
+                scale(tmean) + 
+                poly(scale(elev), 2) + #does not improve
+                scale(tmin) +
+                #I(scale(tmin)^2) + Does not improve modl
+                #scale(tmax) +
+                #scale(slope_dem) + 
+                #I(scale(slope_dem)^2) + 
+                scale(twi) + 
+                I(scale(twi)^2) +
+                #scale(tpi500) +
+                (1|Fire) + (1|Fire:PairID), data = plot_dhm)
+
+AIC(shrht)
+summary(shrht)
+plot(shrht)
+hist(resid(shrht))
+plot(allEffects(shrht))
+r.squaredGLMM(shrht)
+
+#save(pltd, shr, file = "output/modelDataForPlots.RData")
+
 
 cor(plots %>% dplyr::select(elev, rad_winter, slope_dem, normal_annual_precip, twi, tpi100, tpi500, tpi2000, tpi5000, tmax, tmin, tmean),  use = "complete.obs", method = "pearson")
 
 ##### SEM --------------------------------------------------------------------------------------
 
+pltd <- glmer.nb(round(dens.planted, 0 ) ~ scale(tpi2000)*facts.planting.first.year + 
+                   scale(asin(sqrt(Shrubs/100)))*facts.planting.first.year*fsplanted +
+                   scale(tmean)*scale(normal_annual_precip) +
+                   neglog5SeedWallConifer + scale(ShrubHt) +
+                   (1|Fire) + (1|Fire:PairID) ,data = plot_dhm %>% mutate(obs = row_number()))
 
 library(piecewiseSEM)
 
