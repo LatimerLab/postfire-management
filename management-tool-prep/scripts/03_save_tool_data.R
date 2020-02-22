@@ -32,8 +32,6 @@ pltd <- lmer(ln.dens.planted ~ scale(tpi2000)*facts.planting.first.year +
                neglog5SeedWallConifer + scale(ShrubHt) +
                (1|Fire) + (1|Fire:PairID), data = plot_dhm)
 
-predict(pltd,)
-
 
 ## Save it
 saveRDS(pltd,"management-tool-prep/data/non-synced/for-tool/model.rds")

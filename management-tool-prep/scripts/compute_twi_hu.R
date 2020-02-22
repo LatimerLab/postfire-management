@@ -29,11 +29,14 @@ twi_basin = function(basin_number) {
   basin_focal = basins_focal[basin_number,]
   
   buffer_amount = ifelse(basin_number %in% c(33,28), 4000, 3000)
+  buffer_amount = ifelse(basin_number %in% c(2), 5000,buffer_amount)
+  buffer_amount = ifelse(basin_number %in% c(21), 4500,buffer_amount)
   
   dem_basin = crop(dem, st_buffer(basin_focal,buffer_amount) )
   dem_basin = mask(dem_basin, st_buffer(basin_focal,buffer_amount) )
   
   target_raster = raster(crs = crs(dem_basin), ext = extent(dem_basin), resolution = 30)
+  origin(target_raster) = c(0,0)
   
   dem_resamp = raster::resample(dem_basin,target_raster)
   
@@ -55,3 +58,16 @@ basin_numbers = 1:nrow(basins_focal)
 plan(multiprocess(workers=3))
 
 twis = future_map(basin_numbers,twi_basin,.progress = TRUE)
+
+merge_tol = function(x,y) {
+  return(merge(x,y,tolerance=20))
+}
+
+twi_merged = do.call(merge_tol,twis)
+
+for(i in 1:length(twis)) {
+  writeRaster(twis[[i]],paste0("management-tool-prep/data/non-synced/twi_",i,".tif"),overwrite=TRUE)
+}
+
+
+
