@@ -1,4 +1,4 @@
-setwd("C:/Users/DYoung/Documents/Research Projects/Post-fire management/postfire-management")
+setwd("C:/Users/DYoung/Documents/projects/Post-fire management/postfire-management")
 
 library(tidyverse)
 library(raster)
@@ -33,8 +33,10 @@ ppt = raster("data/non-synced/existing-datasets/precipitation/PRISM_ppt_30yr_nor
 plots_sp$normal_annual_precip = raster::extract(ppt,plots_sp,method="bilinear")
 
 ## extract TopoWX normal temperature
-tmax = raster("data/non-synced/existing-datasets/topowx_temerature/tmax_normal/normals_tmax.nc")
-tmin = raster("data/non-synced/existing-datasets/topowx_temerature/tmin_normal/normals_tmin.nc")
+tmax = stack("data/non-synced/existing-datasets/topowx_temerature/tmax_normal/normals_tmax.nc")
+tmax = mean(tmax)
+tmin = stack("data/non-synced/existing-datasets/topowx_temerature/tmin_normal/normals_tmin.nc")
+tmin = mean(tmin)
 tmean = mean(tmax,tmin)
 plots_sp$tmax = raster::extract(tmax,plots_sp,method="bilinear")
 plots_sp$tmin = raster::extract(tmin,plots_sp,method="bilinear")
