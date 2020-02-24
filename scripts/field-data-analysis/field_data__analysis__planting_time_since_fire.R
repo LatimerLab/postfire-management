@@ -5,6 +5,7 @@ library(ggplot2)
 library(gridExtra)
 library(effects)
 library(sjPlot)
+library(MuMIn)
 
 load("output/plotSeedlingData.RData") #load R object: plot_dhm_long
 plot_dhm <- plot_dhm %>% 
@@ -82,19 +83,22 @@ r.squaredGLMM(shr)
 shrht <- lmer(ShrubHt ~ scale(normal_annual_precip)*scale(rad_winter) + 
                 I(scale(normal_annual_precip)^2) +
                 scale(rad_winter):I(scale(normal_annual_precip)^2) +
-                I(scale(rad_winter)^2) +
+                #I(scale(rad_winter)^2) +
                 #scale(normal_annual_precip)*I(scale(rad_winter)^2) +
                 #I(scale(rad_winter)^2)*I(scale(normal_annual_precip)^2) +
-                scale(tmean) + 
-                poly(scale(elev), 2) + #does not improve
-                scale(tmin) +
-                #I(scale(tmin)^2) + Does not improve modl
+                scale(tmax) + 
+                I(scale(tmmax)^2) +
+                scale(elev) +
+                I(scale(elev)^2) +
+                #scale(tmin) +
+                #I(scale(tmin)^2) + 
                 #scale(tmax) +
                 #scale(slope_dem) + 
                 #I(scale(slope_dem)^2) + 
-                scale(twi) + 
-                I(scale(twi)^2) +
-                #scale(tpi500) +
+                #scale(twi) + 
+                #I(scale(twi)^2) +
+                #scale(tpi2000) +
+                #I(scale(tpi2000)^2) +
                 (1|Fire) + (1|Fire:PairID), data = plot_dhm)
 
 AIC(shrht)
