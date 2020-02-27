@@ -12,7 +12,6 @@ library(ncdf4)
 plots = read.csv("data/field-processed/compiled-processed/plots.csv",stringsAsFactors = FALSE)
 
 
-
 ### For plots in geographic
 ## make plots spatial
 
@@ -34,13 +33,46 @@ plots_sp$normal_annual_precip = raster::extract(ppt,plots_sp,method="bilinear")
 
 ## extract TopoWX normal temperature
 tmax = stack("data/non-synced/existing-datasets/topowx_temerature/tmax_normal/normals_tmax.nc")
+tmax_ndj = mean(tmax[[c(11,12,1)]])
+tmax_fma = mean(tmax[[c(2,3,4)]])
+tmax_mjj = mean(tmax[[c(5,6,7)]])
+tmax_aso = mean(tmax[[c(8,9,10)]])
 tmax = mean(tmax)
+
 tmin = stack("data/non-synced/existing-datasets/topowx_temerature/tmin_normal/normals_tmin.nc")
+tmin_ndj = mean(tmin[[c(11,12,1)]])
+tmin_fma = mean(tmin[[c(2,3,4)]])
+tmin_mjj = mean(tmin[[c(5,6,7)]])
+tmin_aso = mean(tmin[[c(8,9,10)]])
 tmin = mean(tmin)
+
+tmean_ndj = mean(tmax_ndj,tmin_ndj)
+tmean_fma = mean(tmax_fma,tmin_fma)
+tmean_mjj = mean(tmax_mjj,tmin_mjj)
+tmean_aso = mean(tmax_aso,tmin_aso)
 tmean = mean(tmax,tmin)
+
+plots_sp$tmax_ndj = raster::extract(tmax_ndj,plots_sp,method="bilinear")
+plots_sp$tmin_ndj = raster::extract(tmin_ndj,plots_sp,method="bilinear")
+plots_sp$tmean_ndj = raster::extract(tmean_ndj,plots_sp,method="bilinear")
+
+plots_sp$tmax_fma = raster::extract(tmax_fma,plots_sp,method="bilinear")
+plots_sp$tmin_fma = raster::extract(tmin_fma,plots_sp,method="bilinear")
+plots_sp$tmean_fma = raster::extract(tmean_fma,plots_sp,method="bilinear")
+
+plots_sp$tmax_mjj = raster::extract(tmax_mjj,plots_sp,method="bilinear")
+plots_sp$tmin_mjj = raster::extract(tmin_mjj,plots_sp,method="bilinear")
+plots_sp$tmean_mjj = raster::extract(tmean_mjj,plots_sp,method="bilinear")
+
+plots_sp$tmax_aso = raster::extract(tmax_aso,plots_sp,method="bilinear")
+plots_sp$tmin_aso = raster::extract(tmin_aso,plots_sp,method="bilinear")
+plots_sp$tmean_aso = raster::extract(tmean_aso,plots_sp,method="bilinear")
+
 plots_sp$tmax = raster::extract(tmax,plots_sp,method="bilinear")
 plots_sp$tmin = raster::extract(tmin,plots_sp,method="bilinear")
 plots_sp$tmean = raster::extract(tmean,plots_sp,method="bilinear")
+
+
 
 ## extract elevation
 dem = raster("data/non-synced/existing-datasets/DEM/CAmerged14_albers.tif")
