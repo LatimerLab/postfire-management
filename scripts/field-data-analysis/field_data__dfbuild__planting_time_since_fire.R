@@ -6,7 +6,7 @@ library(tidyverse)
 
 #####  load data -----------------------------------------------------------------------------------
 
-plots = read.csv("data/field-processed/compiled-processed/plots_w_gis_data.csv",stringsAsFactors = FALSE)
+plots = read.csv("data/field-processed/compiled-processed/plots_w_gis_data_newTWI.csv",stringsAsFactors = FALSE)
 subsample_threshold = read.csv("data/field-processed/compiled-processed/subsample_threshold.csv",stringsAsFactors = FALSE)
 seedlings_plot = read.csv("data/field-processed/compiled-processed/seedlings_plot.csv",stringsAsFactors = FALSE)
 seedlings_transect = read.csv("data/field-processed/compiled-processed/seedlings_transect.csv",stringsAsFactors = FALSE)
@@ -155,18 +155,18 @@ plot_dhm_long <- plot_dhm %>%
 
 ##### Check to see if shrub cover around each tree is similar to plot level ------------
 
-seedl_ave.shr <- seedlings_plot %>%
-  filter(CompType %in% c("S", "SC", "SH", "C", "H", "CH", "HC", "HS", "CS")) %>%
-  group_by(PlotID) %>%
-  summarize(ave.sur.shrub = mean(CompCover))
+#seedl_ave.shr <- seedlings_plot %>%
+#  filter(CompType %in% c("S", "SC", "SH", "C", "H", "CH", "HC", "HS", "CS")) %>%
+#  group_by(PlotID) %>%
+#  summarize(ave.sur.shrub = mean(CompCover))
 
-plots.ave.shr <- plots %>% 
-  left_join(seedl_ave.shr, by = "PlotID")
+#plots.ave.shr <- plots %>% 
+#  left_join(seedl_ave.shr, by = "PlotID")
 
-lmtest <- lm(Shrubs ~ ave.sur.shrub, data = plots.ave.shr)
-summary(lmtest)
-plot(allEffects(lmtest))
-cor(plots.ave.shr$Shrubs, plots.ave.shr$ave.sur.shrub, use = "complete.obs", method = "pearson")
+#lmtest <- lm(Shrubs ~ ave.sur.shrub, data = plots.ave.shr)
+#summary(lmtest)
+#plot(allEffects(lmtest))
+#cor(plots.ave.shr$Shrubs, plots.ave.shr$ave.sur.shrub, use = "complete.obs", method = "pearson")
 
 
 

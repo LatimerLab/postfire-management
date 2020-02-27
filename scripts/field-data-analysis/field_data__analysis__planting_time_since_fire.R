@@ -20,28 +20,33 @@ plot_dhm <- plot_dhm %>%
   mutate(SeedWallConifer = ifelse(is.na(SeedWallConifer), 500, SeedWallConifer)) %>%
   mutate(neglog5SeedWallConifer = -logb(SeedWallConifer, base = exp(5))) %>%
   mutate(totalCov = Shrubs + Grasses + Forbs) %>%
-  mutate(totalCovxHt = (Shrubs*ShrubHt + Grasses*GrassHt + Forbs*ForbHt))
+  mutate(totalCovxHt = (Shrubs*ShrubHt + Grasses*GrassHt + Forbs*ForbHt)) %>%
+  mutate(ShrVol = (Shrubs*ShrubHt))
 
-plant.yr.per.fire <- plot_dhm %>% select(Fire, facts.planting.first.year)
-unique(plant.yr.per.fire)
+#plant.yr.per.fire <- plot_dhm %>% select(Fire, facts.planting.first.year)
+#unique(plant.yr.per.fire)
 
 ##### final models for planted species and conifers --------------------------------------------------------------------------------
 
 #USE THIS MODEL FOR THE TOOL
 pltd <- lmer(ln.dens.planted ~ scale(tpi2000)*facts.planting.first.year + 
-               scale(asin(sqrt(Shrubs/100)))*facts.planting.first.year*fsplanted +
+               #scale(asin(sqrt(Shrubs/100)))*facts.planting.first.year*fsplanted +
+               scale(ShrVol)*facts.planting.first.year*fsplanted +
                scale(tmean)*scale(normal_annual_precip) +
-               neglog5SeedWallConifer + scale(ShrubHt) +
+               neglog5SeedWallConifer + 
+               #scale(ShrubHt) +
                (1|Fire) + (1|Fire:PairID), data = plot_dhm)
 
 AIC(pltd)
 summary(pltd)
+plot(pltd)
 plot(allEffects(pltd))
 r.squaredGLMM(pltd)
 
 #All conifers model
-conif <- lmer(ln.dens.conif ~ scale(tpi2000)*facts.planting.first.year +
-                #fsplanted +#facts.planting.first.year*fsplanted +
+conif <- lmer(ln.dens.conif ~ scale(tpi2000)+facts.planting.first.year +
+                #fsplanted +
+                facts.planting.first.year*fsplanted*scale(ShrCovxHt) +
                 scale(tmean)*scale(normal_annual_precip) +
                 neglog5SeedWallConifer + #scale(ShrubHt) +
                 (1|Fire) + (1|Fire:PairID), data = plot_dhm)
@@ -54,6 +59,8 @@ plot(allEffects(conif))
 #summary(lm(tpi500~ twi + I(twi^2), , data = plot_dhm))
 #plot(tpi500 ~ twi, data = plot_dhm)
 
+#Find the messed up shrub heights.
+plot_dhm %>% filter(ShrubHt < 50) %>% select(Shrubs, ShrubHt, ShrVol) %>% arrange(desc(Shrubs))
 #Shrub model
 shr <- lmer(scale(asin(sqrt(Shrubs/100))) ~ scale(normal_annual_precip)*scale(rad_winter) + 
                #I(scale(normal_annual_precip)^2) +
@@ -63,7 +70,7 @@ shr <- lmer(scale(asin(sqrt(Shrubs/100))) ~ scale(normal_annual_precip)*scale(ra
                #I(scale(rad_winter)^2)*I(scale(normal_annual_precip)^2) +
                #scale(tmean) + 
                #poly(scale(elev), 2) + #does not improve
-               scale(tmin) +
+               scale(tmean) +
                #I(scale(tmin)^2) + Does not improve modl
                #scale(tmax) +
                #scale(slope_dem) + 
@@ -80,16 +87,23 @@ plot(allEffects(shr))
 r.squaredGLMM(shr)
 
 #Shrub Height model, NOT COMPLETED
-shrht <- lmer(ShrubHt ~ scale(normal_annual_precip)*scale(rad_winter) + 
-                I(scale(normal_annual_precip)^2) +
-                scale(rad_winter):I(scale(normal_annual_precip)^2) +
+shrvol <- lmer(ShrCovxHt ~ scale(normal_annual_precip)*scale(rad_winter) + 
+                #I(scale(normal_annual_precip)^2) +
+                #scale(rad_winter):I(scale(normal_annual_precip)^2) +
                 #I(scale(rad_winter)^2) +
                 #scale(normal_annual_precip)*I(scale(rad_winter)^2) +
                 #I(scale(rad_winter)^2)*I(scale(normal_annual_precip)^2) +
-                scale(tmax) + 
-                I(scale(tmmax)^2) +
-                scale(elev) +
-                I(scale(elev)^2) +
+                #scale(normal_annual_precip)*scale(tmean) + 
+                #I(scale(normal_annual_precip)^2) +
+                #scale(tmax):I(scale(normal_annual_precip)^2) +
+                #I(scale(rad_winter)^2) +
+                #scale(normal_annual_precip)*I(scale(tmax)^2) +
+                #I(scale(tmax)^2)*I(scale(normal_annual_precip)^2) +
+                #scale(tmax) + 
+                #scale(tmax):scale(normal_annual_precip) + 
+                #I(scale(tmax)^2) +
+                #scale(elev) +
+                #I(scale(elev)^2) +
                 #scale(tmin) +
                 #I(scale(tmin)^2) + 
                 #scale(tmax) +
@@ -97,9 +111,22 @@ shrht <- lmer(ShrubHt ~ scale(normal_annual_precip)*scale(rad_winter) +
                 #I(scale(slope_dem)^2) + 
                 #scale(twi) + 
                 #I(scale(twi)^2) +
-                #scale(tpi2000) +
-                #I(scale(tpi2000)^2) +
-                (1|Fire) + (1|Fire:PairID), data = plot_dhm)
+                scale(tpi2000) +
+                #scale(tmax) +
+                #scale(tpi2000)*scale(tmax) +
+                scale(tmax)+
+                I(scale(tpi2000)^2) +
+                I(scale(tmax)^2) +
+                #scale(normal_annual_precip) +
+                #I(scale(normal_annual_precip)^2) +
+                #scale(normal_annual_precip):scale(tmax) +
+                #I(scale(normal_annual_precip)^2):scale(tmax) +
+                #scale(normal_annual_precip):I(scale(tmax)^2) +
+                #I(scale(normal_annual_precip)^2):I(scale(tmax)^2) +
+                #I(scale(tpi2000)^2):scale(tmax) +
+                #scale(tpi2000):I(scale(tmax)^2) +
+                #I(scale(tpi2000)^2):I(scale(tmax)^2) +
+                (1|Fire) + (1|Fire:PairID), data = plot_dhm %>% filter(ShrubHt > 0))
 
 AIC(shrht)
 summary(shrht)
