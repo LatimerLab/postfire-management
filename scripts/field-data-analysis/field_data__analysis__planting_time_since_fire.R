@@ -30,11 +30,12 @@ plot_dhm <- plot_dhm %>%
 
 #USE THIS MODEL FOR THE TOOL
 pltd <- lmer(ln.dens.planted ~ scale(tpi2000)*facts.planting.first.year + 
-               #scale(asin(sqrt(Shrubs/100)))*facts.planting.first.year*fsplanted +
-               scale(ShrVol)*facts.planting.first.year*fsplanted +
-               scale(tmean)*scale(normal_annual_precip) +
-               neglog5SeedWallConifer + 
-               #scale(ShrubHt) +
+               scale(asin(sqrt(Shrubs/100)))*facts.planting.first.year*fsplanted +
+               #scale(ShrVol)*facts.planting.first.year*fsplanted +
+               scale(tmin_mjj)*scale(normal_annual_precip) +
+               scale(neglog5SeedWallConifer) +
+               scale(I(DuffDepth+LitterDepth)) +
+               scale(ShrubHt) +
                (1|Fire) + (1|Fire:PairID), data = plot_dhm)
 
 AIC(pltd)
@@ -46,8 +47,9 @@ r.squaredGLMM(pltd)
 #All conifers model
 conif <- lmer(ln.dens.conif ~ scale(tpi2000)+facts.planting.first.year +
                 #fsplanted +
-                facts.planting.first.year*fsplanted*scale(ShrCovxHt) +
+                facts.planting.first.year*fsplanted*scale(ShrVol) +
                 scale(tmean)*scale(normal_annual_precip) +
+                scale(I(DuffDepth+LitterDepth)) +
                 neglog5SeedWallConifer + #scale(ShrubHt) +
                 (1|Fire) + (1|Fire:PairID), data = plot_dhm)
 
@@ -139,6 +141,8 @@ r.squaredGLMM(shrht)
 
 
 cor(plots %>% dplyr::select(elev, rad_winter, slope_dem, normal_annual_precip, twi, tpi100, tpi500, tpi2000, tpi5000, tmax, tmin, tmean),  use = "complete.obs", method = "pearson")
+cor(plots %>% dplyr::select(tmax_ndj, tmin_ndj, tmean_ndj, tmax_fma, tmin_fma, tmean_fma, tmax_mjj, 
+                            tmin_mjj, tmean_mjj, tmax_aso, tmin_aso, tmean_aso, tmax, tmin, tmean),  use = "complete.obs", method = "pearson")
 
 ##### SEM --------------------------------------------------------------------------------------
 
