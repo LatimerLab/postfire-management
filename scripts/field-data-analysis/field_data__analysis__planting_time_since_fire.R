@@ -62,7 +62,7 @@ plot(allEffects(conif))
 #plot(tpi500 ~ twi, data = plot_dhm)
 
 #Find the messed up shrub heights.
-plot_dhm %>% filter(ShrubHt < 50) %>% select(Shrubs, ShrubHt, ShrVol) %>% arrange(desc(Shrubs))
+plot_dhm %>% filter(ShrubHt < 1) %>% select(PlotID, Shrubs, ShrubHt) %>% arrange(desc(Shrubs))
 #Shrub model
 shr <- lmer(scale(asin(sqrt(Shrubs/100))) ~ scale(normal_annual_precip)*scale(rad_winter) + 
                #I(scale(normal_annual_precip)^2) +
