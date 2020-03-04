@@ -1,4 +1,4 @@
-setwd("~/Research Projects/Post-fire management/postfire-management")
+setwd("~/projects/Post-fire management/postfire-management")
 
 library(tidyverse)
 library(sf)
@@ -154,12 +154,16 @@ plots = fix_val(plots,"PlotID","E0048C","E0048I")
 plots = plots %>%
   filter(!is.na(PlotID))
 
-# fix a column name
-plots = plots %>%
-  rename(FuelELitter1 = "FuelELitter1..45",
-    FuelELitter2 = "FuelELitter1..46")
-
 plots[plots$PlotID == "A1147T",c("SlopeDeg","Aspect")] = c(0,0) ##!! TEMPORARY until we extract these
+
+
+## Add some datasheet data that was not entered
+plots[plots$PlotID == "C1023C",]$ShrubHt = 62
+plots[plots$PlotID == "C1023C",]$Shrubs = 80
+
+plots[plots$PlotID == "C1031T",]$ShrubHt = mean(c(117,95,55))
+plots[plots$PlotID == "C1031T",]$Shrubs = 40
+
 
 
 ### Seedlings
@@ -178,9 +182,24 @@ seedlings_plot = seedlings_plot %>%
 ### Shrubs
 shrubs = fix_val(shrubs,"PctDead","S",5) ##!! confirm A4177C
 
-## get rid of records that are not useful
+## add some datasheet values that were missing from entered data
+shrubs_supp = data.frame(PlotID = c("A4012C","E0061I"),
+                         Species = c("CEACOR","ARCPAT"),
+                         Cover = c(95,30),
+                         Density = c("H","M"),
+                         Height = c(120,80),
+                         PctDead = c("0.5","10"))
+shrubs = bind_rows(shrubs,shrubs_supp)
+
+
+## Heightclass1 and heightclass2 are prostrate and erect
 shrubs = shrubs %>%
-  filter(!Species %in% c("NONE","ERECT","PROSTRATE","HEIGHTCLASS1","HEIGHTCLASS2"))
+  mutate(Species = recode(Species,HEIGHTCLASS1 = "PROSTRATE",
+         HEIGHTCLASS2 = "ERECT"))
+  
+## Remove species called "NONE"
+shrubs = shrubs %>%  
+  filter(!Species %in% c("NONE"))
 
 
 ### CWD
@@ -473,6 +492,50 @@ plots = plots %>%
                        C = "AmRiv",
                        D = "Piute",
                        E = "Ctnwd"))
+
+
+
+#### Aggregate shrub-level data to plot level ####
+
+## For plots with "erect" shrub, extract the cover and height
+shrubs_erect = shrubs %>%
+  filter(Species == "ERECT") %>%
+  rename("ShrubErectHt" = "Height",
+         "ShrubErectCover" = "Cover") %>%
+  mutate(ShrubErectVolume = ShrubErectHt * ShrubErectCover) %>%
+  select(PlotID,ShrubErectHt,ShrubErectCover,ShrubErectVolume)
+
+## compute for specieswise
+shrubs_specieswise = shrubs %>%
+  filter(!(Species %in% c("ERECT","PROSTRATE"))) %>%
+  mutate(volume = Cover * Height) %>%
+  group_by(PlotID) %>%
+  summarize(ShrubSpecieswiseVolume = sum(volume))
+
+## Merge into plot table
+
+plots = left_join(plots,shrubs_erect)
+plots = left_join(plots,shrubs_specieswise)
+
+# specieswise NAs are zeros
+plots[is.na(plots$ShrubSpecieswiseVolume),"ShrubSpecieswiseVolume"] = 0
+
+# create a basic plot-level shrub volume
+plots = plots %>%
+  mutate(ShrubVolume = Shrubs * ShrubHt)
+
+
+## Create a combined shrub + shrubErect volume column
+
+plots = plots %>%
+  mutate(ShrubHolisticVolume = ifelse(is.na(ShrubVolume),ShrubErectVolume,ShrubVolume),
+         ShrubHolisticCover = ifelse(is.na(Shrubs),ShrubErectCover,Shrubs),
+         ShrubHolisticHt = ifelse(is.na(ShrubHt),ShrubErectHt,ShrubHt))
+
+#nas are 0s
+plots[is.na(plots$ShrubHolisticVolume),"ShrubHolisticVolume"] = 0
+
+
 
 
 
