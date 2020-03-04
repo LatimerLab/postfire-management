@@ -195,7 +195,7 @@ plots_sp_facts = plots_sp_facts %>%
 
 #### Pull in species planting records ####
 
-source("scripts/field-data-carpentry/extract_facts_species.R") # this stores the file species_per_plot.csv
+# source("scripts/field-data-carpentry/extract_facts_species.R") # this stores the file species_per_plot.csv
 
 species_per_plot = read.csv("data/intermediate/species_per_plot.csv",header=TRUE)
 
