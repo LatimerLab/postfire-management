@@ -21,8 +21,9 @@ plot_dhm <- plot_dhm %>%
   mutate(neglog5SeedWallConifer = -logb(SeedWallConifer, base = exp(5))) %>%
   mutate(totalCov = Shrubs + Grasses + Forbs) %>%
   mutate(totalCovxHt = (Shrubs*ShrubHt + Grasses*GrassHt + Forbs*ForbHt)) %>%
-  mutate(ShrubHt = ifelse(ShrubHt == 0, ShrubErectHt, ShrubHt)) %>%
-  mutate(LitDuff = LitterDepth + DuffDepth)
+  mutate(LitDuff = LitterDepth + DuffDepth) %>%
+  mutate(ShrubHt2 = ifelse(ShrubHt == 0, ShrubErectHt, ShrubHt))
+  
 
 #plant.yr.per.fire <- plot_dhm %>% select(Fire, facts.planting.first.year)
 #unique(plant.yr.per.fire)
@@ -33,10 +34,10 @@ plot_dhm <- plot_dhm %>%
 pltd <- lmer(ln.dens.planted ~ scale(tpi2000)*facts.planting.first.year + 
                asin(sqrt(Shrubs/100))*facts.planting.first.year*fsplanted +
                #scale(ShrubHolisticVolume^(2/3))*facts.planting.first.year*fsplanted +
-               scale(tmin_mjj)*scale(normal_annual_precip) +
+               scale(tmin)*scale(normal_annual_precip) +
                scale(neglog5SeedWallConifer) +
                scale(LitDuff) +
-               #scale(ShrubHt) +
+               #scale(ShrubHt2) +
                #scale(ShrubHolisticVolume) +
                (1|Fire) + (1|Fire:PairID), data = plot_dhm)
 
@@ -80,7 +81,7 @@ shr <- lmer(scale(asin(sqrt(Shrubs/100))) ~ scale(normal_annual_precip)*scale(ra
                #scale(slope_dem) + 
                #I(scale(slope_dem)^2) + 
                scale(twi) + 
-               I(scale(twi)^2) +
+               #I(scale(twi)^2) +
                #scale(tpi500) +
                (1|Fire) + (1|Fire:PairID), data = plot_dhm)
 AIC(shr)
@@ -148,15 +149,15 @@ cor(plots %>% dplyr::select(tmax_ndj, tmin_ndj, tmean_ndj, tmax_fma, tmin_fma, t
 
 ##### SEM --------------------------------------------------------------------------------------
 
-pltd <- glmer.nb(round(dens.planted, 0 ) ~ scale(tpi2000)*facts.planting.first.year + 
+pltd <- glmer(round(dens.planted, 0 ) ~ scale(tpi2000)*facts.planting.first.year + 
                    asin(sqrt(Shrubs/100))*facts.planting.first.year*fsplanted +
                    #scale(ShrubHolisticVolume^(2/3))*facts.planting.first.year*fsplanted +
-                   scale(tmin_mjj)*scale(normal_annual_precip) +
+                   scale(tmin)*scale(normal_annual_precip) +
                    scale(neglog5SeedWallConifer) +
                    scale(LitDuff) +
-                   #scale(ShrubHt) +
+                   #scale(ShrubHt2) +
                    #scale(ShrubHolisticVolume) +
-                   (1|Fire) + (1|Fire:PairID),data = plot_dhm %>% mutate(obs = row_number()))
+                   (1|Fire) + (1|Fire:PairID) + (1|obs), family = poisson, data = plot_dhm %>% mutate(obs = row_number()))
 
 library(piecewiseSEM)
 
