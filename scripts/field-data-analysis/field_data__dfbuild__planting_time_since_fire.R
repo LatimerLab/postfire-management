@@ -149,7 +149,7 @@ plot_dhm_long <- plot_dhm %>%
   mutate(value = ifelse(is.na(value), 0, value)) %>% #assign 0 to na values
   mutate(met.type = str_replace(metric, "\\.[^.]+$" , ""))
 
-save(plot_dhm_long, plot_dhm, file= "output/plotSeedlingData.RData")
+#save(plot_dhm_long, plot_dhm, file= "output/plotSeedlingData.RData")
 
 
 
