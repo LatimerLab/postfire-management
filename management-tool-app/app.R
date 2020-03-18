@@ -10,19 +10,24 @@ options(shiny.sanitize.errors = FALSE)
 
 #### Globals: load pred raster, model, clip pred raster to temp focal area ####
 
-region = st_read("data/american_fire_perimeter.geojson")
+region = st_read("data/power_fire_perimeter.geojson")
 
 env = brick("data/env_raster_stack.tif")
-env = crop(env,region)
-env = mask(env,region)
+env = crop(env,region %>% st_transform(projection(env)))
+env = mask(env,region %>% st_transform(projection(env)))
 
 env_df = as.data.frame(env,xy=TRUE)
-names(env_df) = c("x","y","tpi","ppt","tmean")
+names(env_df) = c("x","y","tpi","ppt","tmin","shrub")
 env_df = env_df %>%
   rename(normal_annual_precip = ppt,
-         tpi2000 = "tpi") %>%
-  mutate(tmean = tmean/100,
-         tpi2000 = tpi2000)    ###!!! need to add /10 once re-generate the input rasters
+         tpi2000 = "tpi",
+         Shrubs = "shrub") %>%
+  ## undo the raster scaling that was done to be able to save layers as int
+  mutate(tmin = tmin/100,
+         tpi2000 = tpi2000/10,
+         Shrubs = Shrubs/100) #%>%
+  # ## do arcsin sqrt transf for shrubs (apparently not needed because redone by scale)
+  # mutate(Shrubs = Shrubs/100 %>% sqrt %>% asin)
 
 mod = readRDS("data/model.rds")
 
@@ -36,7 +41,7 @@ summary(env_df$normal_annual_precip)
 dat = readRDS("data/data.rds")
 
 dat = dat %>%
-  select(tpi2000,facts.planting.first.year,Shrubs,fsplanted,tmean,normal_annual_precip,neglog5SeedWallConifer,ShrubHt) %>%
+  select(tpi2000,facts.planting.first.year,Shrubs,fsplanted,tmin,normal_annual_precip,neglog5SeedWallConifer,ShrubHt) %>%
   mutate(fsplanted = ifelse(fsplanted == "planted",1,0))
 
 summary(dat$tmean)
@@ -76,6 +81,11 @@ ui <- fluidPage(
                   label = "Planting year:",
                   min = 1,
                   max = 3,
+                  value = 2),
+      sliderInput(inputId = "lit_duff",
+                  label = "Litter and duff:",
+                  min = 0,
+                  max = 10,
                   value = 2),
       radioButtons("planted", label = "Planted",
                    choices = list("Yes" = "planted", "No" = "unplanted"), 
@@ -120,8 +130,9 @@ server <- function(input, output) {
       mutate(neglog5SeedWallConifer = input$seedwall,
              facts.planting.first.year = input$planted_year,
              fsplanted = input$planted,
-             Shrubs = input$shrub_cover,
-             ShrubHt = input$shrub_height)
+             #Shrubs = input$shrub_cover,
+             ShrubHt = input$shrub_height,
+             LitDuff = input$lit_duff)
     
     # env_df = env_df %>%
     #   mutate(normal_annual_precip = 997.3,
