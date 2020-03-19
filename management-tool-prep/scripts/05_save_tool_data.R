@@ -30,7 +30,7 @@ pltd <- lmer(ln.dens.planted ~ scale(tpi2000)*facts.planting.first.year +
                #scale(ShrubHolisticVolume^(2/3))*facts.planting.first.year*fsplanted +
                scale(tmin)*scale(normal_annual_precip) +
                scale(neglog5SeedWallConifer) +
-               scale(LitDuff) +
+               #scale(LitDuff) +
                #scale(ShrubHt2) +
                #scale(ShrubHolisticVolume) +
                (1|Fire) + (1|Fire:PairID), data = plot_dhm)

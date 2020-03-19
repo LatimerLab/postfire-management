@@ -60,6 +60,7 @@ env_df = env_df %>%
          Shrubs = Shrubs/100) %>%
   # apply transformation needed by stat model
   mutate(seed_dist = ifelse(seed_dist == 0,15,seed_dist)) %>% # correct for a limitation of using remotely sensed data: no plot center is exactly 0 m from a tree. Use 15 since we are focused on high-severity areas, so the closest a tree could be is half the width of the pixel. Also conveniently 15 m was the closest a tree was in our plot dataset.
+  mutate(seed_dist = ifelse(seed_dist >= 200,200,seed_dist)) %>% # cap it at 200 since our field data only go that far and we know it tends to level off by then
   mutate(neglog5SeedWallConifer = -logb(seed_dist, base = exp(5)) )
   #%>%
   # ## do arcsin sqrt transf for shrubs (apparently not needed because redone by scale)
@@ -106,26 +107,26 @@ ui <- fluidPage(
       #             min = -1.2,
       #             max = -0.6,
       #             value = -0.9),
-      sliderInput(inputId = "shrub_cover",
-                  label = "Shrub cover:",
-                  min = 0,
-                  max = 100,
-                  value = 50),
-      sliderInput(inputId = "shrub_height",
-                  label = "Shrub height:",
-                  min = 0,
-                  max = 300,
-                  value = 50),
+      # sliderInput(inputId = "shrub_cover",
+      #             label = "Shrub cover:",
+      #             min = 0,
+      #             max = 100,
+      #             value = 50),
+      # sliderInput(inputId = "shrub_height",
+      #             label = "Shrub height:",
+      #             min = 0,
+      #             max = 300,
+      #             value = 50),
       sliderInput(inputId = "planted_year",
                   label = "Planting year:",
-                  min = 1,
-                  max = 3,
-                  value = 2),
-      sliderInput(inputId = "lit_duff",
-                  label = "Litter and duff:",
-                  min = 0,
-                  max = 10,
-                  value = 2),
+                  min=1,
+                  max=3,
+                  value=2),
+      # sliderInput(inputId = "lit_duff",
+      #             label = "Litter and duff:",
+      #             min = 0,
+      #             max = 10,
+      #             value = 2),
       radioButtons("planted", label = "Planted",
                    choices = list("Yes" = "planted", "No" = "unplanted"), 
                    selected = "planted")
@@ -168,10 +169,10 @@ server <- function(input, output) {
     env_df = env_df %>%
       mutate(#neglog5SeedWallConifer = input$seedwall,
              facts.planting.first.year = input$planted_year,
-             fsplanted = input$planted,
+             fsplanted = input$planted)
              #  Shrubs = input$shrub_cover,
-             ShrubHt = input$shrub_height,
-             LitDuff = input$lit_duff)
+             #ShrubHt = input$shrub_height,
+             #LitDuff = input$lit_duff)
     
     # env_df = env_df %>%
     #   mutate(normal_annual_precip = 997.3,
