@@ -23,7 +23,8 @@ plot_dhm <- plot_dhm %>%
   mutate(totalCov = Shrubs + Grasses + Forbs) %>%
   mutate(totalCovxHt = (Shrubs*ShrubHt + Grasses*GrassHt + Forbs*ForbHt)) %>%
   mutate(LitDuff = LitterDepth + DuffDepth) %>%
-  mutate(ShrubHt2 = ifelse(ShrubHt == 0, ShrubErectHt, ShrubHt))
+  mutate(ShrubHt2 = ifelse(ShrubHt == 0, ShrubErectHt, ShrubHt)) %>%
+  mutate(fsplanted = fsplanted == "planted") # turn into logical
 
 pltd <- lmer(ln.dens.planted ~ scale(tpi2000)*facts.planting.first.year + 
                asin(sqrt(Shrubs/100))*facts.planting.first.year*fsplanted +

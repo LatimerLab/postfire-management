@@ -5,6 +5,6 @@ account: preset
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 1837927
-bundleId: 2815248
+bundleId: 2900237
 url: https://preset.shinyapps.io/management-tool-app/
-when: 1582213683.33911
+when: 1584664391.50482

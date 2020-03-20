@@ -107,13 +107,13 @@ ui <- fluidPage(
       #             min = -1.2,
       #             max = -0.6,
       #             value = -0.9),
-      # sliderInput(inputId = "shrub_cover",
-      #             label = "Shrub cover:",
-      #             min = 0,
-      #             max = 100,
-      #             value = 50),
-      # sliderInput(inputId = "shrub_height",
-      #             label = "Shrub height:",
+      sliderInput(inputId = "density_range",
+                  label = "Acceptable density range:",
+                  min = 0,
+                  max = 600,
+                  value = c(200,300)),
+      # sliderInput(inputId = "max_density",
+      #             label = "Maximum seedling density:",
       #             min = 0,
       #             max = 300,
       #             value = 50),
@@ -127,9 +127,9 @@ ui <- fluidPage(
       #             min = 0,
       #             max = 10,
       #             value = 2),
-      radioButtons("planted", label = "Planted",
-                   choices = list("Yes" = "planted", "No" = "unplanted"), 
-                   selected = "planted")
+      # radioButtons("planted", label = "Planted",
+      #              choices = list("Yes" = TRUE, "No" = FALSE), 
+      #              selected = "planted")
       
     ),
     
@@ -168,12 +168,12 @@ server <- function(input, output) {
 
     env_df = env_df %>%
       mutate(#neglog5SeedWallConifer = input$seedwall,
-             facts.planting.first.year = input$planted_year,
-             fsplanted = input$planted)
+             facts.planting.first.year = input$planted_year)
+             # fsplanted = input$planted)
              #  Shrubs = input$shrub_cover,
              #ShrubHt = input$shrub_height,
              #LitDuff = input$lit_duff)
-    
+
     # env_df = env_df %>%
     #   mutate(normal_annual_precip = 997.3,
     #          tpi2000 = 14.6,
@@ -182,15 +182,59 @@ server <- function(input, output) {
     # env_df = env_df %>%
     #   mutate(Shrubs = asin(sqrt(Shrubs/100)))
     
-    pred = predict(mod,env_df,re.form=NA) %>% exp() - 24.99
+    ## for predictions of a no-planting scenario
+    env_df_noplant = env_df %>%
+      mutate(fsplanted = FALSE)
+    
+    ## for predictions of a planting scenario
+    env_df_plant = env_df %>%
+      mutate(fsplanted = TRUE)
+    
+    pred_noplant = predict(mod,env_df_noplant,re.form=NA) %>% exp() - 24.99
+    pred_plant = predict(mod,env_df_plant,re.form=NA) %>% exp() - 24.99
+    
+    pred_df = env_df
+    
+    pred_df$pred_noplant = pred_noplant
+    pred_df$pred_plant = pred_plant
+    
+    
+    density_low = input$density_range[1]
+    density_high = input$density_range[2]
+    
+    
+    ## classify densities
+    pred_df = pred_df %>%
+      mutate(noplant_class = cut(pred_noplant,breaks=c(-Inf,density_low,density_high,Inf),labels=c("low","good","high"))) %>%
+      mutate(plant_class = cut(pred_plant,breaks=c(-Inf,density_low,density_high,Inf),labels=c("low","good","high")))
+    
+    pred_df$overall = NA
+    ##too low even with planting
+    pred_df[which(pred_df$plant == "low"),"overall"] = "too low (even with planting)"
+    ##too high even without planting
+    pred_df[which(pred_df$noplant == "high"),"overall"] = "too high (even without planting)"
+    ## good with planting only
+    pred_df[which(pred_df$noplant != "good" & pred_df$plant == "good"),"overall"] = "good if planted"
+    ## good with natural only
+    pred_df[which(pred_df$noplant == "good" & pred_df$plant != "good"), "overall"] = "good if unplanted"
+    ## good regardless of planting
+    pred_df[which(pred_df$noplant == "good" & pred_df$plant == "good"), "overall"] = "good regardless of planting"
+    ## too low when unplanted; too high when planted
+    pred_df[which(pred_df$noplant == "low" & pred_df$plant == "high"), "overall"] = "not possible"
+    
+    
+    pred_raster_noplant = rasterFromXYZ(pred_df %>% dplyr::select(x,y,noplant_class))
+    pred_raster_plant = rasterFromXYZ(pred_df %>% dplyr::select(x,y,plant_class))
+    
 
-    pred[pred > 600] = 601
     
-    env_df$pred = pred
-        
-    pred_raster = rasterFromXYZ(env_df %>% dplyr::select(x,y,pred))
+    main_map = ggplot(pred_df,aes(x=x,y=y,fill=overall)) +
+      geom_raster() +
+      coord_fixed()
     
-    plot(pred_raster)
+    
+    
+    plot(main_map)
     
     # hist(x, breaks = bins, col = "#75AADB", border = "white",
     #      xlab = "Waiting time to next eruption (in mins)",
