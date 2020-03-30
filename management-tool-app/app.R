@@ -66,6 +66,8 @@ env_df = env_df %>%
   # ## do arcsin sqrt transf for shrubs (apparently not needed because redone by scale)
   # mutate(Shrubs = Shrubs/100 %>% sqrt %>% asin)
 
+color_pal <- c("too low (even with planting)" = "#fde725", "good if planted" = "#7ad151", "good regardless of planting" = "#22a884",  "not possible" = "#2a788e", "good if unplanted" = "#414487", "too high (even without planting)" = "#440154")
+
 
 
 
@@ -108,20 +110,19 @@ ui <- fluidPage(
       #             max = -0.6,
       #             value = -0.9),
       sliderInput(inputId = "density_range",
-                  label = "Acceptable density range:",
+                  label = "Acceptable density range (seedlings/acre):",
                   min = 0,
                   max = 600,
-                  value = c(200,300)),
+                  value = c(50,250)),
       # sliderInput(inputId = "max_density",
       #             label = "Maximum seedling density:",
       #             min = 0,
       #             max = 300,
       #             value = 50),
-      sliderInput(inputId = "planted_year",
+      radioButtons(inputId = "planted_year",
                   label = "Planting year:",
-                  min=1,
-                  max=3,
-                  value=2),
+                  choices = list("1 year post-fire" = 1, "2 years post-fire" = 2, "3 years post-fire" = 3),
+                  selected = 1)
       # sliderInput(inputId = "lit_duff",
       #             label = "Litter and duff:",
       #             min = 0,
@@ -137,7 +138,13 @@ ui <- fluidPage(
     mainPanel(
       
       # Output: Histogram ----
-      plotOutput(outputId = "distPlot")
+      plotOutput(outputId = "distPlot"),
+      strong("To do:"),
+      tags$ul(
+        tags$li("Mask out non-high-severity"),
+        tags$li("Mask out model extrapolation areas")
+      )
+      
       
     )
   )
@@ -162,13 +169,13 @@ server <- function(input, output) {
     
     # x    <- faithful$waiting
     # bins <- seq(min(x), max(x), length.out = input$bins + 1)
-    
-    
-    ## Make model predictions
+    # 
 
+    ## Make model predictions
+  
     env_df = env_df %>%
       mutate(#neglog5SeedWallConifer = input$seedwall,
-             facts.planting.first.year = input$planted_year)
+             facts.planting.first.year = as.numeric(input$planted_year))
              # fsplanted = input$planted)
              #  Shrubs = input$shrub_cover,
              #ShrubHt = input$shrub_height,
@@ -181,33 +188,40 @@ server <- function(input, output) {
 
     # env_df = env_df %>%
     #   mutate(Shrubs = asin(sqrt(Shrubs/100)))
-    
+
     ## for predictions of a no-planting scenario
     env_df_noplant = env_df %>%
       mutate(fsplanted = FALSE)
-    
+
     ## for predictions of a planting scenario
     env_df_plant = env_df %>%
       mutate(fsplanted = TRUE)
-    
+
+    # predict seedlings per ha (incl undoing the response variable trasformation)
     pred_noplant = predict(mod,env_df_noplant,re.form=NA) %>% exp() - 24.99
     pred_plant = predict(mod,env_df_plant,re.form=NA) %>% exp() - 24.99
-    
+
+    # convert seedlings/ha to seedlings/acre
+    pred_noplant = pred_noplant / 2.47
+    pred_plant = pred_plant / 2.47
+
+
     pred_df = env_df
-    
+
     pred_df$pred_noplant = pred_noplant
     pred_df$pred_plant = pred_plant
-    
-    
+
+
     density_low = input$density_range[1]
     density_high = input$density_range[2]
-    
-    
+
+
     ## classify densities
     pred_df = pred_df %>%
       mutate(noplant_class = cut(pred_noplant,breaks=c(-Inf,density_low,density_high,Inf),labels=c("low","good","high"))) %>%
-      mutate(plant_class = cut(pred_plant,breaks=c(-Inf,density_low,density_high,Inf),labels=c("low","good","high")))
-    
+      mutate(plant_class = cut(pred_plant,breaks=c(-Inf,density_low,density_high,Inf),labels=c("low","good","high"))) %>%
+      filter(!is.na(pred_noplant))
+
     pred_df$overall = NA
     ##too low even with planting
     pred_df[which(pred_df$plant == "low"),"overall"] = "too low (even with planting)"
@@ -221,26 +235,39 @@ server <- function(input, output) {
     pred_df[which(pred_df$noplant == "good" & pred_df$plant == "good"), "overall"] = "good regardless of planting"
     ## too low when unplanted; too high when planted
     pred_df[which(pred_df$noplant == "low" & pred_df$plant == "high"), "overall"] = "not possible"
-    
-    
+
+    pred_df = pred_df %>%
+      mutate(overall = factor(overall, levels = (names(color_pal))))
+
+    ## maybe don't need the following?
     pred_raster_noplant = rasterFromXYZ(pred_df %>% dplyr::select(x,y,noplant_class))
     pred_raster_plant = rasterFromXYZ(pred_df %>% dplyr::select(x,y,plant_class))
-    
 
-    
     main_map = ggplot(pred_df,aes(x=x,y=y,fill=overall)) +
       geom_raster() +
-      coord_fixed()
-    
-    
-    
+      coord_fixed() +
+      theme_void(20) +
+      scale_fill_manual(values = color_pal) +
+      theme(legend.position="bottom", legend.title=element_blank(), plot.title = element_text(hjust = 0.5)) +
+      ggtitle("Seedling density") +
+      guides(fill = guide_legend(nrow = 2))
+
+
+
     plot(main_map)
-    
+
     # hist(x, breaks = bins, col = "#75AADB", border = "white",
     #      xlab = "Waiting time to next eruption (in mins)",
     #      main = "Histogram of waiting times")
     
   })
+  
+  
+  
+  # output$unplanted_density({
+  #   
+  #   
+  # })
   
 }
 
