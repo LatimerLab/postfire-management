@@ -6,6 +6,7 @@ library(dplyr)
 library(rgdal)
 library(lme4)
 library(fasterize)
+library(viridis)
 
 options(shiny.sanitize.errors = FALSE)
 
@@ -26,7 +27,7 @@ perim_buffer = st_buffer(perim,100)
 perim_ring = st_difference(perim_buffer,perim)
 
 ## merge the ring with the non-high-sev to get all areas to measure seed distance from
-seed_source = st_union(sev_nonhigh,perim_ring) %>% st_buffer(0) %>% st_union
+seed_source = st_union(sev_nonhigh,perim_ring) %>% st_buffer(0) #%>% st_union
 
 ## turn into raster
 raster_template = raster(seed_source %>% as("Spatial"),resolution=30,crs=3310)
@@ -41,15 +42,21 @@ seed_dist = distance(seed_rast)
 seed_dist = crop(seed_dist,perim)
 seed_dist = mask(seed_dist,perim)
 
+## Make a seed dist (0 m) mask layer
+non_high_sev_mask = seed_dist
+non_high_sev_mask[seed_dist == 0] = 1
+non_high_sev_mask[seed_dist != 0] = 0
+
+
 
 #### Load and assemble env predictor data ####
 
 env = crop(env,perim %>% st_transform(projection(env)))
 env = mask(env,perim %>% st_transform(projection(env)))
-env = stack(env,seed_dist)
+env = stack(env,seed_dist,non_high_sev_mask)
 
 env_df = as.data.frame(env,xy=TRUE)
-names(env_df) = c("x","y","tpi","ppt","tmin","shrub","seed_dist")
+names(env_df) = c("x","y","tpi","ppt","tmin","shrub","seed_dist","non_high_sev_mask")
 env_df = env_df %>%
   rename(normal_annual_precip = ppt,
          tpi2000 = "tpi",
@@ -91,6 +98,187 @@ dat = readRDS("data/data.rds")
 # summary(dat$normal_annual_precip)
 
 
+#### Function for making maps based on inputs ####
+# This function relies on some globals from above
+make_maps = function(plant_year, density_low, density_high, mask_non_high_sev) {
+  
+  env_df = env_df %>%
+    mutate(#neglog5SeedWallConifer = input$seedwall,
+      facts.planting.first.year = as.numeric(plant_year))
+  # fsplanted = input$planted)
+  #  Shrubs = input$shrub_cover,  
+  #ShrubHt = input$shrub_height,
+  #LitDuff = input$lit_duff)
+  
+  # env_df = env_df %>%
+  #   mutate(normal_annual_precip = 997.3,
+  #          tpi2000 = 14.6,
+  #          tmean = 2.06)
+  
+  # env_df = env_df %>%
+  #   mutate(Shrubs = asin(sqrt(Shrubs/100)))
+  
+  ## for predictions of a no-planting scenario
+  env_df_noplant = env_df %>%
+    mutate(fsplanted = FALSE)
+  
+  ## for predictions of a planting scenario
+  env_df_plant = env_df %>%
+    mutate(fsplanted = TRUE)
+  
+  # predict seedlings per ha (incl undoing the response variable trasformation)
+  pred_noplant = predict(mod,env_df_noplant,re.form=NA) %>% exp() - 24.99
+  pred_plant = predict(mod,env_df_plant,re.form=NA) %>% exp() - 24.99
+  
+  # convert seedlings/ha to seedlings/acre
+  pred_noplant = pred_noplant / 2.47
+  pred_plant = pred_plant / 2.47
+  
+  # any model predictions below 0 should be 0
+  pred_noplant[pred_noplant < 0.1] = 0.1
+  pred_plant[pred_plant < 0.1] = 0.1
+  
+  pred_df = env_df
+  
+  pred_df$pred_noplant = pred_noplant
+  pred_df$pred_plant = pred_plant
+  
+  density_low = density_low
+  density_high = density_high
+  
+  ## classify densities
+  pred_df = pred_df %>%
+    mutate(noplant_class = cut(pred_noplant,breaks=c(-Inf,density_low,density_high,Inf),labels=c("low","good","high"))) %>%
+    mutate(plant_class = cut(pred_plant,breaks=c(-Inf,density_low,density_high,Inf),labels=c("low","good","high"))) %>%
+    filter(!is.na(pred_noplant))
+  
+  
+  
+  pred_df$overall = NA
+  ##too low even with planting
+  pred_df[which(pred_df$plant == "low"),"overall"] = "too low (even with planting)"
+  ##too high even without planting
+  pred_df[which(pred_df$noplant == "high"),"overall"] = "too high (even without planting)"
+  ## good with planting only
+  pred_df[which(pred_df$noplant != "good" & pred_df$plant == "good"),"overall"] = "good if planted"
+  ## good with natural only
+  pred_df[which(pred_df$noplant == "good" & pred_df$plant != "good"), "overall"] = "good if unplanted"
+  ## good regardless of planting
+  pred_df[which(pred_df$noplant == "good" & pred_df$plant == "good"), "overall"] = "good regardless of planting"
+  ## too low when unplanted; too high when planted
+  pred_df[which(pred_df$noplant == "low" & pred_df$plant == "high"), "overall"] = "not possible"
+  
+  # ## maybe don't need the following?
+  # pred_raster_noplant = rasterFromXYZ(pred_df %>% dplyr::select(x,y,noplant_class))
+  # pred_raster_plant = rasterFromXYZ(pred_df %>% dplyr::select(x,y,plant_class))
+  
+  df_plot = pred_df %>%
+    mutate(overall = factor(overall, levels = rev(names(color_pal)))) %>%
+    mutate(pred_noplant = ifelse(pred_noplant > 400, 400, pred_noplant)) %>%
+    mutate(pred_plant = ifelse(pred_plant > 400, 400, pred_plant))
+
+  ## Drop rows of masked-out values
+  if(mask_non_high_sev) {
+    df_plot = df_plot[df_plot$non_high_sev_mask != 1,]
+  }
+  
+  main_map = ggplot(data=df_plot,aes(x=x,y=y,fill=overall)) +
+    geom_raster() +
+    geom_sf(data=perim,color="black",fill = NA, inherit.aes = FALSE) +
+    theme_void(20) +
+    scale_fill_manual(values = color_pal) +
+    theme(legend.position="bottom", legend.title=element_blank(), plot.title = element_text(hjust = 0.5)) +
+    labs(title = "Seedling density") +
+    guides(fill = guide_legend(nrow = 6))
+  
+  density_unplanted = ggplot(df_plot,aes(x=x,y=y,fill=pred_noplant)) +
+    geom_raster() +
+    coord_fixed() +
+    theme_void(20) +
+    scale_fill_viridis(breaks=c(0,200,400),
+                         labels=c(0,200,"400+"),
+                         limits=c(0,400),
+                         direction = -1,
+                       option = "inferno",
+                       begin = 0.2,
+                       end = 0.9) +
+    theme(legend.position="bottom", plot.title = element_text(hjust = 0.5), legend.direction = "vertical") +
+    labs(title = "Seedling density: Natural", fill = "Seedlings / acre") #+
+    #guides(fill = guide_legend(reverse=FALSE))
+    #guides(fill = guide_legend(nrow = 2))
+  
+  density_planted = ggplot(df_plot,aes(x=x,y=y,fill=pred_plant)) +
+    geom_raster() +
+    coord_fixed() +
+    theme_void(20) +
+    scale_fill_viridis(breaks=c(0,200,400),
+                       labels=c(0,200,"400+"),
+                       limits=c(0,400),
+                       direction = -1,
+                       option = "inferno",
+                       begin = 0.2,
+                       end = 0.9) +
+    theme(legend.position="bottom", plot.title = element_text(hjust = 0.5), legend.direction = "vertical") +
+    labs(title = "Seedling density: Natural + planted", fill = "Seedlings / acre") #+
+  
+  cover_shrub = ggplot(df_plot,aes(x=x,y=y,fill=Shrubs)) +
+    geom_raster() +
+    coord_fixed() +
+    theme_void(20) +
+    scale_fill_viridis(direction = -1) +
+    theme(legend.position="bottom", plot.title = element_text(hjust = 0.5), legend.direction = "vertical") +
+    labs(title = "Modeled shrub cover", fill = "Percent cover")
+  
+  seed_distance = ggplot(df_plot,aes(x=x,y=y,fill=seed_dist)) +
+    geom_raster() +
+    coord_fixed() +
+    theme_void(20) +
+    scale_fill_viridis() +
+    theme(legend.position="bottom", plot.title = element_text(hjust = 0.5), legend.direction = "vertical") +
+    labs(title = "Seed tree distance", fill = "Distance (m)")
+  
+  tmin = ggplot(df_plot,aes(x=x,y=y,fill=tmin)) +
+    geom_raster() +
+    coord_fixed() +
+    theme_void(20) +
+    scale_fill_viridis(option = "inferno") +
+    theme(legend.position="bottom", plot.title = element_text(hjust = 0.5), legend.direction = "vertical") +
+    labs(title = "Annual average of daily minimum temperature", fill = "°C")
+  
+  precip = ggplot(df_plot,aes(x=x,y=y,fill=normal_annual_precip)) +
+    geom_raster() +
+    coord_fixed() +
+    theme_void(20) +
+    scale_fill_viridis(option = "viridis",
+                       direction = -1) +
+    theme(legend.position="bottom", plot.title = element_text(hjust = 0.5), legend.direction = "vertical") +
+    labs(title = "Annual average precipitation", fill = "mm")
+  
+  tpi = ggplot(df_plot,aes(x=x,y=y,fill=tpi2000)) +
+    geom_raster() +
+    coord_fixed() +
+    theme_void(20) +
+    scale_fill_viridis(option = "inferno",
+                       direction = 1) +
+    theme(legend.position="bottom", plot.title = element_text(hjust = 0.5), legend.direction = "vertical") +
+    labs(title = "Topographic position index", fill = "TPI")
+  
+  ret = list("main" = main_map, "density_unplanted" = density_unplanted, "density_planted" = density_planted,
+             "cover_shrub" = cover_shrub,
+             "seed_distance" = seed_distance,
+             tmin = tmin,
+             precip = precip,
+             tpi = tpi)
+  
+  return(ret)
+  
+}
+
+
+
+
+
+
 # Define UI for app that draws a histogram ----
 ui <- fluidPage(
   
@@ -110,7 +298,7 @@ ui <- fluidPage(
       #             max = -0.6,
       #             value = -0.9),
       sliderInput(inputId = "density_range",
-                  label = "Acceptable density range (seedlings/acre):",
+                  label = "Acceptable seedling density range (seedlings/acre):",
                   min = 0,
                   max = 600,
                   value = c(50,250)),
@@ -122,7 +310,22 @@ ui <- fluidPage(
       radioButtons(inputId = "planted_year",
                   label = "Planting year:",
                   choices = list("1 year post-fire" = 1, "2 years post-fire" = 2, "3 years post-fire" = 3),
-                  selected = 1)
+                  selected = 1),
+      checkboxInput(inputId = "mask_non_high_sev",
+                    label = "Show high-severity area only",
+                    value = FALSE),
+      checkboxGroupInput(inputId = "map_selection",
+                    label = "Layers to display:",
+                    choices = list("Main predictions" = "main",
+                                   "Natural seedling density" = "density_unplanted",
+                                   "Planted + natural seedling density" = "density_planted",
+                                   "Modeled shrub cover" = "cover_shrub",
+                                   "Seed tree distance" = "seed_distance",
+                                   "Minimum temperature" = "tmin",
+                                   "Annual precipitation" = "precip",
+                                   "Topographic position index" = "tpi"
+                                   ),
+                    selected = "main")
       # sliderInput(inputId = "lit_duff",
       #             label = "Litter and duff:",
       #             min = 0,
@@ -137,15 +340,69 @@ ui <- fluidPage(
     # Main panel for displaying outputs ----
     mainPanel(
       
-      # Output: Histogram ----
-      plotOutput(outputId = "distPlot"),
-      strong("To do:"),
-      tags$ul(
-        tags$li("Mask out non-high-severity"),
-        tags$li("Mask out model extrapolation areas")
+      ## Main map
+      conditionalPanel(
+          condition = "input.map_selection.includes('main') === true",      
+        plotOutput(outputId = "distPlot"),
+        strong("To do:"),
+        tags$ul(
+          tags$li("Mask out non-high-severity"),
+          tags$li("Mask out model extrapolation areas")
+        ),
+        tags$br()
+      ),
+      
+      ## Unplanted density
+      conditionalPanel(
+        condition = "input.map_selection.includes('density_unplanted') === true",
+        plotOutput(outputId = "densityUnplantedPlot"),
+        tags$br(" ")
+      ),
+      
+      ## Planted density
+      conditionalPanel(
+        condition = "input.map_selection.includes('density_planted') === true",
+        plotOutput(outputId = "densityPlantedPlot"),
+        tags$br()
+      ),
+      
+      ## Shrub cover
+      conditionalPanel(
+        condition = "input.map_selection.includes('cover_shrub') === true",
+        plotOutput(outputId = "coverShrubPlot"),
+        tags$br()
+      ),
+      
+      ## Seed distance
+      conditionalPanel(
+        condition = "input.map_selection.includes('seed_distance') === true",
+        plotOutput(outputId = "seedDistancePlot"),
+        tags$br()
+      ),
+      
+      ## Tmin
+      conditionalPanel(
+        condition = "input.map_selection.includes('tmin') === true",
+        plotOutput(outputId = "tminPlot"),
+        tags$br()
+      ),
+      
+      ## Precip
+      conditionalPanel(
+        condition = "input.map_selection.includes('precip') === true",
+        plotOutput(outputId = "precipPlot"),
+        tags$br()
+      ),
+      
+      ## TPI
+      conditionalPanel(
+        condition = "input.map_selection.includes('tpi') === true",
+        plotOutput(outputId = "tpiPlot"),
+        tags$br()
       )
       
-      
+
+
     )
   )
 )
@@ -156,6 +413,9 @@ ui <- fluidPage(
 
 # Define server logic required to draw a histogram ----
 server <- function(input, output) {
+  
+
+  maps = reactive({ make_maps(input$planted_year, input$density_range[1], input$density_range[2], input$mask_non_high_sev) })
   
   # Histogram of the Old Faithful Geyser Data ----
   # with requested number of bins
@@ -172,90 +432,13 @@ server <- function(input, output) {
     # 
 
     ## Make model predictions
-  
-    env_df = env_df %>%
-      mutate(#neglog5SeedWallConifer = input$seedwall,
-             facts.planting.first.year = as.numeric(input$planted_year))
-             # fsplanted = input$planted)
-             #  Shrubs = input$shrub_cover,
-             #ShrubHt = input$shrub_height,
-             #LitDuff = input$lit_duff)
 
-    # env_df = env_df %>%
-    #   mutate(normal_annual_precip = 997.3,
-    #          tpi2000 = 14.6,
-    #          tmean = 2.06)
-
-    # env_df = env_df %>%
-    #   mutate(Shrubs = asin(sqrt(Shrubs/100)))
-
-    ## for predictions of a no-planting scenario
-    env_df_noplant = env_df %>%
-      mutate(fsplanted = FALSE)
-
-    ## for predictions of a planting scenario
-    env_df_plant = env_df %>%
-      mutate(fsplanted = TRUE)
-
-    # predict seedlings per ha (incl undoing the response variable trasformation)
-    pred_noplant = predict(mod,env_df_noplant,re.form=NA) %>% exp() - 24.99
-    pred_plant = predict(mod,env_df_plant,re.form=NA) %>% exp() - 24.99
-
-    # convert seedlings/ha to seedlings/acre
-    pred_noplant = pred_noplant / 2.47
-    pred_plant = pred_plant / 2.47
-
-
-    pred_df = env_df
-
-    pred_df$pred_noplant = pred_noplant
-    pred_df$pred_plant = pred_plant
-
-
-    density_low = input$density_range[1]
-    density_high = input$density_range[2]
-
-
-    ## classify densities
-    pred_df = pred_df %>%
-      mutate(noplant_class = cut(pred_noplant,breaks=c(-Inf,density_low,density_high,Inf),labels=c("low","good","high"))) %>%
-      mutate(plant_class = cut(pred_plant,breaks=c(-Inf,density_low,density_high,Inf),labels=c("low","good","high"))) %>%
-      filter(!is.na(pred_noplant))
-
-    pred_df$overall = NA
-    ##too low even with planting
-    pred_df[which(pred_df$plant == "low"),"overall"] = "too low (even with planting)"
-    ##too high even without planting
-    pred_df[which(pred_df$noplant == "high"),"overall"] = "too high (even without planting)"
-    ## good with planting only
-    pred_df[which(pred_df$noplant != "good" & pred_df$plant == "good"),"overall"] = "good if planted"
-    ## good with natural only
-    pred_df[which(pred_df$noplant == "good" & pred_df$plant != "good"), "overall"] = "good if unplanted"
-    ## good regardless of planting
-    pred_df[which(pred_df$noplant == "good" & pred_df$plant == "good"), "overall"] = "good regardless of planting"
-    ## too low when unplanted; too high when planted
-    pred_df[which(pred_df$noplant == "low" & pred_df$plant == "high"), "overall"] = "not possible"
-
-    pred_df = pred_df %>%
-      mutate(overall = factor(overall, levels = (names(color_pal))))
-
-    ## maybe don't need the following?
-    pred_raster_noplant = rasterFromXYZ(pred_df %>% dplyr::select(x,y,noplant_class))
-    pred_raster_plant = rasterFromXYZ(pred_df %>% dplyr::select(x,y,plant_class))
-
-    main_map = ggplot(pred_df,aes(x=x,y=y,fill=overall)) +
-      geom_raster() +
-      coord_fixed() +
-      theme_void(20) +
-      scale_fill_manual(values = color_pal) +
-      theme(legend.position="bottom", legend.title=element_blank(), plot.title = element_text(hjust = 0.5)) +
-      ggtitle("Seedling density") +
-      guides(fill = guide_legend(nrow = 2))
-
-
-
-    plot(main_map)
-
+    maps_list = maps()
+    plot(maps_list$main)
+    
+    
+    
+    
     # hist(x, breaks = bins, col = "#75AADB", border = "white",
     #      xlab = "Waiting time to next eruption (in mins)",
     #      main = "Histogram of waiting times")
@@ -264,10 +447,40 @@ server <- function(input, output) {
   
   
   
-  # output$unplanted_density({
-  #   
-  #   
-  # })
+  output$densityUnplantedPlot = renderPlot({
+    maps_list = maps()
+    plot(maps_list$density_unplanted)
+  })
+  
+  output$densityPlantedPlot = renderPlot({
+    maps_list = maps()
+    plot(maps_list$density_planted)
+  })
+  
+  output$coverShrubPlot = renderPlot({
+    maps_list = maps()
+    plot(maps_list$cover_shrub)
+  })
+  
+  output$seedDistancePlot = renderPlot({
+    maps_list = maps()
+    plot(maps_list$seed_distance)
+  })
+  
+  output$tminPlot = renderPlot({
+    maps_list = maps()
+    plot(maps_list$tmin)
+  })
+  
+  output$precipPlot = renderPlot({
+    maps_list = maps()
+    plot(maps_list$precip)
+  })
+  
+  output$tpiPlot = renderPlot({
+    maps_list = maps()
+    plot(maps_list$tpi)
+  })
   
 }
 
