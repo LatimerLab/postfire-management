@@ -16,6 +16,8 @@ perim = st_read("data/power_perim.geojson") %>% st_transform(3310)
 sev = st_read("data/power_sev.geojson") %>% st_transform(3310)
 env = brick("data/env_raster_stack.tif")
 
+var_lims = read.csv("data/var_lims.csv", header=TRUE)
+
 #### Compute seed distance ####
 
 ## get all the non-high-sev area
@@ -69,9 +71,12 @@ env_df = env_df %>%
   mutate(seed_dist = ifelse(seed_dist == 0,15,seed_dist)) %>% # correct for a limitation of using remotely sensed data: no plot center is exactly 0 m from a tree. Use 15 since we are focused on high-severity areas, so the closest a tree could be is half the width of the pixel. Also conveniently 15 m was the closest a tree was in our plot dataset.
   mutate(seed_dist = ifelse(seed_dist >= 200,200,seed_dist)) %>% # cap it at 200 since our field data only go that far and we know it tends to level off by then
   mutate(neglog5SeedWallConifer = -logb(seed_dist, base = exp(5)) )
-  #%>%
-  # ## do arcsin sqrt transf for shrubs (apparently not needed because redone by scale)
-  # mutate(Shrubs = Shrubs/100 %>% sqrt %>% asin)
+
+## make an extrapolation column
+env_df = env_df %>%
+  mutate(extrap = !(tpi2000 %>% between(var_lims$tpi_min,var_lims$tpi_max)) |
+           !(normal_annual_precip %>% between(var_lims$ppt_min,var_lims$ppt_max)) |
+           !(tmin %>% between(var_lims$tmin_min,var_lims$tmin_max)) )
 
 color_pal <- c("too low (even with planting)" = "#fde725", "good if planted" = "#7ad151", "good regardless of planting" = "#22a884",  "not possible" = "#2a788e", "good if unplanted" = "#414487", "too high (even without planting)" = "#440154")
 
@@ -100,7 +105,7 @@ dat = readRDS("data/data.rds")
 
 #### Function for making maps based on inputs ####
 # This function relies on some globals from above
-make_maps = function(plant_year, density_low, density_high, mask_non_high_sev) {
+make_maps = function(plant_year, density_low, density_high, mask_non_high_sev, mask_extrapolation) {
   
   env_df = env_df %>%
     mutate(#neglog5SeedWallConifer = input$seedwall,
@@ -180,6 +185,10 @@ make_maps = function(plant_year, density_low, density_high, mask_non_high_sev) {
   ## Drop rows of masked-out values
   if(mask_non_high_sev) {
     df_plot = df_plot[df_plot$non_high_sev_mask != 1,]
+  }
+  
+  if(mask_extrapolation) {
+    df_plot = df_plot[df_plot$extrap != TRUE,]
   }
   
   main_map = ggplot(data=df_plot,aes(x=x,y=y,fill=overall)) +
@@ -277,13 +286,14 @@ make_maps = function(plant_year, density_low, density_high, mask_non_high_sev) {
 
 
 
-
-
 # Define UI for app that draws a histogram ----
 ui <- fluidPage(
   
   # App title ----
-  titlePanel("PRESET - Post-fire reforestation success estimation tool"),
+  titlePanel("Post-fire reforestation success estimation tool"),
+  h4('aka "PRESET"'),
+  h6("Developed by: Derek Young, Quinn Sorenson, Andrew Latimer"),
+  h6("Latimer Lab, UC Davis"),
   
   # Sidebar layout with input and output definitions ----
   sidebarLayout(
@@ -313,6 +323,9 @@ ui <- fluidPage(
                   selected = 1),
       checkboxInput(inputId = "mask_non_high_sev",
                     label = "Show high-severity area only",
+                    value = FALSE),
+      checkboxInput(inputId = "mask_extrap",
+                    label = "Hide model extrapolation areas",
                     value = FALSE),
       checkboxGroupInput(inputId = "map_selection",
                     label = "Layers to display:",
@@ -415,7 +428,7 @@ ui <- fluidPage(
 server <- function(input, output) {
   
 
-  maps = reactive({ make_maps(input$planted_year, input$density_range[1], input$density_range[2], input$mask_non_high_sev) })
+  maps = reactive({ make_maps(input$planted_year, input$density_range[1], input$density_range[2], input$mask_non_high_sev, input$mask_extrap) })
   
   # Histogram of the Old Faithful Geyser Data ----
   # with requested number of bins

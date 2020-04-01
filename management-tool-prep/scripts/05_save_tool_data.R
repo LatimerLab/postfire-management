@@ -55,7 +55,6 @@ tmin = raster("management-tool-prep/data/non-synced/intermediate/tmin.tif")
 shrub = raster("management-tool-prep/data/non-synced/intermediate/shrub.tif")
 
 
-
 #### Stack and save seedl env predictor rasters ####
 
 env = stack(tpi*10,ppt,tmin*100,shrub*100) # mult tmin by 100 so it can be saved as an int to save space
@@ -68,3 +67,12 @@ env = aggregate(env,fact=2)
 writeRaster(env,"management-tool-prep/data/non-synced/for-tool/env_raster_stack.tif",overwrite=TRUE, datatype="INT2S", options="COMPRESS=LZW")   ##738
 
 
+#### Save a table of predictor limits, to determine extrapolation ####
+
+limits = plot_dhm %>%
+  dplyr::select(tpi = tpi2000,
+         ppt = normal_annual_precip,
+         tmin = tmin) %>%
+  summarize_all(list(min = min, max = max))
+
+write.csv(limits,"management-tool-prep/data/non-synced/for-tool/var_lims.csv",row.names=FALSE)
