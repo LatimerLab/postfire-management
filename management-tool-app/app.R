@@ -202,7 +202,7 @@ make_maps = function(plant_year, density_low, density_high, mask_non_high_sev, m
   
   density_unplanted = ggplot(df_plot,aes(x=x,y=y,fill=pred_noplant)) +
     geom_raster() +
-    coord_fixed() +
+    geom_sf(data=perim,color="black",fill = NA, inherit.aes = FALSE) +
     theme_void(20) +
     scale_fill_viridis(breaks=c(0,200,400),
                          labels=c(0,200,"400+"),
@@ -218,7 +218,7 @@ make_maps = function(plant_year, density_low, density_high, mask_non_high_sev, m
   
   density_planted = ggplot(df_plot,aes(x=x,y=y,fill=pred_plant)) +
     geom_raster() +
-    coord_fixed() +
+    geom_sf(data=perim,color="black",fill = NA, inherit.aes = FALSE) +
     theme_void(20) +
     scale_fill_viridis(breaks=c(0,200,400),
                        labels=c(0,200,"400+"),
@@ -232,7 +232,7 @@ make_maps = function(plant_year, density_low, density_high, mask_non_high_sev, m
   
   cover_shrub = ggplot(df_plot,aes(x=x,y=y,fill=Shrubs)) +
     geom_raster() +
-    coord_fixed() +
+    geom_sf(data=perim,color="black",fill = NA, inherit.aes = FALSE) +
     theme_void(20) +
     scale_fill_viridis(direction = -1) +
     theme(legend.position="bottom", plot.title = element_text(hjust = 0.5), legend.direction = "vertical") +
@@ -240,7 +240,7 @@ make_maps = function(plant_year, density_low, density_high, mask_non_high_sev, m
   
   seed_distance = ggplot(df_plot,aes(x=x,y=y,fill=seed_dist)) +
     geom_raster() +
-    coord_fixed() +
+    geom_sf(data=perim,color="black",fill = NA, inherit.aes = FALSE) +
     theme_void(20) +
     scale_fill_viridis() +
     theme(legend.position="bottom", plot.title = element_text(hjust = 0.5), legend.direction = "vertical") +
@@ -248,7 +248,7 @@ make_maps = function(plant_year, density_low, density_high, mask_non_high_sev, m
   
   tmin = ggplot(df_plot,aes(x=x,y=y,fill=tmin)) +
     geom_raster() +
-    coord_fixed() +
+    geom_sf(data=perim,color="black",fill = NA, inherit.aes = FALSE) +
     theme_void(20) +
     scale_fill_viridis(option = "inferno") +
     theme(legend.position="bottom", plot.title = element_text(hjust = 0.5), legend.direction = "vertical") +
@@ -256,7 +256,7 @@ make_maps = function(plant_year, density_low, density_high, mask_non_high_sev, m
   
   precip = ggplot(df_plot,aes(x=x,y=y,fill=normal_annual_precip)) +
     geom_raster() +
-    coord_fixed() +
+    geom_sf(data=perim,color="black",fill = NA, inherit.aes = FALSE) +
     theme_void(20) +
     scale_fill_viridis(option = "viridis",
                        direction = -1) +
@@ -265,7 +265,7 @@ make_maps = function(plant_year, density_low, density_high, mask_non_high_sev, m
   
   tpi = ggplot(df_plot,aes(x=x,y=y,fill=tpi2000)) +
     geom_raster() +
-    coord_fixed() +
+    geom_sf(data=perim,color="black",fill = NA, inherit.aes = FALSE) +
     theme_void(20) +
     scale_fill_viridis(option = "inferno",
                        direction = 1) +
@@ -292,6 +292,7 @@ ui <- fluidPage(
   # App title ----
   titlePanel("Post-fire reforestation success estimation tool"),
   h4('aka "PRESET"'),
+  h6('v 0.0.2 beta'),
   h6("Developed by: Derek Young, Quinn Sorenson, Andrew Latimer"),
   h6("Latimer Lab, UC Davis"),
   
@@ -355,13 +356,8 @@ ui <- fluidPage(
       
       ## Main map
       conditionalPanel(
-          condition = "input.map_selection.includes('main') === true",      
+        condition = "input.map_selection.includes('main') === true",      
         plotOutput(outputId = "distPlot"),
-        strong("To do:"),
-        tags$ul(
-          tags$li("Mask out non-high-severity"),
-          tags$li("Mask out model extrapolation areas")
-        ),
         tags$br()
       ),
       

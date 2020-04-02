@@ -62,7 +62,7 @@ env = crop(env,region %>% st_transform(projection(env)))
 env = mask(env,region %>% st_transform(projection(env)))
 
 ### TEMPORARY for development, make raster coarser so it's more wieldy
-env = aggregate(env,fact=2)
+#env = aggregate(env,fact=2)
 
 writeRaster(env,"management-tool-prep/data/non-synced/for-tool/env_raster_stack.tif",overwrite=TRUE, datatype="INT2S", options="COMPRESS=LZW")   ##738
 
