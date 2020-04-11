@@ -1,117 +1,15 @@
 library(raster)
-library(rgeos)
 library(dplyr)
 library(sf)
-library(rgeos)
 
 setwd("~/repos/postfire-management")
-
-default.proj <- CRS("+proj=aea +lat_1=34 +lat_2=40.5 +lat_0=0 +lon_0=-120 +x_0=0 +y_0=-4000000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs")
-
-# layer is the climate layer you want to downscale (a rasterLayer)
-# dem is the elevation layer that the climate layer was built on (a rasterLayer), with elevation in units that are the same as the map units of "proj"
-# points is a SpatialPointsDataFrame of the points you want downscaled values for, and which includes the attribute "elev" in units that are the same as the map units of "proj"
-# res is the resolution of the supplied climate layer
-gids.spatial <- function(layer,dem,dem_highres,points,res,proj=default.proj) {
-
-  cat("\nDownscaling layer ",names(layer),".\n",sep="")
-  
-  # search radius for cells to include in the regression. This radius is approx. equal to that used by Flint et al. 2013
-  radius <- 2*res
-  
-  if(projection(dem) != projection (layer)) {
-    stop("The supplied climate layer is not in the same projection as the supplied DEM. Supply these layers in the same projection.")
-  }
-  
-  resdiff <- mean(res(dem)) / mean(res(layer))
-  if((resdiff > 1.01) | (resdiff < 0.99)) {
-    print(resdiff)
-    stop("The supplied climate layer is not the same resolution as the supplied DEM. These layers should be from the same dataset.")
-  }
-  
-  layer <- crop(layer,dem) ## this line is new
-  dem <- crop(dem,layer) ## this line is new
-  dem <- mask(dem,layer)
-  stack <- stack(dem,layer)
-  names(stack) <- c("dem","layer")
-  
-  
-  points.proj <- spTransform(points,proj)
-  
-  if(is.null(points.proj$elev)) {
-    points.proj$elev = extract(dem_highres,points.proj,method="bilinear")
-  }
-  
-  points.proj.buffer <- gBuffer(points.proj,byid=TRUE,width=radius)
-  
-  points.proj.buffer.geo = spTransform(points.proj.buffer,proj4string(dem))
-  
-  npts = nrow(points.proj)
-  
-  ds.vals = rep(NA,npts)
-  
-  for(i in 1:npts) {
-
-    point.proj <- points.proj[i,]
-    point <- points[i,]
-    point.proj.buffer <- points.proj.buffer[i,]
-    point.proj.buffer.geo <- points.proj.buffer.geo[i,]
-    
-    stack.crop = crop(stack,point.proj.buffer.geo)
-    
-    
-    layer.pts <- rasterToPoints(stack.crop,spatial=TRUE) #turn raster into points
-    layer.pts.proj <- spTransform(layer.pts,proj)
-    
-    
-    
-    
-    
-    layer.pts.near <- raster::intersect(layer.pts.proj,point.proj.buffer)
-    
-    layer.pts.near.df = as.data.frame(layer.pts.near)
-    
-    ## fit regression model
-    m <- lm(layer~dem+x+y,data=layer.pts.near.df)
-    c.dem <- coef(m)["dem"]
-    c.x <- coef(m)["x"]
-    c.y <- coef(m)["y"]
-    
-    layer.pts.near$dist <- gDistance(point.proj,layer.pts.near,byid=TRUE)
-    
-    # This is a modification of the original GIDS by the Flints to reduce "bullseye" patterns where a point is near the center of one cell.
-    layer.pts.near[which(as.numeric(layer.pts.near$dist) < res),"dist"] <- res
-    
-    elev.diff <- point.proj$elev-layer.pts.near$dem
-    point.proj.coord <- coordinates(point.proj)
-    point.proj.x <- point.proj.coord[1]
-    point.proj.y <- point.proj.coord[2]
-    
-    x.diff <- point.proj.x -layer.pts.near$x
-    y.diff <-point.proj.y-layer.pts.near$y
-    
-    layer.pts.near$z <- layer.pts.near$layer + c.dem * elev.diff + c.x * x.diff + c.y * y.diff
-    layer.pts.near$z.div.d <- layer.pts.near$z/(layer.pts.near$dist^2)
-    
-    z <- sum(layer.pts.near$z.div.d)/sum(1/(layer.pts.near$dist^2))    
-    
-    ds.vals[i] <- z
-    
-    cat("\r   Finished point:",i)
-  }
-  
-  return(ds.vals)
-}
-
-
-
 
 
 #### Load data ####
 
 # TopoWx temperature
-tmax = stack("data/non-synced/existing-datasets/topowx_temerature/tmax_normal/normals_tmax.nc") %>% mean()
-tmin = stack("data/non-synced/existing-datasets/topowx_temerature/tmin_normal/normals_tmin.nc") %>% mean()
+clim = stack("data/non-synced/existing-datasets/topowx_temerature/tmax_normal/normals_tmax.nc") %>% mean()
+#tmin = stack("data/non-synced/existing-datasets/topowx_temerature/tmin_normal/normals_tmin.nc") %>% mean()
 
 # TopoWx DEM
 coarse_dem = raster("data/non-synced/existing-datasets/DEM/dem_prism_800m.tif")
@@ -120,59 +18,202 @@ coarse_dem = raster("data/non-synced/existing-datasets/DEM/dem_prism_800m.tif")
 fine_dem = raster("data/non-synced/existing-datasets/DEM/CAmerged15.tif")
 
 # Focal region
-focal_region = st_read("management-tool-prep/data/focal-region/focal-region.geojson") %>% st_transform(3310) %>% st_buffer(10000) %>% st_transform(crs(fine_dem))
+focal_region = st_read("management-tool-prep/data/focal-region/focal-region.geojson") %>% st_transform(crs(fine_dem))
+
 
 #### Prep data ####
 
-## Clip rasters to focal region extent + 10 km
+buffer = 2000 # how far beyond focal fine-cell to look for coarse-cells to contribute to lapse rate regression
 
-tmax = crop(tmax,focal_region)
-tmax = mask(tmax,focal_region)
-tmax = projectRaster(tmax,coarse_dem)
+focal_region_buffer = focal_region %>% st_transform(3310) %>% st_buffer(buffer*1.2)
 
-tmin = crop(tmin,focal_region)
-tmin = mask(tmin,focal_region)
-tmin = projectRaster(tmin,coarse_dem)
+## Clip rasters to focal region extent (+ buffer dist for coarse layers)
 
-tmim_proj = projectRaster(tmin,coarse_dem)
+clim = crop(clim,focal_region_buffer)
+clim = mask(clim,focal_region_buffer)
+clim = projectRaster(clim,coarse_dem)
+
+coarse_dem = crop(coarse_dem,focal_region_buffer)
+coarse_dem = mask(coarse_dem,focal_region_buffer)
+
+# tmin = crop(tmin,focal_region)
+# tmin = mask(tmin,focal_region)
+# tmin = projectRaster(tmin,coarse_dem)
 
 fine_dem = crop(fine_dem,focal_region)
 fine_dem = mask(fine_dem,focal_region)
+# code NA as -9999
+fine_dem[is.na(fine_dem)] = -999
 
-coarse_dem = crop(coarse_dem,focal_region)
-coarse_dem = mask(coarse_dem,focal_region)
 
 
-#### Clip to small test region ####
+#### Prep for splitting into tiles to parallelize over ####
+
 
 subset_grid = st_make_grid(focal_region %>% st_transform(3310),
                            cellsize = 10000) %>% st_transform(crs(tmax))
 
-focal_cell = subset_grid[798] 
+############ focal_cell = subset_grid[787] # good one is 798. or 787-789
 
-tmax_focal = crop(tmax,focal_cell %>% as("Spatial"))
-tmin_focal = crop(tmin,focal_cell %>% as("Spatial"))
-fine_dem_focal = crop(fine_dem,focal_cell %>% as("Spatial"))
-coarse_dem_focal = crop(coarse_dem,focal_cell %>% as("Spatial"))
+#### Build lists of tiles to parallelize over ####
+## takes about 2 min
 
-#### Fine dem to points? ####
+coarse_clim_list = list()
+coarse_dem_list = list()
+fine_dem_list = list()
 
-fine_dem_points = rasterToPoints(fine_dem_focal, spatial=TRUE)
+nlayers = 1
 
-#### Run GIDS ####
+for(i in 1:length(subset_grid)) {
 
-out = gids.spatial(layer = tmax_focal,
-                   dem = coarse_dem_focal,
-                   dem_highres = fine_dem_focal,
-                   points = fine_dem_points,
-                   res = 800,
-                   proj = default.proj)
+  focal_cell = subset_grid[i]
+  focal_cell_w_buffer = focal_cell %>% st_transform(3310) %>% st_buffer(buffer*1.2) %>% st_transform(crs(tmax))
+  
+  # if the cell is completely outside the region of fine points, skip it
+  fine_dem_extent = extent(fine_dem)%>% as("SpatialPolygons") %>% as("sf")
+  st_crs(fine_dem_extent) = st_crs(fine_dem)
+  if(st_intersects(fine_dem_extent %>% st_transform(3310),focal_cell %>% st_transform(3310), sparse=FALSE)[1,1] == FALSE) {
+    next()
+  }
+  
+  coarse_clim_focal = crop(clim,focal_cell_w_buffer %>% as("Spatial"))
+  coarse_dem_focal = crop(coarse_dem,focal_cell_w_buffer %>% as("Spatial"))
+  fine_dem_focal = crop(fine_dem,focal_cell %>% as("Spatial"))
+  
+  ## if all points are NA (-999) (i.e., outside of focal region), skip it
+  if(sum(values(fine_dem_focal) == -999) == ncell(fine_dem_focal)) {
+    next()
+  }
+  
+  coarse_clim_list[[nlayers]] = coarse_clim_focal
+  coarse_dem_list[[nlayers]] = coarse_dem_focal
+  fine_dem_list[[nlayers]] = fine_dem_focal
+  
+  nlayers = nlayers + 1
+  
+  cat("\rMade tile",i,"of",length(subset_grid))
+  
+}
+
+
+
+
+#### Start analysis ####
+
+
+
+i = 1
+
+fine_dem_focal = fine_dem_list[[i]]
+coarse_clim_focal = coarse_clim_list[[i]]
+coarse_dem_focal = coarse_dem_list[[i]]
+
+
+downscale_tile = function(coarse_clim_focal,coarse_dem_focal,fine_dem_focal) {
+  
+  ## fine raster to points
+  fine_points = rasterToPoints(fine_dem_focal, spatial=TRUE) %>% as("sf") %>% rename(elev = "layer") %>% st_transform(3310)
+  
+  
+  ## if all fine points are empty, return a NA raster tile
+  if(sum(fine_points$elev == -999) == nrow(fine_points)) {
+    clim_ds_rast_tile = setValues(fine_dem_focal, NA)
+    return(clim_ds_rast_tile)
+  }
+  
+  ## stack coarse climate var and coarse elev, then turn to points
+  coarse_clim_elev = stack(coarse_clim_focal, coarse_dem_focal)
+  coarse_clim_elev_points = rasterToPoints(coarse_clim_elev, spatial=TRUE) %>% as("sf") %>% st_transform(3310)
+  names(coarse_clim_elev_points) = c("clim","elev","geometry")
+  
+  ## which coarse points are in the buffer of each fine point?
+  fine_points_buffer =  st_buffer(fine_points,buffer)
+  coarse_intersecting_fine = st_intersects(fine_points_buffer,coarse_clim_elev_points) ## first index is for each fine point; second is for each coarse point
+  
+  ## distance from each fine point to each coarse point
+  fine_to_coarse_dist = st_distance(fine_points,coarse_clim_elev_points)
+  
+  ## good fine point for 798: 98000
+  
+  ## For each fine point
+  fine_points$clim = NA
+  
+  for(i in 1:nrow(fine_points)) {
+    
+    cat("\rDownscaling fine point",i,"of",nrow(fine_points))
+    
+    # if fine point elev is NA (outside climate zone), return NA cliamte
+    if(fine_points[i,]$elev == -999) {
+      fine_points[i,"clim"] = NA
+      next()
+    }
+    
+    # get elevation of fine point
+    fine_point_elev = fine_points[i,"elev"]
+    fine_point_coords = st_coordinates(fine_points[i,])
+    st_geometry(fine_point_elev) = NULL
+    fine_point_elev = fine_point_elev %>% as.numeric()
+    fine_point_x = fine_point_coords[,1]
+    fine_point_y = fine_point_coords[,2]
+    
+    # get the contributing coarse points
+    coarse_within_buffer = coarse_clim_elev_points[coarse_intersecting_fine[[i]],]
+    coarse_within_buffer_coords = st_coordinates(coarse_within_buffer)
+    coarse_within_buffer$x = coarse_within_buffer_coords[,1]
+    coarse_within_buffer$y = coarse_within_buffer_coords[,2]
+  
+    ## fit regression model and extract coefs (lapse rate)
+    m = lm(clim ~ elev + x + y, data = coarse_within_buffer)
+    lapse_rate = coef(m)["elev"]
+    x_coef = coef(m)["x"]
+    y_coef = coef(m)["y"]
+    
+    ## for each coarse cell, predict climate at elevation of fine point
+    # elev diff between fine point and each coarse point
+    elev_diff = fine_point_elev - coarse_within_buffer$elev
+    x_diff = fine_point_x - coarse_within_buffer$x
+    y_diff = fine_point_y - coarse_within_buffer$y
+    # climate difference
+    clim_diff = lapse_rate * elev_diff + x_diff * x_coef + y_diff * y_coef
+    # climate prediction based on each coarse point
+    clim_pred = coarse_within_buffer$clim + clim_diff
+    # distance to each coarse point
+    coarse_dist = fine_to_coarse_dist[i,coarse_intersecting_fine[[i]]] %>% as.numeric()
+    #old code; distance now computed outside of loop then looked up with the code on the previous line.    dists = st_distance(fine_points[i,], coarse_within_buffer) %>% as.numeric()
+    # create inverse-distance-squared-weighted average of clim preds
+    ids = 1/(coarse_dist^2)
+    mean_clim_pred = weighted.mean(clim_pred,ids)
+  
+    ##!!! Potentially need Flint bullseye reduction
+  
+    fine_points[i,"clim"] = mean_clim_pred
+    
+  }
+  
+  cat(" -- finished tile\n")
+  
+  clim_ds_rast_tile = setValues(fine_dem_focal, fine_points$clim)
+  
+  return(clim_ds_rast_tile)
+  
+}
+
+
+plan(multiprocess)
+a = future_pmap(.l = list(coarse_clim_list[1:8],coarse_dem_list[1:8],fine_dem_list[1:8]), .f = downscale_tile)
 
 
 
 
 
 
-(layer,dem,dem_highres,points,res,proj=default.proj)
+
+
+
+writeRaster(a[[1]],"temp_ds_tile_1.tif")
+writeRaster(a[[2]],"temp_ds_tile_2.tif")
+
+
+
 
 
