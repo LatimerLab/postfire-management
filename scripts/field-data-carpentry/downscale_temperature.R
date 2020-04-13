@@ -1,24 +1,25 @@
 library(raster)
 library(dplyr)
 library(sf)
+library(purrr)
+library(furrr)
 
-setwd("~/repos/postfire-management")
-
+# setwd("~/repos/postfire-management")
 
 #### Load data ####
 
 # TopoWx temperature
-clim = stack("data/non-synced/existing-datasets/topowx_temerature/tmax_normal/normals_tmax.nc") %>% mean()
+clim = stack("~/projects/temp_downscale/normals_tmax.nc") %>% mean()
 #tmin = stack("data/non-synced/existing-datasets/topowx_temerature/tmin_normal/normals_tmin.nc") %>% mean()
 
 # TopoWx DEM
-coarse_dem = raster("data/non-synced/existing-datasets/DEM/dem_prism_800m.tif")
+coarse_dem = raster("~/projects/temp_downscale/dem_prism_800m.tif")
 
-# 30m DEM
-fine_dem = raster("data/non-synced/existing-datasets/DEM/CAmerged15.tif")
+# 30m DEM to downscale to
+fine_dem = raster("~/projects/temp_downscale/CAmerged15.tif")
 
 # Focal region
-focal_region = st_read("management-tool-prep/data/focal-region/focal-region.geojson") %>% st_transform(crs(fine_dem))
+focal_region = st_read("~/projects/temp_downscale/focal-region.geojson") %>% st_transform(crs(fine_dem))
 
 
 #### Prep data ####
@@ -51,7 +52,7 @@ fine_dem[is.na(fine_dem)] = -999
 
 
 subset_grid = st_make_grid(focal_region %>% st_transform(3310),
-                           cellsize = 10000) %>% st_transform(crs(tmax))
+                           cellsize = 10000) %>% st_transform(crs(clim))
 
 ############ focal_cell = subset_grid[787] # good one is 798. or 787-789
 
@@ -67,7 +68,7 @@ nlayers = 1
 for(i in 1:length(subset_grid)) {
 
   focal_cell = subset_grid[i]
-  focal_cell_w_buffer = focal_cell %>% st_transform(3310) %>% st_buffer(buffer*1.2) %>% st_transform(crs(tmax))
+  focal_cell_w_buffer = focal_cell %>% st_transform(3310) %>% st_buffer(buffer*1.2) %>% st_transform(crs(clim))
   
   # if the cell is completely outside the region of fine points, skip it
   fine_dem_extent = extent(fine_dem)%>% as("SpatialPolygons") %>% as("sf")
@@ -200,20 +201,8 @@ downscale_tile = function(coarse_clim_focal,coarse_dem_focal,fine_dem_focal) {
 
 
 plan(multiprocess)
-a = future_pmap(.l = list(coarse_clim_list[1:8],coarse_dem_list[1:8],fine_dem_list[1:8]), .f = downscale_tile)
+tiles = future_pmap(.l = list(coarse_clim_list[1:8],coarse_dem_list[1:8],fine_dem_list[1:8]), .f = downscale_tile)
 
+merged = do.call(merge, tiles)
 
-
-
-
-
-
-
-
-writeRaster(a[[1]],"temp_ds_tile_1.tif")
-writeRaster(a[[2]],"temp_ds_tile_2.tif")
-
-
-
-
-
+writeRaster(merged,"~/projects/temp_downscale/merged_raster_output.tif")
