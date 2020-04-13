@@ -23,14 +23,15 @@ plot_dhm <- plot_dhm %>%
   mutate(totalCov = Shrubs + Grasses + Forbs) %>%
   mutate(totalCovxHt = (Shrubs*ShrubHt + Grasses*GrassHt + Forbs*ForbHt)) %>%
   mutate(LitDuff = LitterDepth + DuffDepth) %>%
-  mutate(ShrubHt2 = ifelse(ShrubHt == 0, ShrubErectHt, ShrubHt))
+  mutate(ShrubHt2 = ifelse(ShrubHt == 0, ShrubErectHt, ShrubHt)) %>%
+  mutate(fsplanted = fsplanted == "planted") # turn into logical
 
 pltd <- lmer(ln.dens.planted ~ scale(tpi2000)*facts.planting.first.year + 
                asin(sqrt(Shrubs/100))*facts.planting.first.year*fsplanted +
                #scale(ShrubHolisticVolume^(2/3))*facts.planting.first.year*fsplanted +
                scale(tmin)*scale(normal_annual_precip) +
                scale(neglog5SeedWallConifer) +
-               scale(LitDuff) +
+               #scale(LitDuff) +
                #scale(ShrubHt2) +
                #scale(ShrubHolisticVolume) +
                (1|Fire) + (1|Fire:PairID), data = plot_dhm)
@@ -54,10 +55,9 @@ tmin = raster("management-tool-prep/data/non-synced/intermediate/tmin.tif")
 shrub = raster("management-tool-prep/data/non-synced/intermediate/shrub.tif")
 
 
-
 #### Stack and save seedl env predictor rasters ####
 
-env = stack(tpi*10,ppt,tmin*100,shrub) # mult tmin by 100 so it can be saved as an int to save space
+env = stack(tpi*10,ppt,tmin*100,shrub*100) # mult tmin by 100 so it can be saved as an int to save space
 env = crop(env,region %>% st_transform(projection(env)))
 env = mask(env,region %>% st_transform(projection(env)))
 
@@ -67,3 +67,12 @@ env = mask(env,region %>% st_transform(projection(env)))
 writeRaster(env,"management-tool-prep/data/non-synced/for-tool/env_raster_stack.tif",overwrite=TRUE, datatype="INT2S", options="COMPRESS=LZW")   ##738
 
 
+#### Save a table of predictor limits, to determine extrapolation ####
+
+limits = plot_dhm %>%
+  dplyr::select(tpi = tpi2000,
+         ppt = normal_annual_precip,
+         tmin = tmin) %>%
+  summarize_all(list(min = min, max = max))
+
+write.csv(limits,"management-tool-prep/data/non-synced/for-tool/var_lims.csv",row.names=FALSE)
