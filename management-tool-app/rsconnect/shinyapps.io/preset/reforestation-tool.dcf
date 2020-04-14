@@ -1,0 +1,10 @@
+name: reforestation-tool
+title:
+username:
+account: preset
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 2037125
+bundleId: 2955513
+url: https://dyoung.shinyapps.io/reforestation-tool/
+when: 1585769493.33795
