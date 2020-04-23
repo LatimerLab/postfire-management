@@ -15,7 +15,7 @@ load("output/plotSeedlingData.RData") #load R object: plot_dhm_long
 ##### final models for planted species and conifers --------------------------------------------------------------------------------
 
 #USE THIS MODEL FOR THE TOOL
-pltd <- lmer(ln.dens.planted ~ scale(tpi2000)*facts.planting.first.year + 
+pltd <- lmer(ln.dens.planted ~ scale(tpi2000) + 
                scale(Shrubs)*facts.planting.first.year*fsplanted +
                #scale(ShrubHolisticVolume^(2/3))*facts.planting.first.year*fsplanted +
                scale(tmin)*scale(normal_annual_precip) +
@@ -27,7 +27,7 @@ pltd <- lmer(ln.dens.planted ~ scale(tpi2000)*facts.planting.first.year +
                #(0+scale(normal_annual_precip)|Fire) + 
                #(0+scale(tmin)|Fire) + 
                #(0+scale(tmin):scale(normal_annual_precip)|Fire) + 
-               #(0+scale(tpi2000)|Fire) +
+               (0+scale(tpi2000)|Fire) +
                (1|Fire:PairID), data = plot_dhm)
 
 
