@@ -130,6 +130,8 @@ plot_dhm <- plots %>%
   mutate(PairID = ifelse(Type == "internal" & fire_code == "E", "Eint", PlotID_notype)) %>% #creates new PlotID where all the intenal plots at one site are within one pair
   mutate(PairID = ifelse(Type == "internal" & fire_code == "A", "Aint", PlotID_notype)) %>%         
   left_join(seedl_dhm, by="PlotID") 
+
+
 plot_dhm[c("dens.all", "dens.yelPine", "dens.pine", "dens.shadeTol", "dens.conif", "dens.planted", "ave.ht.all",
     "ave.ht.yelPine", "ave.ht.pine",  "ave.ht.shadeTol", "ave.ht.conif", "ave.ht.planted", "tot.ht.all",
     "tot.ht.yelPine", "tot.ht.pine", "tot.ht.shadeTol", "tot.ht.conif", "tot.ht.planted", "ave.mass.all",
@@ -140,6 +142,22 @@ plot_dhm[c("dens.all", "dens.yelPine", "dens.pine", "dens.shadeTol", "dens.conif
                  "tot.ht.yelPine", "tot.ht.pine", "tot.ht.shadeTol", "tot.ht.conif", "tot.ht.planted", "ave.mass.all",
                  "ave.mass.yelPine", "ave.mass.pine", "ave.mass.shadeTol", "ave.mass.conif", "ave.mass.planted", "tot.mass.all",
                  "tot.mass.yelPine", "tot.mass.pine", "tot.mass.shadeTol", "tot.mass.conif", "tot.mass.planted")])] <- 0 #replace NAs with 0s for the plots that were not in the seedling_plots df.
+
+plot_dhm <- plot_dhm %>% 
+  mutate(ln.dens.planted = log(dens.planted+24.99)) %>%
+  filter(Type != "internal") %>% 
+  mutate(ln.dens.conif = log(dens.conif+24.99)) %>%
+  mutate(fsplanted = as.factor(fsplanted)) %>%
+  mutate(facts.released = as.factor(facts.released)) %>%
+  mutate(GrassHt = ifelse(is.na(GrassHt), 0, GrassHt)) %>%
+  mutate(ShrubHt = ifelse(is.na(ShrubHt), 0, ShrubHt)) %>%
+  mutate(ForbHt = ifelse(is.na(ForbHt), 0, ForbHt)) %>%
+  mutate(SeedWallConifer = ifelse(is.na(SeedWallConifer), 500, SeedWallConifer)) %>%
+  mutate(log10SeedWallConifer = log10(SeedWallConifer)) %>%
+  mutate(totalCov = Shrubs + Grasses + Forbs) %>%
+  mutate(totalCovxHt = (Shrubs*ShrubHt + Grasses*GrassHt + Forbs*ForbHt)) %>%
+  mutate(LitDuff = LitterDepth + DuffDepth) %>%
+  mutate(ShrubHt2 = ifelse(ShrubHt == 0, ShrubErectHt, ShrubHt))
 
 
 ## make it long form so we can plot them as panels
