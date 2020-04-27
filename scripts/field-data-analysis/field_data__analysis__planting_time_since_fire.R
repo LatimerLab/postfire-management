@@ -8,6 +8,7 @@ library(sjPlot)
 library(MuMIn)
 
 load("output/plotSeedlingData.RData") #load R object: plot_dhm_long
+#old not downscaled data here: plotSeedlingData_old_not_downscaled.RData
 
 #plant.yr.per.fire <- plot_dhm %>% select(Fire, facts.planting.first.year)
 #unique(plant.yr.per.fire)
@@ -15,9 +16,9 @@ load("output/plotSeedlingData.RData") #load R object: plot_dhm_long
 ##### final models for planted species and conifers --------------------------------------------------------------------------------
 
 #USE THIS MODEL FOR THE TOOL
-pltd <- lmer(ln.dens.planted ~ scale(tpi2000) + 
+pltd <- lmer(ln.dens.planted ~ scale(tpi2000)*scale(elev)*fsplanted + 
                scale(Shrubs)*facts.planting.first.year*fsplanted +
-               #scale(ShrubHolisticVolume^(2/3))*facts.planting.first.year*fsplanted +
+               #scale(ShrubHolisticVolume)*facts.planting.first.year*fsplanted +
                scale(tmin)*scale(normal_annual_precip) +
                scale(log10SeedWallConifer) +
                scale(LitDuff) +
@@ -27,13 +28,15 @@ pltd <- lmer(ln.dens.planted ~ scale(tpi2000) +
                #(0+scale(normal_annual_precip)|Fire) + 
                #(0+scale(tmin)|Fire) + 
                #(0+scale(tmin):scale(normal_annual_precip)|Fire) + 
-               (0+scale(tpi2000)|Fire) +
+               #(0+scale(tpi2000)|Fire) +
                (1|Fire:PairID), data = plot_dhm)
 
 
 
 AIC(pltd)
-summary(pltd)
+
+
+summary(pltd, correlation=TRUE)
 plot(pltd)
 plot(allEffects(pltd))
 r.squaredGLMM(pltd)
