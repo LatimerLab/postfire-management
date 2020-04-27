@@ -44,15 +44,15 @@ ppt = raster("data/non-synced/existing-datasets/precipitation/PRISM_ppt_30yr_nor
 plots_sp$normal_annual_precip = raster::extract(ppt,plots_sp,method="bilinear")
 
 ## extract TopoWX normal temperature
-tmax = raster("data/non-synced/existing-datasets/topowx_temerature/tmax_ds.tif")
-tmin = raster("data/non-synced/existing-datasets/topowx_temerature/tmin_ds.tif")
+tmax = raster("data/non-synced/existing-datasets/topowx_temerature/tmax_ds_4km_flint_noxy.tif")
+tmin = raster("data/non-synced/existing-datasets/topowx_temerature/tmin_ds_4km_flint_noxy.tif")
 tmean = (tmax + tmin)/2
 plots_sp$tmax = raster::extract(tmax,plots_sp,method="bilinear")
 plots_sp$tmin = raster::extract(tmin,plots_sp,method="bilinear")
 plots_sp$tmean = raster::extract(tmean,plots_sp,method="bilinear")
 
 ## extract elevation
-dem = raster("data/non-synced/existing-datasets/DEM/CAmerged14_albers.tif")
+dem = raster("data/non-synced/existing-datasets/DEM/CAmerged15_albers.tif")
 plots_sp$elev = raster::extract(dem,plots_sp,method="bilinear")
 
 ## get topographic indices

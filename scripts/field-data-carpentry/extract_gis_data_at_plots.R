@@ -40,7 +40,7 @@ plots_sp$normal_annual_precip = raster::extract(ppt,plots_sp,method="bilinear")
 # tmax_aso = mean(tmax[[c(8,9,10)]])
 # tmax = mean(tmax)
 
-tmax = raster("data/non-synced/existing-datasets/topowx_temerature/tmax_ds.tif")
+tmax = raster("data/non-synced/existing-datasets/topowx_temerature/tmax_ds_4km_flint_noxy.tif")
 
 # tmin = stack("data/non-synced/existing-datasets/topowx_temerature/tmin_normal/normals_tmin.nc")
 # tmin_ndj = mean(tmin[[c(11,12,1)]])
@@ -49,7 +49,7 @@ tmax = raster("data/non-synced/existing-datasets/topowx_temerature/tmax_ds.tif")
 # tmin_aso = mean(tmin[[c(8,9,10)]])
 # tmin = mean(tmin)
 
-tmin = raster("data/non-synced/existing-datasets/topowx_temerature/tmin_ds.tif")
+tmin = raster("data/non-synced/existing-datasets/topowx_temerature/tmin_ds_4km_flint_noxy.tif")
 
 # tmean_ndj = mean(tmax_ndj,tmin_ndj)
 # tmean_fma = mean(tmax_fma,tmin_fma)
