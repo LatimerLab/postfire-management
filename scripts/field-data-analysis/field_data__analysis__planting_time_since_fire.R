@@ -16,10 +16,10 @@ load("output/plotSeedlingData.RData") #load R object: plot_dhm_long
 ##### final models for planted species and conifers --------------------------------------------------------------------------------
 
 #USE THIS MODEL FOR THE TOOL
-pltd <- lmer(ln.dens.planted ~ scale(tpi2000)*scale(elev)*fsplanted + 
+pltd <- lmer(ln.dens.planted ~ scale(tpi2000)*scale(elev) + 
                scale(Shrubs)*facts.planting.first.year*fsplanted +
                #scale(ShrubHolisticVolume)*facts.planting.first.year*fsplanted +
-               scale(tmin)*scale(normal_annual_precip) +
+               scale(tmax)*scale(normal_annual_precip) +
                scale(log10SeedWallConifer) +
                scale(LitDuff) +
                #scale(ShrubHt2) +
@@ -107,7 +107,7 @@ pltd.nb <- glmer.nb(round(dens.planted, 0 ) ~ scale(tpi2000)*facts.planting.firs
                (1|Fire) + (1|Fire:PairID), data = plot_dhm)
 summary(pltd.nb)
 
-pltd.po <- glmer(round(dens.planted, 0 ) ~ scale(tpi2000) + 
+pltd.po <- glmer(round(dens.planted, 0 ) ~ scale(tpi2000)*scale(elev) + 
                    scale(Shrubs)*facts.planting.first.year*fsplanted +
                    #scale(ShrubHolisticVolume^(2/3))*facts.planting.first.year*fsplanted +
                    scale(tmin)*scale(normal_annual_precip) +
@@ -117,7 +117,7 @@ pltd.po <- glmer(round(dens.planted, 0 ) ~ scale(tpi2000) +
                    #l(0+scale(normal_annual_precip)|Fire) + 
                    #(0+scale(tmin)|Fire) + 
                    #(0+scale(tmin):scale(normal_annual_precip)|Fire) + 
-                   (0+scale(tpi2000)|Fire) +
+                   #(0+scale(tpi2000)|Fire) +
                    (1|Fire:PairID) + (1|obs), family = poisson, data = plot_dhm %>% mutate(obs = row_number()))
 AIC(pltd.po)
 summary(pltd.po)
