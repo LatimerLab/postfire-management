@@ -19,7 +19,7 @@ load("output/plotSeedlingData.RData") #load R object: plot_dhm_long
 pltd <- lmer(ln.dens.planted ~ scale(tpi2000)*scale(elev) + 
                scale(Shrubs)*facts.planting.first.year*fsplanted +
                #scale(ShrubHolisticVolume)*facts.planting.first.year*fsplanted +
-               scale(tmax)*scale(normal_annual_precip) +
+               scale(tmin)*scale(normal_annual_precip) +
                scale(log10SeedWallConifer) +
                scale(LitDuff) +
                #scale(ShrubHt2) +
@@ -96,15 +96,18 @@ cor(plots %>% dplyr::select(tmax_ndj, tmin_ndj, tmean_ndj, tmax_fma, tmin_fma, t
 
 
 
-pltd.nb <- glmer.nb(round(dens.planted, 0 ) ~ scale(tpi2000)*facts.planting.first.year + 
-               scale(Shrubs)*facts.planting.first.year*fsplanted +
-               #scale(ShrubHolisticVolume^(2/3))*facts.planting.first.year*fsplanted +
-               #scale(tmin)*scale(normal_annual_precip) +
-               scale(log10SeedWallConifer) +
-               scale(LitDuff) +
-               #scale(ShrubHt2) +
-               #scale(ShrubHolisticVolume) +
-               (1|Fire) + (1|Fire:PairID), data = plot_dhm)
+pltd.nb <- glmer.nb(round(dens.planted, 0 ) ~ scale(tpi2000)*scale(elev) + 
+                      scale(Shrubs)*facts.planting.first.year*fsplanted +
+                      #scale(ShrubHolisticVolume^(2/3))*facts.planting.first.year*fsplanted +
+                      scale(tmin)*scale(normal_annual_precip) +
+                      scale(log10SeedWallConifer) +
+                      scale(LitDuff) +
+                      (1|Fire) +
+                      #l(0+scale(normal_annual_precip)|Fire) + 
+                      #(0+scale(tmin)|Fire) + 
+                      #(0+scale(tmin):scale(normal_annual_precip)|Fire) + 
+                      #(0+scale(tpi2000)|Fire) +
+                      (1|Fire:PairID), data = plot_dhm)
 summary(pltd.nb)
 
 pltd.po <- glmer(round(dens.planted, 0 ) ~ scale(tpi2000)*scale(elev) + 
