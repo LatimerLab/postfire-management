@@ -9,7 +9,7 @@ library(furrr)
 #### Load data ####
 
 # TopoWx temperature
-clim = stack("~/projects/temp_downscale/normals_tmax.nc") %>% mean()
+clim = stack("~/projects/temp_downscale/normals_tmax.nc")[[5:8]] %>% mean()
 #tmin = stack("data/non-synced/existing-datasets/topowx_temerature/tmin_normal/normals_tmin.nc") %>% mean()
 
 # TopoWx DEM
@@ -22,7 +22,7 @@ fine_dem = raster("~/projects/temp_downscale/CAmerged15.tif")
 focal_region = st_read("~/projects/temp_downscale/focal-region.geojson") %>% st_transform(crs(fine_dem))
 
 
-#### Prep data ####
+#### Prep data #### 
 
 buffer = 2000 # how far beyond focal fine-cell to look for coarse-cells to contribute to lapse rate regression
 

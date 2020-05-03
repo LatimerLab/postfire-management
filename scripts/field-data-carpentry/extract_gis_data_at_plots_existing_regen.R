@@ -51,6 +51,14 @@ plots_sp$tmax = raster::extract(tmax,plots_sp,method="bilinear")
 plots_sp$tmin = raster::extract(tmin,plots_sp,method="bilinear")
 plots_sp$tmean = raster::extract(tmean,plots_sp,method="bilinear")
 
+tmax_mjjas = raster("data/non-synced/existing-datasets/topowx_temerature/tmax_MJJAS_ds_4km_flint_noxy.tif")
+tmin_mjjas = raster("data/non-synced/existing-datasets/topowx_temerature/tmin_MJJAS_ds_4km_flint_noxy.tif")
+tmean_mjjas = (tmax_mjjas + tmin_mjjas)/2
+plots_sp$tmax_mjjas = raster::extract(tmax_mjjas,plots_sp,method="bilinear")
+plots_sp$tmin_mjjas = raster::extract(tmin_mjjas,plots_sp,method="bilinear")
+plots_sp$tmean_mjjas = raster::extract(tmean_mjjas,plots_sp,method="bilinear")
+
+
 ## extract elevation
 dem = raster("data/non-synced/existing-datasets/DEM/CAmerged15_albers.tif")
 plots_sp$elev = raster::extract(dem,plots_sp,method="bilinear")
@@ -135,7 +143,7 @@ rad_winter_socal = raster("data/non-synced/existing-datasets/solar radiation/rad
 rad_winter_norcal = raster("data/non-synced/existing-datasets/solar radiation/rad_winter_norcal.tif")
 rad_winter = merge(rad_winter_socal,rad_winter_norcal)
 
-      rad_winter_spring_socal = raster("data/non-synced/existing-datasets/solar radiation/rad_winter_spring_socal.tif")
+rad_winter_spring_socal = raster("data/non-synced/existing-datasets/solar radiation/rad_winter_spring_socal.tif")
 rad_winter_spring_norcal = raster("data/non-synced/existing-datasets/solar radiation/rad_winter_spring_norcal.tif")
 rad_winter_spring = merge(rad_winter_spring_socal,rad_winter_spring_norcal)
 
@@ -158,7 +166,7 @@ plots_sp$rad_spring_summer = raster::extract(rad_spring_summer,plots_sp,method="
 plots_sp$rad_summer = raster::extract(rad_summer,plots_sp,method="bilinear")
 
 
-
+          
 # 
 # ## extract twi
 # twi = raster("data/non-synced/existing-datasets/twi/twi_merged.tif")

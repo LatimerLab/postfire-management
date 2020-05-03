@@ -11,156 +11,162 @@ library(ncdf4)
 
 ## load data
 plots = read.csv("data/field-processed/compiled-processed/plots.csv",stringsAsFactors = FALSE)
-
-
-### For plots in geographic
-## make plots spatial
-
-plots = plots %>%
-  mutate(Long = as.numeric(Long)*-1,
-         Lat = as.numeric(Lat))
-
-plots_sp <- st_as_sf(plots, coords = c("Long","Lat"), crs = 4326) %>%
-  st_transform(3310)
-
-
-
-# get Albers coordinates
-plots_sp = cbind(plots_sp,st_coordinates(plots_sp))
-
-## extract PRISM normal precip
-ppt = raster("data/non-synced/existing-datasets/precipitation/PRISM_ppt_30yr_normal_800mM2_annual_bil.bil")
-plots_sp$normal_annual_precip = raster::extract(ppt,plots_sp,method="bilinear")
-
-## extract TopoWX normal temperature
-# tmax = stack("data/non-synced/existing-datasets/topowx_temerature/tmax_normal/normals_tmax.nc")
-# tmax_ndj = mean(tmax[[c(11,12,1)]])
-# tmax_fma = mean(tmax[[c(2,3,4)]])
-# tmax_mjj = mean(tmax[[c(5,6,7)]])
-# tmax_aso = mean(tmax[[c(8,9,10)]])
-# tmax = mean(tmax)
-
-tmax = raster("data/non-synced/existing-datasets/topowx_temerature/tmax_ds_4km_flint_noxy.tif")
-
-# tmin = stack("data/non-synced/existing-datasets/topowx_temerature/tmin_normal/normals_tmin.nc")
-# tmin_ndj = mean(tmin[[c(11,12,1)]])
-# tmin_fma = mean(tmin[[c(2,3,4)]])
-# tmin_mjj = mean(tmin[[c(5,6,7)]])
-# tmin_aso = mean(tmin[[c(8,9,10)]])
-# tmin = mean(tmin)
-
-tmin = raster("data/non-synced/existing-datasets/topowx_temerature/tmin_ds_4km_flint_noxy.tif")
-
-# tmean_ndj = mean(tmax_ndj,tmin_ndj)
-# tmean_fma = mean(tmax_fma,tmin_fma)
-# tmean_mjj = mean(tmax_mjj,tmin_mjj)
-# tmean_aso = mean(tmax_aso,tmin_aso)
-
-tmean = (tmax+tmin)/2
-
-# plots_sp$tmax_ndj = raster::extract(tmax_ndj,plots_sp,method="bilinear")
-# plots_sp$tmin_ndj = raster::extract(tmin_ndj,plots_sp,method="bilinear")
-# plots_sp$tmean_ndj = raster::extract(tmean_ndj,plots_sp,method="bilinear")
-# 
-# plots_sp$tmax_fma = raster::extract(tmax_fma,plots_sp,method="bilinear")
-# plots_sp$tmin_fma = raster::extract(tmin_fma,plots_sp,method="bilinear")
-# plots_sp$tmean_fma = raster::extract(tmean_fma,plots_sp,method="bilinear")
-# 
-# plots_sp$tmax_mjj = raster::extract(tmax_mjj,plots_sp,method="bilinear")
-# plots_sp$tmin_mjj = raster::extract(tmin_mjj,plots_sp,method="bilinear")
-# plots_sp$tmean_mjj = raster::extract(tmean_mjj,plots_sp,method="bilinear")
-# 
-# plots_sp$tmax_aso = raster::extract(tmax_aso,plots_sp,method="bilinear")
-# plots_sp$tmin_aso = raster::extract(tmin_aso,plots_sp,method="bilinear")
-# plots_sp$tmean_aso = raster::extract(tmean_aso,plots_sp,method="bilinear")
-
-plots_sp$tmax = raster::extract(tmax,plots_sp,method="bilinear")
-plots_sp$tmin = raster::extract(tmin,plots_sp,method="bilinear")
-plots_sp$tmean = raster::extract(tmean,plots_sp,method="bilinear")
-
-
-
-## extract elevation
-dem = raster("data/non-synced/existing-datasets/DEM/CAmerged14_albers.tif")
-plots_sp$elev = raster::extract(dem,plots_sp,method="bilinear")
-
-## get topographic indices
-plots_vicinity = st_buffer(plots_sp,50000) %>% st_union()
-dem_local = crop(dem,plots_vicinity %>% as("Spatial"))
-dem_local = mask(dem_local,plots_vicinity %>% as("Spatial"))
-dem_local = reclassify(dem_local,cbind(0,NA)) # set zero to nodata
-
-gc()
-
-topo_data = data.frame()
-
-## do extractions by fire
-fires = unique(plots_sp$Fire)
-for(fire in fires) {
   
-  cat("Running for fire",fire,"\n")
   
-  plots_fire = plots_sp %>%
-    filter(Fire == fire)
+  ### For plots in geographic
+  ## make plots spatial
   
-  plots_fire_vicinity = st_buffer(plots_fire,ifelse(fire == "Piute",15000,20000)) %>% st_union()
-  dem_local_fire = crop(dem_local,plots_fire_vicinity %>% as("Spatial"))
-  dem_local_fire = mask(dem_local_fire,plots_fire_vicinity %>% as("Spatial"))
-  # dem_reg_fire = crop(dem_reg,plots_fire_vicinity %>% as("Spatial"))
-  # dem_reg_fire = mask(dem_reg_fire,plots_fire_vicinity %>% as("Spatial"))
+  plots = plots %>%
+    mutate(Long = as.numeric(Long)*-1,
+           Lat = as.numeric(Lat))
   
-  # filename = paste0("../dem_reg_",fire,".tif")
-  # writeRaster(dem_reg_fire,filename,overwrite=TRUE)
+  plots_sp <- st_as_sf(plots, coords = c("Long","Lat"), crs = 4326) %>%
+    st_transform(3310)
+  
+  
+  
+  # get Albers coordinates
+  plots_sp = cbind(plots_sp,st_coordinates(plots_sp))
+  
+  ## extract PRISM normal precip
+  ppt = raster("data/non-synced/existing-datasets/precipitation/PRISM_ppt_30yr_normal_800mM2_annual_bil.bil")
+  plots_sp$normal_annual_precip = raster::extract(ppt,plots_sp,method="bilinear")
+  
+  ## extract TopoWX normal temperature
+  # tmax = stack("data/non-synced/existing-datasets/topowx_temerature/tmax_normal/normals_tmax.nc")
+  # tmax_ndj = mean(tmax[[c(11,12,1)]])
+  # tmax_fma = mean(tmax[[c(2,3,4)]])
+  # tmax_mjj = mean(tmax[[c(5,6,7)]])
+  # tmax_aso = mean(tmax[[c(8,9,10)]])
+  # tmax = mean(tmax)
+  
+  tmax = raster("data/non-synced/existing-datasets/topowx_temerature/tmax_ds_4km_flint_noxy.tif")
+  tmax_mjjas = raster("data/non-synced/existing-datasets/topowx_temerature/tmax_MJJAS_ds_4km_flint_noxy.tif")
+  # tmin = stack("data/non-synced/existing-datasets/topowx_temerature/tmin_normal/normals_tmin.nc")
+  # tmin_ndj = mean(tmin[[c(11,12,1)]])
+  # tmin_fma = mean(tmin[[c(2,3,4)]])
+  # tmin_mjj = mean(tmin[[c(5,6,7)]])
+  # tmin_aso = mean(tmin[[c(8,9,10)]])
+  # tmin = mean(tmin)
+  
+  tmin = raster("data/non-synced/existing-datasets/topowx_temerature/tmin_ds_4km_flint_noxy.tif")
+  tmin_mjjas = raster("data/non-synced/existing-datasets/topowx_temerature/tmin_MJJAS_ds_4km_flint_noxy.tif")
+  
+  
+  # tmean_ndj = mean(tmax_ndj,tmin_ndj)
+  # tmean_fma = mean(tmax_fma,tmin_fma)
+  # tmean_mjj = mean(tmax_mjj,tmin_mjj)
+  # tmean_aso = mean(tmax_aso,tmin_aso)
+  
+  tmean = (tmax+tmin)/2
+  tmean_mjjas = (tmax_mjjas+tmin_mjjas)/2
+  
+  # plots_sp$tmax_ndj = raster::extract(tmax_ndj,plots_sp,method="bilinear")
+  # plots_sp$tmin_ndj = raster::extract(tmin_ndj,plots_sp,method="bilinear")
+  # plots_sp$tmean_ndj = raster::extract(tmean_ndj,plots_sp,method="bilinear")
   # 
+  # plots_sp$tmax_fma = raster::extract(tmax_fma,plots_sp,method="bilinear")
+  # plots_sp$tmin_fma = raster::extract(tmin_fma,plots_sp,method="bilinear")
+  # plots_sp$tmean_fma = raster::extract(tmean_fma,plots_sp,method="bilinear")
+  # 
+  # plots_sp$tmax_mjj = raster::extract(tmax_mjj,plots_sp,method="bilinear")
+  # plots_sp$tmin_mjj = raster::extract(tmin_mjj,plots_sp,method="bilinear")
+  # plots_sp$tmean_mjj = raster::extract(tmean_mjj,plots_sp,method="bilinear")
+  # 
+  # plots_sp$tmax_aso = raster::extract(tmax_aso,plots_sp,method="bilinear")
+  # plots_sp$tmin_aso = raster::extract(tmin_aso,plots_sp,method="bilinear")
+  # plots_sp$tmean_aso = raster::extract(tmean_aso,plots_sp,method="bilinear")
   
-  tpi500 = tpi(dem_local_fire,scale = round(500/30))
-  tpi100 = tpi(dem_local_fire,scale = round(100/30))
-  tpi2000 = tpi(dem_local_fire,scale = round(2000/30))
-  tpi5000 = tpi(dem_local_fire,scale = round(5000/30)) # this takes hours
-
+  plots_sp$tmax = raster::extract(tmax,plots_sp,method="bilinear")
+  plots_sp$tmin = raster::extract(tmin,plots_sp,method="bilinear")
+  plots_sp$tmean = raster::extract(tmean,plots_sp,method="bilinear")
   
-  target_raster = raster(crs = crs(dem_local_fire), ext = extent(dem_local_fire), resolution = 30)
-  dem_resamp = raster::resample(dem_local_fire,target_raster)
-  dem_resamp[dem_resamp == 0] = NA
+  plots_sp$tmax_mjjas = raster::extract(tmax_mjjas,plots_sp,method="bilinear")
+  plots_sp$tmin_mjjas = raster::extract(tmin_mjjas,plots_sp,method="bilinear")
+  plots_sp$tmean_mjjas = raster::extract(tmean_mjjas,plots_sp,method="bilinear")
   
   
-  twi = upslope.area(dem_resamp,atb=TRUE)
-
-  tpi500_d = raster::extract(tpi500, plots_fire, method="bilinear")
-  tpi100_d = raster::extract(tpi100, plots_fire, method="bilinear")
-  tpi2000_d = raster::extract(tpi2000, plots_fire, method="bilinear")
-  tpi5000_d = raster::extract(tpi5000, plots_fire, method="bilinear")
-  twi_d = raster::extract(twi[["atb"]], plots_fire, method="bilinear")
-   
-  topo_data_fire = data.frame(PlotID = plots_fire$PlotID,tpi100 = tpi100_d, tpi500 = tpi500_d, tpi2000 = tpi2000_d, tpi5000 = tpi5000_d, twi = twi_d)
-  topo_data = bind_rows(topo_data,topo_data_fire)
-
+  ## extract elevation
+  dem = raster("data/non-synced/existing-datasets/DEM/CAmerged14_albers.tif")
+  plots_sp$elev = raster::extract(dem,plots_sp,method="bilinear")
+  
+  ## get topographic indices
+  plots_vicinity = st_buffer(plots_sp,50000) %>% st_union()
+  dem_local = crop(dem,plots_vicinity %>% as("Spatial"))
+  dem_local = mask(dem_local,plots_vicinity %>% as("Spatial"))
+  dem_local = reclassify(dem_local,cbind(0,NA)) # set zero to nodata
+  
   gc()
   
-}
+  topo_data = data.frame()
+  
+  ## do extractions by fire
+  fires = unique(plots_sp$Fire)
+  for(fire in fires) {
+    
+    cat("Running for fire",fire,"\n")
+    
+    plots_fire = plots_sp %>%
+      filter(Fire == fire)
+    
+    plots_fire_vicinity = st_buffer(plots_fire,ifelse(fire == "Piute",15000,20000)) %>% st_union()
+    dem_local_fire = crop(dem_local,plots_fire_vicinity %>% as("Spatial"))
+    dem_local_fire = mask(dem_local_fire,plots_fire_vicinity %>% as("Spatial"))
+    # dem_reg_fire = crop(dem_reg,plots_fire_vicinity %>% as("Spatial"))
+    # dem_reg_fire = mask(dem_reg_fire,plots_fire_vicinity %>% as("Spatial"))
+    
+    # filename = paste0("../dem_reg_",fire,".tif")
+    # writeRaster(dem_reg_fire,filename,overwrite=TRUE)
+    # 
+    
+    tpi500 = tpi(dem_local_fire,scale = round(500/30))
+    tpi100 = tpi(dem_local_fire,scale = round(100/30))
+    tpi2000 = tpi(dem_local_fire,scale = round(2000/30))
+    tpi5000 = tpi(dem_local_fire,scale = round(5000/30)) # this takes hours
+  
+    
+    target_raster = raster(crs = crs(dem_local_fire), ext = extent(dem_local_fire), resolution = 30)
+    dem_resamp = raster::resample(dem_local_fire,target_raster)
+    dem_resamp[dem_resamp == 0] = NA
+    
+    
+    twi = upslope.area(dem_resamp,atb=TRUE)
+  
+    tpi500_d = raster::extract(tpi500, plots_fire, method="bilinear")
+    tpi100_d = raster::extract(tpi100, plots_fire, method="bilinear")
+    tpi2000_d = raster::extract(tpi2000, plots_fire, method="bilinear")
+    tpi5000_d = raster::extract(tpi5000, plots_fire, method="bilinear")
+    twi_d = raster::extract(twi[["atb"]], plots_fire, method="bilinear")
+     
+    topo_data_fire = data.frame(PlotID = plots_fire$PlotID,tpi100 = tpi100_d, tpi500 = tpi500_d, tpi2000 = tpi2000_d, tpi5000 = tpi5000_d, twi = twi_d)
+    topo_data = bind_rows(topo_data,topo_data_fire)
+  
+    gc()
+    
+  }
+  
+  plots_sp = left_join(plots_sp,topo_data)
 
-plots_sp = left_join(plots_sp,topo_data)
-
-
-## compute and extract slope and aspect (takes ~ 15 minutes)
-slope = terrain(dem_local,opt=c("slope"),unit="degrees")
-aspect = terrain(dem_local,opt=c("aspect"),unit="degrees")
-
-plots_sp$slope_dem = raster::extract(slope,plots_sp,method="bilinear")
-plots_sp$aspect_dem = raster::extract(aspect,plots_sp,method="bilinear")
-
-## extract solar rad
-rad_winter = raster("data/non-synced/existing-datasets/solar radiation/rad_winter.tif")
-plots_sp$rad_winter = raster::extract(rad_winter,plots_sp,method="bilinear")
-rad_winter_spring = raster("data/non-synced/existing-datasets/solar radiation/rad_winter_spring.tif")
-plots_sp$rad_winter_spring = raster::extract(rad_winter_spring,plots_sp,method="bilinear")
-rad_spring = raster("data/non-synced/existing-datasets/solar radiation/rad_spring.tif")
-plots_sp$rad_spring = raster::extract(rad_spring,plots_sp,method="bilinear")
-rad_spring_summer = raster("data/non-synced/existing-datasets/solar radiation/rad_spring_summer.tif")
-plots_sp$rad_spring_summer = raster::extract(rad_spring_summer,plots_sp,method="bilinear")
-rad_summer = raster("data/non-synced/existing-datasets/solar radiation/rad_summer.tif")
-plots_sp$rad_summer = raster::extract(rad_summer,plots_sp,method="bilinear")
-
+  
+  ## compute and extract slope and aspect (takes ~ 15 minutes)
+  slope = terrain(dem_local,opt=c("slope"),unit="degrees")
+  aspect = terrain(dem_local,opt=c("aspect"),unit="degrees")
+  
+  plots_sp$slope_dem = raster::extract(slope,plots_sp,method="bilinear")
+  plots_sp$aspect_dem = raster::extract(aspect,plots_sp,method="bilinear")
+  
+  ## extract solar rad
+  rad_winter = raster("data/non-synced/existing-datasets/solar radiation/rad_winter.tif")
+  plots_sp$rad_winter = raster::extract(rad_winter,plots_sp,method="bilinear")
+  rad_winter_spring = raster("data/non-synced/existing-datasets/solar radiation/rad_winter_spring.tif")
+  plots_sp$rad_winter_spring = raster::extract(rad_winter_spring,plots_sp,method="bilinear")
+  rad_spring = raster("data/non-synced/existing-datasets/solar radiation/rad_spring.tif")
+  plots_sp$rad_spring = raster::extract(rad_spring,plots_sp,method="bilinear")
+  rad_spring_summer = raster("data/non-synced/existing-datasets/solar radiation/rad_spring_summer.tif")
+  plots_sp$rad_spring_summer = raster::extract(rad_spring_summer,plots_sp,method="bilinear")
+  rad_summer = raster("data/non-synced/existing-datasets/solar radiation/rad_summer.tif")
+  plots_sp$rad_summer = raster::extract(rad_summer,plots_sp,method="bilinear")
+  
 
 # ## extract twi
 # twi = raster("data/non-synced/existing-datasets/twi/twi_merged.tif")
@@ -176,7 +182,7 @@ facts_simple = facts %>%
 
 names(facts_simple)[1:(length(names(facts_simple))-1)] = paste0("facts.",names(facts_simple))[1:(length(names(facts_simple))-1)]
 
-plots_sp_facts = st_intersection(plots_sp,facts_simple)
+plots_sp_facts = st_intersection(plots_sp,facts_simple %>% st_transform(st_crs(plots_sp)))
 
 ## Add back the plots that did not intersect with FACTS layers (st_intersection drops them)
 plots_dropped = setdiff(plots_sp$PlotID,plots_sp_facts$PlotID)
@@ -246,3 +252,4 @@ plots = plots_sp_facts %>% st_set_geometry(NULL)
 
 ## write data
 write.csv(plots,"data/field-processed/compiled-processed/plots_w_gis_data_newTWI.csv",row.names = FALSE)
+  

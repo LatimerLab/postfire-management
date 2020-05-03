@@ -1,78 +1,78 @@
-library(raster)
-library(dplyr)
-library(sf)
-library(purrr)
-library(furrr)
+    library(raster)
+    library(dplyr)
+    library(sf)
+    library(purrr)
+    library(furrr)
+    
+    setwd("/home/derek/Documents/temperature_downscale")
+    
+    #### Load data ####
+    
+    # TopoWx temperature
+    # clim = stack("~/projects/temp_downscale/normals_tmax.nc") %>% mean()
+    clim = stack("normals_tmax.nc")[[5:9]] %>% mean()
+    
+    # TopoWx DEM
+    # coarse_dem = raster("~/projects/temp_downscale/dem_prism_800m.tif")
+    coarse_dem = raster("dem_prism_800m.tif")
+    
+    # 30m DEM to downscale to
+    # fine_dem = raster("~/projects/temp_downscale/CAmerged15.tif")
+    fine_dem = raster("CAmerged15.tif")
+    
+    # Focal region
+    # focal_region = st_read("~/projects/temp_downscale/focal-region.geojson") %>% st_transform(crs(fine_dem))
+    focal_region = st_read("focal-region.geojson") %>% st_transform(crs(fine_dem))
+    
+    
+    #### Prep data ####
 
-setwd("/home/derek/Documents/temperature_downscale")
+    buffer = 4000 # how far beyond focal fine-cell to look for coarse-cells to contribute to lapse rate regression
 
-#### Load data ####
+    focal_region_buffer = focal_region %>% st_transform(3310) %>% st_buffer(buffer*1.2)
 
-# TopoWx temperature
-# clim = stack("~/projects/temp_downscale/normals_tmax.nc") %>% mean()
-clim = stack("normals_tmax.nc") %>% mean()
+    ## Clip rasters to focal region extent (+ buffer dist for coarse layers)
 
-# TopoWx DEM
-# coarse_dem = raster("~/projects/temp_downscale/dem_prism_800m.tif")
-coarse_dem = raster("dem_prism_800m.tif")
-
-# 30m DEM to downscale to
-# fine_dem = raster("~/projects/temp_downscale/CAmerged15.tif")
-fine_dem = raster("CAmerged15.tif")
-
-# Focal region
-# focal_region = st_read("~/projects/temp_downscale/focal-region.geojson") %>% st_transform(crs(fine_dem))
-focal_region = st_read("focal-region.geojson") %>% st_transform(crs(fine_dem))
-
-
-#### Prep data ####
-
-buffer = 4000 # how far beyond focal fine-cell to look for coarse-cells to contribute to lapse rate regression
-
-focal_region_buffer = focal_region %>% st_transform(3310) %>% st_buffer(buffer*1.2)
-
-## Clip rasters to focal region extent (+ buffer dist for coarse layers)
-
-clim = crop(clim,focal_region_buffer)
-clim = mask(clim,focal_region_buffer)
-clim = projectRaster(clim,coarse_dem)
-
-coarse_dem = crop(coarse_dem,focal_region_buffer)
-coarse_dem = mask(coarse_dem,focal_region_buffer)
-
-# tmin = crop(tmin,focal_region)
-# tmin = mask(tmin,focal_region)
-# tmin = projectRaster(tmin,coarse_dem)
-
-fine_dem = crop(fine_dem,focal_region)
-fine_dem = mask(fine_dem,focal_region)
-# code NA as -9999
-fine_dem[is.na(fine_dem)] = -999
-
-
-
-#### Prep for splitting into tiles to parallelize over ####
-
-
-subset_grid = st_make_grid(focal_region %>% st_transform(3310),
-                           cellsize = 10000) %>% st_transform(crs(clim))
-
-# write grid to select specific cells
-subset_grid1 = st_as_sf(subset_grid)
-subset_grid1$id = 1:length(subset_grid)
-st_write(subset_grid1,"temp_subset_grid.gpkg")
-
-
-############ focal_cell = subset_grid[787] # good one is 798. or 787-789
-
-#### Build lists of tiles to parallelize over ####
-## takes about 2 min
-
-coarse_clim_list = list()
-coarse_dem_list = list()
-fine_dem_list = list()
-
-nlayers = 1
+    clim = crop(clim,focal_region_buffer)
+    clim = mask(clim,focal_region_buffer)
+        clim = projectRaster(clim,coarse_dem)
+    
+    coarse_dem = crop(coarse_dem,focal_region_buffer)
+    coarse_dem = mask(coarse_dem,focal_region_buffer)
+  
+  # tmin = crop(tmin,focal_region)
+  # tmin = mask(tmin,focal_region)
+  # tmin = projectRaster(tmin,coarse_dem)
+  
+  fine_dem = crop(fine_dem,focal_region)
+  fine_dem = mask(fine_dem,focal_region)
+  # code NA as -9999
+  fine_dem[is.na(fine_dem)] = -999
+    
+  
+  
+  #### Prep for splitting into tiles to parallelize over ####
+  
+  
+  subset_grid = st_make_grid(focal_region %>% st_transform(3310),
+                             cellsize = 10000) %>% st_transform(crs(clim))
+  
+  # write grid to select specific cells
+  subset_grid1 = st_as_sf(subset_grid)
+  subset_grid1$id = 1:length(subset_grid)
+  st_write(subset_grid1,"temp_subset_grid.gpkg")
+  
+  
+  ############ focal_cell = subset_grid[787] # good one is 798. or 787-789
+  
+  #### Build lists of tiles to parallelize over ####
+  ## takes about 2 min
+  
+  coarse_clim_list = list()
+  coarse_dem_list = list()
+  fine_dem_list = list()
+  
+  nlayers = 1
 
 for(i in 1:length(subset_grid)) {
 
