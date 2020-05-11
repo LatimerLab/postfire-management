@@ -22,31 +22,36 @@ pltd <- lmer(ln.dens.planted ~ scale(tpi2000)*scale(elev) +
                scale(tmin)*scale(normal_annual_precip) +
                scale(log10SeedWallConifer) +
                scale(LitDuff) +
+               scale(rad_summer)*scale(tmax) +
                #scale(ShrubHt2) +
                #scale(ShrubHolisticVolume) +
-               (1|Fire) + 
+               (1|Fire) +
                #(0+scale(normal_annual_precip)|Fire) + 
-               #(0+scale(tmin)|Fire) + 
-               #(0+scale(tmin):scale(normal_annual_precip)|Fire) + 
+               #(0+scale(tmean_mjjas)|Fire) 
+               #(0+scale(tmin_mjjas):scale(normal_annual_precip)|Fire) 
                #(0+scale(tpi2000)|Fire) +
-               (1|Fire:PairID), data = plot_dhm)
+               #(0+scale(Shrubs)|Fire) +
+               (1|Fire:PairID)
+                , REML = T,
+              data = plot_dhm_oldscale)
 
 
 
 AIC(pltd)
-
-
-summary(pltd, correlation=TRUE)
+anova(pltd)
+summary(pltd)
+ranef(pltd)
 plot(pltd)
 plot(allEffects(pltd))
 r.squaredGLMM(pltd)
 
 #All conifers model
-conif <- lmer(ln.dens.conif ~ scale(tpi2000)+facts.planting.first.year +
+conif <- lmer(ln.dens.conif ~ scale(tpi2000)*scale(elev) +
+                #facts.planting.first.year +
                 #fsplanted +
-                facts.planting.first.year*fsplanted*scale(ShrVol) +
-                scale(tmean)*scale(normal_annual_precip) +
-                scale(I(DuffDepth+LitterDepth)) +
+                facts.planting.first.year*fsplanted*scale(Shrubs) +
+                scale(tmin)*scale(normal_annual_precip) +
+                scale(LitDuff) +
                 log10SeedWallConifer + #scale(ShrubHt) +
                 (1|Fire) + (1|Fire:PairID), data = plot_dhm)
 
@@ -77,7 +82,7 @@ shr <- lmer(scale(asin(sqrt(Shrubs/100))) ~ scale(normal_annual_precip)*scale(ra
                scale(twi) + 
                #I(scale(twi)^2) +
                #scale(tpi500) +
-               (1|Fire) + (1|Fire:PairID), data = plot_dhm)
+               (1|Fire) + (1|Fire:PairID), REML = F, data = plot_dhm)
 AIC(shr)
 summary(shr)
 plot(shr)
@@ -104,11 +109,12 @@ pltd.nb <- glmer.nb(round(dens.planted, 0 ) ~ scale(tpi2000)*scale(elev) +
                       scale(LitDuff) +
                       (1|Fire) +
                       #l(0+scale(normal_annual_precip)|Fire) + 
-                      #(0+scale(tmin)|Fire) + 
+                      #(0+scale(tmin_mjjas)|Fire) + 
                       #(0+scale(tmin):scale(normal_annual_precip)|Fire) + 
                       #(0+scale(tpi2000)|Fire) +
-                      (1|Fire:PairID), data = plot_dhm)
+                      (1|Fire:PairID), data = plot_dhm_oldscale)
 summary(pltd.nb)
+
 
 pltd.po <- glmer(round(dens.planted, 0 ) ~ scale(tpi2000)*scale(elev) + 
                    scale(Shrubs)*facts.planting.first.year*fsplanted +
