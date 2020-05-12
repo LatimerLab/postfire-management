@@ -17,12 +17,13 @@ load("output/plotSeedlingData.RData") #load R object: plot_dhm_long
 
 #USE THIS MODEL FOR THE TOOL
 pltd <- lmer(ln.dens.planted ~ scale(tpi2000)*scale(elev) + 
-               scale(Shrubs)*facts.planting.first.year*fsplanted +
+               scale(Shrubs)*facts.planting.first.year*fsplanted - 
+               #scale(Shrubs):facts.planting.first.year:fsplanted +
                #scale(ShrubHolisticVolume)*facts.planting.first.year*fsplanted +
                scale(tmin)*scale(normal_annual_precip) +
                scale(log10SeedWallConifer) +
                scale(LitDuff) +
-               scale(rad_summer)*scale(tmax) +
+               #scale(rad_summer)*scale(tmax) +
                #scale(ShrubHt2) +
                #scale(ShrubHolisticVolume) +
                (1|Fire) +
