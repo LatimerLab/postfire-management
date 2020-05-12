@@ -86,6 +86,34 @@ plots = read.csv("data/field-processed/compiled-processed/plots.csv",stringsAsFa
   plots_sp$tmean_mjjas = raster::extract(tmean_mjjas,plots_sp,method="bilinear")
   
   
+  
+  ### Extract BCM vars
+  
+  bcm_tmin = raster("data/non-synced/existing-datasets/BCM/tmn1981_2010_ave_HST_1589306045/tmn1981_2010_ave_HST_1589306045.tif")
+  bcm_tmax = raster("data/non-synced/existing-datasets/BCM/tmx1981_2010_ave_HST_1589306026/tmx1981_2010_ave_HST_1589306026.tif")
+  bcm_tmin_july = raster("data/non-synced/existing-datasets/BCM/tmn1981_2010jul_ave_HST_1589306105/tmn1981_2010jul_ave_HST_1589306105.tif")
+  bcm_tmax_july = raster("data/non-synced/existing-datasets/BCM/tmx1981_2010jul_ave_HST_1589306127/tmx1981_2010jul_ave_HST_1589306127.tif")
+  
+  bcm_tmean = mean(bcm_tmin,bcm_tmax)
+  bcm_tmean_july = mean(bcm_tmin_july,bcm_tmax_july)
+  
+  bcm_snowpack = raster("data/non-synced/existing-datasets/BCM/aprpck1981_2010_ave_HST_1589305983/aprpck1981_2010_ave_HST_1589305983.tif")
+  bcm_aet = raster("data/non-synced/existing-datasets/BCM/aet1981_2010_ave_HST_1589305896/aet1981_2010_ave_HST_1589305896.tif")
+  bcm_cwd = raster("data/non-synced/existing-datasets/BCM/cwd1981_2010_ave_HST_1589306003/cwd1981_2010_ave_HST_1589306003.tif")
+  
+  plots_sp$bcm_tmin = raster::extract(bcm_tmin,plots_sp,method="bilinear")
+  plots_sp$bcm_tmax = raster::extract(bcm_tmax,plots_sp,method="bilinear")
+  plots_sp$bcm_tmean = raster::extract(bcm_tmean,plots_sp,method="bilinear")
+  plots_sp$bcm_tmin_july = raster::extract(bcm_tmin_july,plots_sp,method="bilinear")
+  plots_sp$bcm_tmax_july = raster::extract(bcm_tmax_july,plots_sp,method="bilinear")
+  plots_sp$bcm_tmean_july = raster::extract(bcm_tmean_july,plots_sp,method="bilinear")
+  
+  plots_sp$bcm_snowpack = raster::extract(bcm_snowpack,plots_sp,method="bilinear")
+  plots_sp$bcm_aet = raster::extract(bcm_aet,plots_sp,method="bilinear")
+  plots_sp$bcm_cwd = raster::extract(bcm_cwd,plots_sp,method="bilinear")
+  
+  
+  
   ## extract elevation
   dem = raster("data/non-synced/existing-datasets/DEM/CAmerged14_albers.tif")
   plots_sp$elev = raster::extract(dem,plots_sp,method="bilinear")
