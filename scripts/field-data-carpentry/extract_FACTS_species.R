@@ -18,42 +18,47 @@ speciesorig <- speciesorig %>%
 species = speciesorig
 
 
-# ----- change trees uom to tpa uom
-
-species <- species %>%
-  dplyr::mutate(tpa_planned = NA) %>%
-  dplyr::mutate(tpa_actual = NA)
-
+# # ----- change trees uom to tpa uom
+# 
+# species <- species %>%
+#   dplyr::mutate(tpa_planned = NA) %>%
+#   dplyr::mutate(tpa_actual = NA)
+# 
 # standardize_uom <- function(i) {
 #   unit <- species[i,]
 #   
+#   if(is.na(unit$seedling_uom)) return(0)
+# 
 #   if (unit$seedling_uom == "Trees per Acre") {
-#     
+# 
 #     unit$tpa_planned = unit$planned_seedlings.uom
 #     unit$tpa_actual = unit$actual_seedlings.uom
-#     
+# 
 #   } else if (unit$seedling_uom == "Trees per Hectare") {
-#     
+# 
 #     unit$tpa_planned = unit$planned_seedlings.uom / 2.471
 #     unit$tpa_actual = unit$actual_seedlings.uom / 2.471
-#     
+# 
 #   }
 #   else if (unit$seedling_uom == "Trees") {
-#     
+# 
 #     unit$tpa_planned = unit$planned_seedlings.uom / unit$acres_planted
 #     unit$tpa_actual = unit$actual_seedlings.uom/ unit$acres_planted
-#     
+# 
 #   } else if (unit$seedling_uom == "Thousand Seedlings") {
-#     
+# 
 #     unit$tpa_planned = unit$planned_seedlings.uom * 1000 / unit$acres_planted
 #     unit$tpa_actual = unit$actual_seedlings.uom * 1000 / unit$acres_planted
-#     
-#   } 
+# 
+#   }
 #   return(unit)
-#   
+# 
 # }
 # 
-# species <- lapply(1:nrow(species), standardize_uom)  %>% bind_rows()
+# rows = 1:nrow(species)
+# names(rows) = 1:nrow(species)
+# 
+# species <- sapply(rows, FUN=standardize_uom)  %>% bind_rows()
 
 
 ## we don't care about units because we just care about presence-absence
@@ -98,6 +103,14 @@ for(i in 1:nrow(studyplots)) {
 }
 
 
+## summarize our SUIDs to get density
+sp_summ = species_planted %>%
+  filter(suid %in% plots_df$suid) %>%
+  filter(seedling_uom == "Trees per Acre") %>%
+  group_by(suid) %>%
+  summarize(tpa = sum(actual_seedlings.uom))
+  
+
 ## from the species data, only keep records from our focal suids
 species_planted = species_planted %>%
   filter(suid %in% plots_df$suid) %>%
@@ -107,6 +120,10 @@ species_planted = species_planted %>%
 species_planned = species_planned %>%
   filter(suid %in% plots_df$suid) %>%
   dplyr::select(suid,fy_accomp,sci_species_code,planted)
+
+
+
+
 
 
 # for each row of the SUIDs (plots_df) data frame, look up that SUID from the species data and append it (as long as the year is later than the fire year)
