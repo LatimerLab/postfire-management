@@ -16,13 +16,18 @@ load("output/plotSeedlingData.RData") #load R object: plot_dhm_long
 ##### final models for planted species and conifers --------------------------------------------------------------------------------
 
 #USE THIS MODEL FOR THE TOOL
-pltd <- lmer(ln.dens.planted ~ scale(tpi2000)*scale(elev) + 
-               scale(Shrubs)*facts.planting.first.year*fsplanted - 
+pltd <- lmer(ln.dens.planted ~ scale(tpi2000)*scale(elev) +
+               #scale(elev) +
+               scale(Shrubs)*facts.planting.first.year*fsplanted + 
                #scale(Shrubs):facts.planting.first.year:fsplanted +
                #scale(ShrubHolisticVolume)*facts.planting.first.year*fsplanted +
-               scale(tmin)*scale(normal_annual_precip) +
+               scale(tmean)*scale(normal_annual_precip) +
+               #scale(bcm_tmax_july) +
+               #scale(bcm_aet)+
+               #scale(bcm_cwd) +
                scale(log10SeedWallConifer) +
                scale(LitDuff) +
+               #scale(bcm_snowpack) +
                #scale(rad_summer)*scale(tmax) +
                #scale(ShrubHt2) +
                #scale(ShrubHolisticVolume) +
@@ -32,11 +37,10 @@ pltd <- lmer(ln.dens.planted ~ scale(tpi2000)*scale(elev) +
                #(0+scale(tmin_mjjas):scale(normal_annual_precip)|Fire) 
                #(0+scale(tpi2000)|Fire) +
                #(0+scale(Shrubs)|Fire) +
+               #(0+scale(bcm_snowpack)|Fire)+
                (1|Fire:PairID)
                 , REML = T,
-              data = plot_dhm_oldscale)
-
-
+              data = plot_dhm[-c(levId),])
 
 AIC(pltd)
 anova(pltd)
@@ -45,6 +49,16 @@ ranef(pltd)
 plot(pltd)
 plot(allEffects(pltd))
 r.squaredGLMM(pltd)
+leveragePlots(pltd)
+qqnorm(residuals(pltd))
+
+ggplot(data.frame(lev=hatvalues(pltd),pearson=residuals(pltd,type="pearson")),
+       aes(x=lev,y=pearson)) +
+  geom_point() +
+  theme_bw()
+
+levId <- which(hatvalues(pltd) >= .23)
+
 
 #All conifers model
 conif <- lmer(ln.dens.conif ~ scale(tpi2000)*scale(elev) +
@@ -81,6 +95,12 @@ shr <- lmer(scale(asin(sqrt(Shrubs/100))) ~ scale(normal_annual_precip)*scale(ra
                #scale(slope_dem) + 
                #I(scale(slope_dem)^2) + 
                scale(twi) + 
+               #scale(bcm_tmax_july) +
+               #scale(bcm_aet)+
+               #scale(bcm_cwd) +
+               #scale(log10SeedWallConifer) +
+               #scale(LitDuff) +
+               #scale(bcm_snowpack) +
                #I(scale(twi)^2) +
                #scale(tpi500) +
                (1|Fire) + (1|Fire:PairID), REML = F, data = plot_dhm)
@@ -128,7 +148,7 @@ pltd.po <- glmer(round(dens.planted, 0 ) ~ scale(tpi2000)*scale(elev) +
                    #(0+scale(tmin)|Fire) + 
                    #(0+scale(tmin):scale(normal_annual_precip)|Fire) + 
                    #(0+scale(tpi2000)|Fire) +
-                   (1|Fire:PairID) + (1|obs), family = poisson, data = plot_dhm %>% mutate(obs = row_number()))
+                   (1|Fire:PairID) + (1|obs), family = poisson, data = plot_dhm[-c(levId),] %>% mutate(obs = row_number()))
 AIC(pltd.po)
 summary(pltd.po)
 
