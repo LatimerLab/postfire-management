@@ -10,7 +10,7 @@ plot_plot = plot_dhm_long %>%
          prep = (facts.prep.nyears > 0),
          thin = facts.thin.years.post != "",
          release = facts.release.years.post != "",
-         replant = facts.release.years.post != "",
+         replant = facts.replant.years.post != "",
          plt_yrs_post = facts.planting.first.year) %>%
   mutate(salv = ifelse(salv,"Salvaged","Unsalvaged"),
          release = ifelse(release,"Released","Unreleased"),
@@ -18,21 +18,24 @@ plot_plot = plot_dhm_long %>%
   mutate(Fire = recode(Fire,Ctnwd = "Cottonwood",
                        MoonAnt = "Moonlight-Antelope",
                        AmRiv = "American River")) %>%
+  mutate(Fire = factor(Fire,levels = c("American River","Moonlight-Antelope","Piute","Power","Cottonwood"))) %>%
   mutate(FireSalvRel = paste(Fire,salv,release,replant,sep="\n")) %>%
+  mutate(FireSalvRel = fct_relevel(FireSalvRel,"Cottonwood\nSalvaged\nUnreleased\nNot replanted",after=Inf)) %>%
   mutate(plt_yrs_post = as.factor(plt_yrs_post))
+  
 
 
 p = ggplot(plot_plot,aes(x = normal_annual_precip,
                      y = rad_spring,
                      color = plt_yrs_post)) +
   geom_point() +
-  facet_wrap(~FireSalvRel,scales="free",ncol=2) +
+  facet_wrap(.~FireSalvRel,scales="free",ncol=2) +
   scale_color_discrete(name="Years following\nfire planted") +
   labs(x = "Normal annual precipitation (mm)",
        y = "Spring solstice insolation (Wh m-2 day-1)") +
   theme_bw()
 
-png("figures/manuscript/management_and_env_variation.png",width = 1000,height=1500,res=200)
+png("figures/manuscript/management_and_env_variation.png",width = 1000,height=2000,res=200)
 p
 dev.off()
 
