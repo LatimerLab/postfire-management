@@ -22,7 +22,8 @@ var_lims = read.csv("data/var_lims.csv", header=TRUE)
 
 ## get all the non-high-sev area
 sev_nonhigh = sev %>%
-  filter(BURNSEV < 7)
+  filter(BURNSEV < 7) %>%
+  st_union()
 
 ## buffer out the fire perim 100 m to use that as non-high-sev
 perim_buffer = st_buffer(perim,100)
@@ -58,27 +59,28 @@ env = mask(env,perim %>% st_transform(projection(env)))
 env = stack(env,seed_dist,non_high_sev_mask)
 
 env_df = as.data.frame(env,xy=TRUE)
-names(env_df) = c("x","y","tpi","ppt","tmin","shrub","seed_dist","non_high_sev_mask")
+names(env_df) = c("x","y","tpi","ppt","tmean","shrub","elev","seed_dist","non_high_sev_mask")
 env_df = env_df %>%
   rename(normal_annual_precip = ppt,
          tpi2000 = "tpi",
          Shrubs = "shrub") %>%
   ## undo the raster scaling that was done to be able to save layers as int
-  mutate(tmin = tmin/100,
+  mutate(tmean = tmean/100,
          tpi2000 = tpi2000/10,
          Shrubs = Shrubs/100) %>%
   # apply transformation needed by stat model
   mutate(seed_dist = ifelse(seed_dist == 0,15,seed_dist)) %>% # correct for a limitation of using remotely sensed data: no plot center is exactly 0 m from a tree. Use 15 since we are focused on high-severity areas, so the closest a tree could be is half the width of the pixel. Also conveniently 15 m was the closest a tree was in our plot dataset.
   mutate(seed_dist = ifelse(seed_dist >= 200,200,seed_dist)) %>% # cap it at 200 since our field data only go that far and we know it tends to level off by then
-  mutate(neglog5SeedWallConifer = -logb(seed_dist, base = exp(5)) )
+  mutate(log10SeedWallConifer = log10(seed_dist))
 
 ## make an extrapolation column
 env_df = env_df %>%
-  mutate(extrap = !(tpi2000 %>% between(var_lims$tpi_min,var_lims$tpi_max)) |
+  dplyr::mutate(extrap = !(tpi2000 %>% between(var_lims$tpi_min,var_lims$tpi_max)) |
            !(normal_annual_precip %>% between(var_lims$ppt_min,var_lims$ppt_max)) |
-           !(tmin %>% between(var_lims$tmin_min,var_lims$tmin_max)) )
+           !(tmean %>% between(var_lims$tmean_min,var_lims$tmean_max)) |
+             !(elev %>% between(var_lims$elev_min,var_lims$elev_max))   )
 
-color_pal <- c("too low (even with planting)" = "#fde725", "good if planted" = "#7ad151", "good regardless of planting" = "#22a884",  "not possible" = "#2a788e", "good if unplanted" = "#414487", "too high (even without planting)" = "#440154")
+color_pal <- c("too low (even with planting)" = "#fde725", "good if planted" = "#7ad151", "good regardless of planting" = "#22a884",  "too low when unplanted; too high when planted" = "#2a788e", "good if unplanted" = "#414487", "too high (even without planting)" = "#440154")
 
 
 
@@ -125,11 +127,11 @@ make_maps = function(plant_year, density_low, density_high, mask_non_high_sev, m
   
   ## for predictions of a no-planting scenario
   env_df_noplant = env_df %>%
-    mutate(fsplanted = FALSE)
+    mutate(fsplanted = "unplanted")
   
   ## for predictions of a planting scenario
   env_df_plant = env_df %>%
-    mutate(fsplanted = TRUE)
+    mutate(fsplanted = "planted")
   
   # predict seedlings per ha (incl undoing the response variable trasformation)
   pred_noplant = predict(mod,env_df_noplant,re.form=NA) %>% exp() - 24.99
@@ -171,7 +173,7 @@ make_maps = function(plant_year, density_low, density_high, mask_non_high_sev, m
   ## good regardless of planting
   pred_df[which(pred_df$noplant == "good" & pred_df$plant == "good"), "overall"] = "good regardless of planting"
   ## too low when unplanted; too high when planted
-  pred_df[which(pred_df$noplant == "low" & pred_df$plant == "high"), "overall"] = "not possible"
+  pred_df[which(pred_df$noplant == "low" & pred_df$plant == "high"), "overall"] = "too low when unplanted; too high when planted"
   
   # ## maybe don't need the following?
   # pred_raster_noplant = rasterFromXYZ(pred_df %>% dplyr::select(x,y,noplant_class))
