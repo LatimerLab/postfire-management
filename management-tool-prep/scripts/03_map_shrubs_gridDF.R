@@ -18,21 +18,21 @@ region = st_read("management-tool-prep/data/focal-region/focal-region.geojson")
 #### Fit shrub cover model ####
 
 load("output/plotSeedlingData.RData") #load R object: plot_dhm_long
-plot_dhm <- plot_dhm %>% 
-  mutate(ln.dens.planted = log(dens.planted+24.99)) %>%
-  filter(Type != "internal") %>% 
-  mutate(ln.dens.conif = log(dens.conif+24.99)) %>%
-  mutate(fsplanted = as.factor(fsplanted)) %>%
-  mutate(facts.released = as.factor(facts.released)) %>%
-  mutate(GrassHt = ifelse(is.na(GrassHt), 0, GrassHt)) %>%
-  mutate(ShrubHt = ifelse(is.na(ShrubHt), 0, ShrubHt)) %>%
-  mutate(ForbHt = ifelse(is.na(ForbHt), 0, ForbHt)) %>%
-  mutate(SeedWallConifer = ifelse(is.na(SeedWallConifer), 500, SeedWallConifer)) %>%
-  mutate(neglog5SeedWallConifer = -logb(SeedWallConifer, base = exp(5))) %>%
-  mutate(totalCov = Shrubs + Grasses + Forbs) %>%
-  mutate(totalCovxHt = (Shrubs*ShrubHt + Grasses*GrassHt + Forbs*ForbHt)) %>%
-  mutate(LitDuff = LitterDepth + DuffDepth) %>%
-  mutate(ShrubHt2 = ifelse(ShrubHt == 0, ShrubErectHt, ShrubHt))
+# plot_dhm <- plot_dhm %>% 
+#   mutate(ln.dens.planted = log(dens.planted+24.99)) %>%
+#   filter(Type != "internal") %>% 
+#   mutate(ln.dens.conif = log(dens.conif+24.99)) %>%
+#   mutate(fsplanted = as.factor(fsplanted)) %>%
+#   mutate(facts.released = as.factor(facts.released)) %>%
+#   mutate(GrassHt = ifelse(is.na(GrassHt), 0, GrassHt)) %>%
+#   mutate(ShrubHt = ifelse(is.na(ShrubHt), 0, ShrubHt)) %>%
+#   mutate(ForbHt = ifelse(is.na(ForbHt), 0, ForbHt)) %>%
+#   mutate(SeedWallConifer = ifelse(is.na(SeedWallConifer), 500, SeedWallConifer)) %>%
+#   mutate(neglog5SeedWallConifer = -logb(SeedWallConifer, base = exp(5))) %>%
+#   mutate(totalCov = Shrubs + Grasses + Forbs) %>%
+#   mutate(totalCovxHt = (Shrubs*ShrubHt + Grasses*GrassHt + Forbs*ForbHt)) %>%
+#   mutate(LitDuff = LitterDepth + DuffDepth) %>%
+#   mutate(ShrubHt2 = ifelse(ShrubHt == 0, ShrubErectHt, ShrubHt))
 
 shr <- lmer(asin(sqrt(Shrubs/100)) ~ scale(normal_annual_precip)*scale(rad_winter) + 
               #I(scale(normal_annual_precip)^2) +
