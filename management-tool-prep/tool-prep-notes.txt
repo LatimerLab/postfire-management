@@ -1,0 +1,4 @@
+Diff from published regen model:
+removed LitDuff
+computed shrubs
+
