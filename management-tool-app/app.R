@@ -22,6 +22,7 @@ mod = readRDS("data/model.rds")
 dat = readRDS("data/data.rds")
 
 maps_loaded = reactiveVal(FALSE) # Holds status of whether maps for display are fully computed (so can disable upload box)
+severity_uploaded = reactiveVal(FALSE)
 
 jsResetCode <- "shinyjs.reset = function() {history.go(0)}" # Define the js method that resets the page
 
@@ -45,7 +46,7 @@ blank_plot = ggplot(d,aes(x=x,y=y)) +
 
 #### Get predictors and predictions for a given fire ####
 
-prep_mapping_vars = function(sev,input) {
+prep_mapping_vars = function(perim,sev,input) {
   
   if(is.null(sev)) return(NULL)
   
@@ -54,41 +55,34 @@ prep_mapping_vars = function(sev,input) {
   } else {
     env = brick("data/env_raster_stack_coarse.tif")
   }
+  
+  env = crop(env,perim %>% st_transform(projection(env)))
+  env = mask(env,perim %>% st_transform(projection(env)))
 
   
-  # Get a (smoothed) perimeter from the severity shapefile
-  perim = st_union(sev) %>% st_as_sf() %>% st_simplify(dTolerance = 30) %>% st_buffer(0) %>% smooth(method="ksmooth") %>% st_buffer(0)
+  # get a fire perimeter shapefile and severity raster
+  # temp sev = raster("/home/derek/Desktop/ca4005312066920190904_20181007_20191010_rdnbr_ba7.tif")
+  #temp perim = st_read("/home/derek/Downloads/ca4005312066920190904_20181007_20191010_ravg_data/bdy.gpkg") %>% st_transform(3310)
   
+  # # Get a (smoothed) perimeter from the severity shapefile
+  # perim = st_union(sev) %>% st_as_sf() %>% st_simplify(dTolerance = 30) %>% st_buffer(0) %>% smooth(method="ksmooth") %>% st_buffer(0)
+  # 
   
   ### Compute seed distance ###
   
   ## get all the non-high-sev area
-  sev_nonhigh = sev %>%
-    filter(BURNSEV < 7) %>%
-    st_union()
+  sev_nonhigh = sev
+  sev_nonhigh = projectRaster(sev_nonhigh,env,method="ngb")
+  sev_nonhigh[sev_nonhigh >= 7] = NA
   
-  ## buffer out the fire perim 100 m to use that as non-high-sev
-  perim_buffer = st_buffer(perim,100)
-  perim_ring = st_difference(perim_buffer,perim)
   
-  ## merge the ring with the non-high-sev to get all areas to measure seed distance from
-  seed_source = st_union(sev_nonhigh,perim_ring) %>% st_buffer(0) #%>% st_union
+  ## comp distance to non-high-sev
+  seed_dist = distance(sev_nonhigh)
   
-  ## turn into raster
-  
-  extent(seed_source %>% as("Spatial"))
-  
-  raster_template = raster(seed_source %>% as("Spatial"),resolution=30)
-  raster_template = env[[1]] %>% crop(seed_source %>% as("Spatial")) #! could do this after cropping the env stack to avoid cropping it twice
-  
-  seed_rast = fasterize(seed_source %>% st_as_sf,raster_template,fun="count")
-  
-  ## comp distance to non-high sev
-  seed_dist = distance(seed_rast)
-  
+
   ## crop to the fire footprint
-  seed_dist = crop(seed_dist,perim)
-  seed_dist = mask(seed_dist,perim)
+  seed_dist = crop(seed_dist,perim %>% st_transform(projection(seed_dist)))
+  seed_dist = mask(seed_dist,perim %>% st_transform(projection(seed_dist)))
   
   ## Make a seed dist (0 m) mask layer
   non_high_sev_mask = seed_dist
@@ -99,8 +93,6 @@ prep_mapping_vars = function(sev,input) {
   
   #### Load and assemble env predictor data for focal area ####
   
-  env = crop(env,perim %>% st_transform(projection(env)))
-  env = mask(env,perim %>% st_transform(projection(env)))
   env = stack(env,seed_dist,non_high_sev_mask)
   
   env_df = as.data.frame(env,xy=TRUE)
@@ -157,7 +149,7 @@ prep_mapping_vars = function(sev,input) {
 
 
 #### Function to load fire files ####
-load_sev = function(input) {
+load_sev = function(input,output) {
   
   # perim = st_read(input$perim_file) %>% st_transform(3310)
   # sev = st_read(input$sev_file) %>% st_transform(3310)
@@ -165,20 +157,44 @@ load_sev = function(input) {
   if(is.null(input$sev_file)) {
     sev = NULL
   } else  {
-    sev = st_read(input$sev_file$datapath) %>% st_transform(3310)
+    sev = raster(input$sev_file$datapath)
+    severity_uploaded(TRUE)
+    cat("Sev raster loaded")
+    
+
+    
   }
   
   return(sev)
   
 }
 
+
 #### Function to load fire files ####
-test_file_uploaded = function(input) {
+load_perim = function(input) {
   
   # perim = st_read(input$perim_file) %>% st_transform(3310)
   # sev = st_read(input$sev_file) %>% st_transform(3310)
   
-  return(!is.null(input$sev_file))
+  if(is.null(input$perim_file)) {
+    perim = NULL
+  } else  {
+    perim = st_read(input$perim_file$datapath)
+    cat("Perim loaded")
+  }
+  
+  return(perim)
+  
+}
+
+
+#### Function to load fire files ####
+test_perim_uploaded = function(input) {
+  
+  # perim = st_read(input$perim_file) %>% st_transform(3310)
+  # sev = st_read(input$sev_file) %>% st_transform(3310)
+  
+  return(!is.null(input$perim_file))
   
 
   
@@ -304,6 +320,13 @@ make_maps = function(mapping_vars, plant_year, density_low, density_high, mask_n
     if(mask_extrapolation) {
       df_plot = df_plot[df_plot$extrap != TRUE,]
     }
+    
+    
+    ###!!! testing how to turn df_plot into a raster object for export
+    
+    
+    
+    perim = perim %>% st_transform(3310)
     
     main_map = ggplot(data=df_plot,aes(x=x,y=y,fill=overall)) +
       geom_raster() +
@@ -436,9 +459,17 @@ ui <- fluidPage(
         
         tags$br(),
         
-        fileInput("sev_file", "2. Upload severity shapefile"),
+        fileInput("sev_file", "2. Upload severity raster"),
         
-        HTML('&emsp;'),tags$b("Or,"),"use 2004 Power Fire (Eldorado NF) demo data: ",
+        conditionalPanel( condition = "output.severity_uploaded === true",
+              textInput("min_high_sev",label="2b. Minimum value to consider high-severity"),
+              htmlOutput("severity_text")
+ 
+                          ),
+        
+        fileInput("perim_file", "3. Upload fire perimeter"),
+        
+        HTML('&emsp;'),tags$b("Or,"),"use 2019 Caples Fire (Eldorado NF) demo data: ",
         
         actionButton("upload_button","Go")
       ),
@@ -515,65 +546,65 @@ ui <- fluidPage(
     # Main panel for displaying outputs ----
     mainPanel(
       
-      # Conditional panel to hide all the maps if user has not yet uploaded a shapefile
+      # Conditional panel to hide all the maps if user has not yet uploaded a perimeter shapefile
       conditionalPanel(
-          condition = "output.file_uploaded === true",
+          condition = "output.perim_uploaded === true",
           
         
           
           ## Main map
           conditionalPanel(
             condition = "input.map_selection.includes('main') === true",      
-            plotOutput(outputId = "distPlot"),
+            plotOutput(outputId = "distPlot",height="600px"),
             tags$br()
           ),
           
           ## Unplanted density
           conditionalPanel(
             condition = "input.map_selection.includes('density_unplanted') === true",
-            plotOutput(outputId = "densityUnplantedPlot"),
+            plotOutput(outputId = "densityUnplantedPlot",height="600px"),
             tags$br(" ")
           ),
           
           ## Planted density
           conditionalPanel(
             condition = "input.map_selection.includes('density_planted') === true",
-            plotOutput(outputId = "densityPlantedPlot"),
+            plotOutput(outputId = "densityPlantedPlot",height="600px"),
             tags$br()
           ),
           
           ## Shrub cover
           conditionalPanel(
             condition = "input.map_selection.includes('cover_shrub') === true",
-            plotOutput(outputId = "coverShrubPlot"),
+            plotOutput(outputId = "coverShrubPlot",height="600px"),
             tags$br()
           ),
           
           ## Seed distance
           conditionalPanel(
             condition = "input.map_selection.includes('seed_distance') === true",
-            plotOutput(outputId = "seedDistancePlot"),
+            plotOutput(outputId = "seedDistancePlot",height="600px"),
             tags$br()
           ),
           
           ## Tmin
           conditionalPanel(
             condition = "input.map_selection.includes('tmean') === true",
-            plotOutput(outputId = "tmeanPlot"),
+            plotOutput(outputId = "tmeanPlot",height="600px"),
             tags$br()
           ),
           
           ## Precip
           conditionalPanel(
             condition = "input.map_selection.includes('precip') === true",
-            plotOutput(outputId = "precipPlot"),
+            plotOutput(outputId = "precipPlot",height="600px"),
             tags$br()
           ),
           
           ## TPI
           conditionalPanel(
             condition = "input.map_selection.includes('tpi') === true",
-            plotOutput(outputId = "tpiPlot"),
+            plotOutput(outputId = "tpiPlot",height="600px"),
             tags$br()
           )
       )
@@ -588,18 +619,64 @@ ui <- fluidPage(
 
 
 # Define server logic required to draw a histogram ----
-server <- function(input, output) {
+server <- function(input, output, session) {
+  
+  sev = reactiveVal(NULL) # Holds fire seveirty raster once loaded
+  perim = reactiveVal(NULL) # Holds fire perimeter sf object once loaded
   
   output$map_loaded = reactive({ maps_loaded() })
   outputOptions(output, 'map_loaded', suspendWhenHidden=FALSE)
   
-  sev = reactiveVal(NULL) # Holds fire seveirty sf object once loaded
+  output$severity_uploaded = reactive({ severity_uploaded() })
+  outputOptions(output, 'severity_uploaded', suspendWhenHidden=FALSE)
+  
+  # output$max_sev_value = reactive({ max_sev_value() })
+  # outputOptions(output, 'max_sev_value', suspendWhenHidden=FALSE)
+  
+  max_sev_value = reactive({ 
+    
+        if(!is.null(sev())) {
+          return(max(values(sev())))
+        } else {
+          return(0)
+        }
+    })
+    
+  
+  output$severity_text = renderUI({ 
+    
+    if(!is.null(sev())) {
+      ## get severity range
+      sev_values = values(sev())
+      min_sev = min(sev_values)
+      max_sev = max(sev_values)
+      range_text = paste0(min_sev, " - ", max_sev)
+    } else {
+      range_text = "[no severity uploaded yet]"
+    }
+    
+    HTML('&emsp;', paste0( "Range of severity values in uploaded raster: ",range_text,tags$br(),tags$br()))
+    
+    
+    })
+  
+
+
 
   observeEvent(input$sev_file,
                
-               { sev(load_sev(input)) }       
+               { sev(load_sev(input,output))
+                 cat("Max sev value is:",max_sev_value())
+                 updateTextInput(session, "min_high_sev", value=max_sev_value())
+                 }       
                
                )
+  
+  observeEvent(input$perim_file,
+               
+               { perim(load_perim(input)) }       
+               
+  )
   
   observeEvent(input$reset_button,
                
@@ -609,20 +686,23 @@ server <- function(input, output) {
                }
               )
   
-  output$file_uploaded = reactive({ return(!is.null(sev())) })
-  outputOptions(output, 'file_uploaded', suspendWhenHidden=FALSE)
+  output$perim_uploaded = reactive({ return(!is.null(perim())) })
+  outputOptions(output, 'perim_uploaded', suspendWhenHidden=FALSE)
 
   observeEvent(input$upload_button,
                        #{custom_debug(input)}
                {
-                 powerfile = NULL
-                 powerfile$sev_file$datapath = "data/power_sev.geojson"
-                 sev(load_sev(powerfile))
+                 caplesfile = NULL
+                 caplesfile$sev_file$datapath = "data/caples_sev.tif"
+                 sev(load_sev(caplesfile))
+                 caplesfile = NULL
+                 caplesfile$perim_file$datapath = "data/caples_perim.gpkg"
+                 perim(load_perim(caplesfile))
                  
                }
                     )
   
-  mapping_vars = reactive({ prep_mapping_vars(sev(),input) })
+  mapping_vars = reactive({ prep_mapping_vars(perim(),sev(),input) })
 
   maps = reactive({ make_maps(mapping_vars(), input$planted_year, input$density_range[1], input$density_range[2], input$mask_non_high_sev, input$mask_extrap) })
   

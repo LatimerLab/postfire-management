@@ -5,8 +5,6 @@ account: preset
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 2037125
-bundleId: 3641236
+bundleId: 3642098
 url: https://dyoung.shinyapps.io/reforestation-tool/
-when: 1600373308.56017
-asMultiple: FALSE
-asStatic: FALSE
+when: 1600392710.33584
