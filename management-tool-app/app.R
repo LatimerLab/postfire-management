@@ -24,7 +24,12 @@ dat = readRDS("data/data.rds")
 maps_loaded = reactiveVal(FALSE) # Holds status of whether maps for display are fully computed (so can disable upload box)
 severity_uploaded = reactiveVal(FALSE)
 
+df_plot_export = reactiveVal(NULL) # for exporting raster maps in file download handler
+
 jsResetCode <- "shinyjs.reset = function() {history.go(0)}" # Define the js method that resets the page
+
+albers = "+proj=aea +lat_1=34 +lat_2=40.5 +lat_0=0 +lon_0=-120 +x_0=0 +y_0=-4000000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs "
+
 
 ### A blank ggplot that says "Calculating..."
 
@@ -303,14 +308,20 @@ make_maps = function(mapping_vars, plant_year, density_low, density_high, mask_n
     ## too low when unplanted; too high when planted
     pred_df[which(pred_df$noplant == "low" & pred_df$plant == "high"), "overall"] = "too low when unplanted; too high when planted"
     
-    # ## maybe don't need the following?
-    # pred_raster_noplant = rasterFromXYZ(pred_df %>% dplyr::select(x,y,noplant_class))
-    # pred_raster_plant = rasterFromXYZ(pred_df %>% dplyr::select(x,y,plant_class))
+    # make a column with these values as numeric codes
+    pred_df = pred_df %>%
+      mutate(overall_code = recode(overall,
+                                   "too low (even with planting)" = 1,
+                                   "good if planted" = 2,
+                                   "good regardless of planting" = 3,
+                                   "too low when unplanted; too high when planted" = 4,
+                                   "good if unplanted" = 5,
+                                   "too high (even without planting)" = 6))
     
     df_plot = pred_df %>%
       mutate(overall = factor(overall, levels = rev(names(color_pal)))) %>%
-      mutate(pred_noplant = ifelse(pred_noplant > 400, 400, pred_noplant)) %>%
-      mutate(pred_plant = ifelse(pred_plant > 400, 400, pred_plant))
+      mutate(pred_noplant_trunc = ifelse(pred_noplant > 400, 400, pred_noplant)) %>%
+      mutate(pred_plant_trunc = ifelse(pred_plant > 400, 400, pred_plant))
   
     ## Drop rows of masked-out values
     if(mask_non_high_sev) {
@@ -322,9 +333,8 @@ make_maps = function(mapping_vars, plant_year, density_low, density_high, mask_n
     }
     
     
-    ###!!! testing how to turn df_plot into a raster object for export
-    
-    
+    df_plot_export(df_plot)
+    cat("Saved plto data table")
     
     perim = perim %>% st_transform(3310)
     
@@ -337,7 +347,7 @@ make_maps = function(mapping_vars, plant_year, density_low, density_high, mask_n
       labs(title = "Seedling density") +
       guides(fill = guide_legend(nrow = 6))
     
-    density_unplanted = ggplot(df_plot,aes(x=x,y=y,fill=pred_noplant)) +
+    density_unplanted = ggplot(df_plot,aes(x=x,y=y,fill=pred_noplant_trunc)) +
       geom_raster() +
       geom_sf(data=perim,color="black",fill = NA, inherit.aes = FALSE) +
       theme_void(20) +
@@ -353,7 +363,7 @@ make_maps = function(mapping_vars, plant_year, density_low, density_high, mask_n
       #guides(fill = guide_legend(reverse=FALSE))
       #guides(fill = guide_legend(nrow = 2))
     
-    density_planted = ggplot(df_plot,aes(x=x,y=y,fill=pred_plant)) +
+    density_planted = ggplot(df_plot,aes(x=x,y=y,fill=pred_plant_trunc)) +
       geom_raster() +
       geom_sf(data=perim,color="black",fill = NA, inherit.aes = FALSE) +
       theme_void(20) +
@@ -436,7 +446,7 @@ ui <- fluidPage(
   # App title ----
   titlePanel("Post-fire reforestation success estimation tool"),
   h4('aka "PRESET"'),
-  h6('v 0.0.2 beta'),
+  h6('v 0.0.3 beta'),
   h6("Developed by: Derek Young, Quinn Sorenson, Andrew Latimer"),
   h6("Latimer Lab, UC Davis"),
   
@@ -512,7 +522,7 @@ ui <- fluidPage(
         radioButtons(inputId = "planted_year",
                     label = "Planting year:",
                     choices = list("1 year post-fire" = 1, "2 years post-fire" = 2, "3 years post-fire" = 3),
-                    selected = 1),
+                    selected = 2),
         checkboxInput(inputId = "mask_non_high_sev",
                       label = "Show high-severity area only",
                       value = FALSE),
@@ -530,15 +540,13 @@ ui <- fluidPage(
                                      "Annual precipitation" = "precip",
                                      "Topographic position index" = "tpi"
                                      ),
-                      selected = "main")
-        # sliderInput(inputId = "lit_duff",
-        #             label = "Litter and duff:",
-        #             min = 0,
-        #             max = 10,
-        #             value = 2),
-        # radioButtons("planted", label = "Planted",
-        #              choices = list("Yes" = TRUE, "No" = FALSE), 
-        #              selected = "planted")
+                      selected = "main"),
+        
+        tags$br(),
+        selectInput("dataset", "Select a layer to download:",
+                    choices = c("Main predictions", "Natural seedling density", "Planted + natural seedling density")),
+        downloadButton("downloadData", "Download")
+        
         
       )
     ),
@@ -682,6 +690,7 @@ server <- function(input, output, session) {
                
                {
                     maps_loaded(FALSE)
+                 severity_uploaded(FALSE)
                     js$reset()
                }
               )
@@ -772,6 +781,40 @@ server <- function(input, output, session) {
     maps_list = maps()
     plot(maps_list$tpi)
   })
+  
+
+  dataset_colname <- reactive({
+    switch(input$dataset,
+           "Main predictions" = "overall_code",
+           "Natural seedling density" = "pred_noplant",
+           "Planted + natural seedling density" = "pred_plant")
+  })
+  
+  dataset_filename <- reactive({
+    switch(input$dataset,
+           "Main predictions" = "main_predictions",
+           "Natural seedling density" = "density_natural",
+           "Planted + natural seedling density" = "density_planted_plus_natural")
+  })
+
+  
+  
+  output$downloadData <- downloadHandler(
+    filename = function() {
+      paste0(dataset_filename(), ".tif")
+    },
+    content = function(file) {
+      
+      xyz = df_plot_export() %>%
+        select(x,y,!!!dataset_colname())
+
+      rast = rasterFromXYZ(xyz, crs = albers)
+      
+      writeRaster(rast, file)
+    }
+  )
+
+  
   
 }
 
