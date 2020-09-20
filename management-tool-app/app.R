@@ -10,6 +10,7 @@ library(viridis)
 library(smoothr)
 library(shinyjs)
 library(V8)
+library(merTools)
 
 options(shiny.sanitize.errors = FALSE)
 options(shiny.maxRequestSize = 100*1024^2)
@@ -111,6 +112,7 @@ prep_mapping_vars = function(perim,sev,input) {
            tpi2000 = tpi2000/10,
            Shrubs = Shrubs/100) %>%
     # apply transformation needed by stat model
+    ###!!! consider different cap on seed wall max distance
     mutate(seed_dist = ifelse(seed_dist == 0,15,seed_dist)) %>% # correct for a limitation of using remotely sensed data: no plot center is exactly 0 m from a tree. Use 15 since we are focused on high-severity areas, so the closest a tree could be is half the width of the pixel. Also conveniently 15 m was the closest a tree was in our plot dataset.
     mutate(seed_dist = ifelse(seed_dist >= 200,200,seed_dist)) %>% # cap it at 200 since our field data only go that far and we know it tends to level off by then
     mutate(log10SeedWallConifer = log10(seed_dist))
@@ -226,7 +228,7 @@ custom_debug = function(input) {
 
 #### Function for making maps based on inputs ####
 # This function relies on some globals from above
-make_maps = function(mapping_vars, plant_year, density_low, density_high, mask_non_high_sev, mask_extrapolation) {
+make_maps = function(mapping_vars, plant_year, density_low, density_high, mask_non_high_sev, mask_extrapolation, mask_uncertain) {
   
   if(is.null(mapping_vars)) {
     
@@ -244,7 +246,8 @@ make_maps = function(mapping_vars, plant_year, density_low, density_high, mask_n
     
     env_df = mapping_vars$env_df %>%
       mutate(#neglog5SeedWallConifer = input$seedwall,
-        facts.planting.first.year = as.numeric(plant_year))
+        facts.planting.first.year = as.numeric(plant_year)) %>%
+      filter(!is.na(tmean))  ### exclude NA grid cells!
     # fsplanted = input$planted)
     #  Shrubs = input$shrub_cover,  
     #ShrubHt = input$shrub_height,
@@ -266,26 +269,72 @@ make_maps = function(mapping_vars, plant_year, density_low, density_high, mask_n
     env_df_plant = env_df %>%
       mutate(fsplanted = "planted")
     
+    ## put tables together for prediction
+    env_df = bind_rows(env_df_noplant,
+                       env_df_plant)
+    
     # predict seedlings per ha (incl undoing the response variable trasformation)
-    pred_noplant = predict(mod,env_df_noplant,re.form=NA) %>% exp() - 24.99
-    pred_plant = predict(mod,env_df_plant,re.form=NA) %>% exp() - 24.99
+    pred = predict(mod,env_df,re.form=NA) %>% exp() - 24.99
+
+    #browser()
     
-    # convert seedlings/ha to seedlings/acre
-    pred_noplant = pred_noplant / 2.47
-    pred_plant = pred_plant / 2.47
-    
-    # any model predictions below 0 should be 0
-    pred_noplant[pred_noplant < 0.1] = 0.1
-    pred_plant[pred_plant < 0.1] = 0.1
+    ####!!!! get uncertainty following http://bbolker.github.io/mixedmodels-misc/glmmFAQ.html # lme4 section
+
+    if(mask_uncertain) {
+      
+      newdat = env_df %>%
+      mutate(ln.dens.planted = 0) %>%
+      mutate(fsplanted = as.factor(fsplanted))
+      mm = model.matrix(terms(mod),newdat)
+      tcross = tcrossprod(vcov(mod),mm)
+      
+      nobs = nrow(newdat)
+      block_size = 2000
+      nblocks = ceiling(nobs/block_size)
+      
+      stderr = NULL
+      
+      for(i in 1:nblocks) {
+        start = 1 + (i-1)*block_size
+        end = i*block_size
+        if(end > nobs) end = nobs
+        
+        mm_sub = mm[start:end,]
+        tcross_sub = tcross[,start:end]
+        stderr_sub <- diag(mm_sub %*% tcross_sub) %>% sqrt()
+        
+        stderr = c(stderr,stderr_sub)
+        
+      }
+    } else {
+      stderr = rep(0,nrow(env_df))
+    }
+
     
     pred_df = env_df
     
-    pred_df$pred_noplant = pred_noplant
-    pred_df$pred_plant = pred_plant
+    pred_df$pred = pred / 2.47 # convert seedlings/ha to seedlings/acre
+    pred_df$stderr = stderr
     
-    density_low = density_low
-    density_high = density_high
     
+    # any model predictions below 0 should be 0
+    pred_df[pred_df$pred < 0.1,"pred"] = 0.1
+    
+    
+    ## put the two data frames side by side
+    pred_df_plant = pred_df %>%
+      filter(fsplanted == "planted") %>%
+      rename("pred_plant" = "pred",
+             "stderr_plant" = "stderr")
+    
+    pred_df_noplant = pred_df %>%
+      filter(fsplanted == "unplanted") %>%
+      rename("pred_noplant" = "pred",
+             "stderr_noplant" = "stderr")
+    
+    pred_df = bind_cols(pred_df_plant,pred_df_noplant %>% dplyr::select(pred_noplant,stderr_noplant))
+    
+
     ## classify densities
     pred_df = pred_df %>%
       mutate(noplant_class = cut(pred_noplant,breaks=c(-Inf,density_low,density_high,Inf),labels=c("low","good","high"))) %>%
@@ -328,10 +377,13 @@ make_maps = function(mapping_vars, plant_year, density_low, density_high, mask_n
       df_plot = df_plot[df_plot$non_high_sev_mask != 1,]
     }
     
+    if(mask_uncertain) {
+      df_plot = df_plot[df_plot$stderr_noplant < 0.60,]
+    }
+    
     if(mask_extrapolation) {
       df_plot = df_plot[df_plot$extrap != TRUE,]
     }
-    
     
     df_plot_export(df_plot)
     cat("Saved plto data table")
@@ -446,7 +498,7 @@ ui <- fluidPage(
   # App title ----
   titlePanel("Post-fire reforestation success estimation tool"),
   h4('aka "PRESET"'),
-  h6('v 0.0.3 beta'),
+  h6('v 0.0.4 beta'),
   h6("Developed by: Derek Young, Quinn Sorenson, Andrew Latimer"),
   h6("Latimer Lab, UC Davis"),
   
@@ -528,6 +580,9 @@ ui <- fluidPage(
                       value = FALSE),
         checkboxInput(inputId = "mask_extrap",
                       label = "Hide model extrapolation areas",
+                      value = FALSE),
+        checkboxInput(inputId = "mask_uncertain",
+                      label = "Hide low model confidence areas (slow)",
                       value = FALSE),
         checkboxGroupInput(inputId = "map_selection",
                       label = "Layers to display:",
@@ -713,7 +768,7 @@ server <- function(input, output, session) {
   
   mapping_vars = reactive({ prep_mapping_vars(perim(),sev(),input) })
 
-  maps = reactive({ make_maps(mapping_vars(), input$planted_year, input$density_range[1], input$density_range[2], input$mask_non_high_sev, input$mask_extrap) })
+  maps = reactive({ make_maps(mapping_vars(), input$planted_year, input$density_range[1], input$density_range[2], input$mask_non_high_sev, input$mask_extrap, input$mask_uncertain) })
   
 
   
@@ -800,13 +855,14 @@ server <- function(input, output, session) {
   
   
   output$downloadData <- downloadHandler(
+    
     filename = function() {
       paste0(dataset_filename(), ".tif")
     },
     content = function(file) {
       
       xyz = df_plot_export() %>%
-        select(x,y,!!!dataset_colname())
+        dplyr::select(x,y,!!!dataset_colname())
 
       rast = rasterFromXYZ(xyz, crs = albers)
       
