@@ -114,7 +114,7 @@ plantedYearShrubs <- ggplot(data = predicted_pltd.pys, aes(y = (exp(fit)-24.99),
 ggsave(plantedYearShrubs, file="figures/manuscript/plantedYearShrubs.pdf", width=6.5, height=4.5)
 
   
-##### year by planted by shrub -----------------------------------------------
+##### tpi elevation -----------------------------------------------
 
 predict_pltd.ty <- plot_dhm %>%
   tidyr::expand(nesting(facts.planting.first.year), tpi2000) 
@@ -313,6 +313,101 @@ litduf <-  ggplot(data = predicted_pltd.ld, aes(y = exp(fit)-24.99,
          panel.background = element_rect(fill = NA, color = "black"), panel.grid = element_blank(), 
          legend.position = "top")
 ggsave(litduf, file="figures/manuscript/litduf.pdf", width=3.25, height=3.45)
+
+##### tpi elevation -----------------------------------------------
+
+predict_pltd.te <- as.data.frame(plot_dhm$tpi2000)
+colnames(predict_pltd.te)[1] <- c("tpi2000")
+predict_pltd.te$tmin <- mean(plot_dhm$tmin)
+predict_pltd.te$facts.planting.first.year <- 2
+predict_pltd.te$log10SeedWallConifer <- mean(plot_dhm$log10SeedWallConifer)
+predict_pltd.te$normal_annual_precip <- mean(plot_dhm$normal_annual_precip)
+predict_pltd.te$Shrubs <- mean(plot_dhm$Shrubs)
+predict_pltd.te$fsplanted <- "planted"
+predict_pltd.te$fsplanted <- as.factor(predict_pltd.te$fsplanted)
+predict_pltd.te$LitDuff <- mean(plot_dhm$LitDuff)
+ele12 <- as.data.frame(rep(1200, nrow(predict_pltd.te)))
+ele17 <- as.data.frame(rep(1700, nrow(predict_pltd.te)))
+ele22 <- as.data.frame(rep(2200,  nrow(predict_pltd.te)))
+colnames(ele12)[1] <- c("elev")
+colnames(ele17)[1] <- c("elev")
+colnames(ele22)[1] <- c("elev")
+predict_pltd.tee <- rbind(cbind(predict_pltd.te, ele12),
+                          cbind(predict_pltd.te, ele17),
+                          cbind(predict_pltd.te, ele22))
+
+#precip.labs <- c(c("1200m", "1200mm", "1800mm"))
+#names(precip.labs) <- c(600, 1200, 1800)
+
+
+predicted_pltd.tee <- cbind(predict_pltd.tee, as.data.frame(
+  predictSE(pltd, newdata = predict_pltd.tee, re.form = NA, level = 0, type="response", se.fit = TRUE)))
+
+tpiElev <-  ggplot(data = predicted_pltd.tee %>% mutate(elev = as.factor(elev)), aes(y = exp(fit)-24.99, x = tpi2000, color = elev, fill = elev)) +
+  geom_ribbon(aes(ymax = (exp(fit + se.fit)-24.99), ymin=(exp(fit - se.fit)-24.99), color = elev, fill = elev), 
+              alpha = .15, color = NA, show.legend = FALSE) +
+  geom_smooth(show.legend = FALSE, size = 1.5, se = F) +
+  #geom_point(data = plot_dhm %>% 
+  #            mutate(normal_annual_precip = as.factor(ifelse(normal_annual_precip < 900, 600, 
+  #                                                ifelse(normal_annual_precip > 900 & 
+  #                                                        normal_annual_precip < 1500, 1200, 1800)))), 
+  #                aes(y=dens.planted, x = tmin, color = normal_annual_precip, fill = normal_annual_precip), show.legend = FALSE) +
+  scale_color_manual(values = c("#48281E","#4C6B6A", "#C8A104")) +
+  scale_fill_manual(values = c("#48281E","#4C6B6A", "#C8A104")) +
+  ylab("Seedling Density \nindv./ha)") +
+  xlab("Topographic position index") +
+  #ylim(-40, 1600) +
+  theme(strip.placement = "outside", 
+        strip.background = element_rect(fill = "transparent", color = "transparent"), 
+        #strip.text.y = element_text(margin = margin(0,0,0,1)),
+        text = element_text(size = 12), 
+        axis.text.y = rotatedAxisElementText(angle = 90, position = "y", Size = 10,  Color = "black"), #requires the function to be run at the head of this script
+        panel.background = element_rect(fill = NA, color = "black"), panel.grid = element_blank(), 
+        legend.position = "top", 
+        panel.spacing.x = unit(.11, "lines"),
+        panel.spacing.y = unit(.6, "lines"))
+ggsave(tpiElev , file="figures/manuscript/tpiElev.pdf", width=3.25, height=3.45)
+
+plot(plot_dhm$normal_annual_precip, plot_dhm$tmin)
+
+
+predict_pltd.ty <- plot_dhm %>%
+  tidyr::expand(nesting(facts.planting.first.year), tpi2000) 
+predict_pltd.ty$tmin <- mean(plot_dhm$tmin)
+predict_pltd.ty$normal_annual_precip <- mean(plot_dhm$normal_annual_precip)
+predict_pltd.ty$log10SeedWallConifer <- -.6
+#predict_pltd.ty$ShrubHt <- mean(plot_dhm$ShrubHt)
+predict_pltd.ty$Shrubs <- mean(plot_dhm$Shrubs)
+predict_pltd.ty$fsplanted <- "planted"
+predict_pltd.ty$fsplanted <- as.factor(predict_pltd.ty$fsplanted)
+predict_pltd.ty$LitDuff <- mean(plot_dhm$LitDuff)
+
+
+predicted_pltd.ty <- cbind(predict_pltd.ty, as.data.frame(
+  predictSE(pltd, newdata = predict_pltd.ty, re.form = NA, level = 0, type="response", se.fit = TRUE)))
+predicted_pltd.ty$facts.planting.first.year <- as.factor(predicted_pltd.ty$facts.planting.first.year)
+
+tpiYear <-  ggplot(data = predicted_pltd.ty, aes(y = exp(fit)-24.99, 
+                                                 x = tpi2000, 
+                                                 color = facts.planting.first.year, 
+                                                 fill = facts.planting.first.year)) +
+  geom_point(data = plot_dhm %>% 
+               mutate(facts.planting.first.year = as.factor(facts.planting.first.year)), 
+             aes(y=dens.planted, x = tpi2000, color = facts.planting.first.year, 
+                 fill = facts.planting.first.year), show.legend = FALSE) +
+  geom_ribbon(aes(ymax = (exp(fit + se.fit)-24.99), ymin=(exp(fit - se.fit)-24.99)), 
+              alpha = .15, color = NA, show.legend = FALSE) +
+  geom_smooth(show.legend = FALSE, size = 2, se = F) +
+  scale_color_manual(values = c("#8c8863","#756156", "#48553b")) +
+  scale_fill_manual(values = c("#8c8863","#756156", "#48553b")) +
+  ylab("Seedling Density \nindv./ha)") +
+  xlab("Topographic position index") +
+  ylim(-10, 1300) +
+  theme( text = element_text(size = 12), 
+         axis.text.y = rotatedAxisElementText(angle = 90, position = "y", Size = 10,  Color = "black"), #requires the function to be run at the head of this script
+         panel.background = element_rect(fill = NA, color = "black"), panel.grid = element_blank(), 
+         legend.position = "top")
+ggsave(tpiYear , file="figures/manuscript/tpiYear .pdf", width=3.25, height=3.45)
 
 
 

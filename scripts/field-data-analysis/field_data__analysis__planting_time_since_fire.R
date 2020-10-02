@@ -21,7 +21,7 @@ pltd <- lmer(ln.dens.planted ~ scale(tpi2000)*scale(elev) +
                scale(Shrubs)*facts.planting.first.year*fsplanted + 
                #scale(Shrubs):facts.planting.first.year:fsplanted +
                #scale(ShrubHolisticVolume)*facts.planting.first.year*fsplanted +
-               scale(tmean)*scale(normal_annual_precip) +
+               scale(tmin)*scale(normal_annual_precip) +
                #scale(bcm_tmax_july) +
                #scale(bcm_aet)+
                #scale(bcm_cwd) +
@@ -40,7 +40,7 @@ pltd <- lmer(ln.dens.planted ~ scale(tpi2000)*scale(elev) +
                #(0+scale(bcm_snowpack)|Fire)+
                (1|Fire:PairID)
                 , REML = T,
-              data = plot_dhm[-c(levId),])
+              data = plot_dhm)
 
 AIC(pltd)
 anova(pltd)
@@ -109,6 +109,7 @@ summary(shr)
 plot(shr)
 hist(resid(shr))
 plot(allEffects(shr))
+
 r.squaredGLMM(shr)
 
 
