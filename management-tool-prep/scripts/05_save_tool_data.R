@@ -51,6 +51,10 @@ env = mask(env,region %>% st_transform(projection(env)))
 
 writeRaster(env,"management-tool-prep/data/non-synced/for-tool/env_raster_stack.tif",overwrite=TRUE, datatype="INT2S", options="COMPRESS=LZW")   ##738
 
+# Write an alternative smaller (coarser) raster for faster computation
+env_coarse = aggregate(env,fact=2,fun=mean)
+writeRaster(env_coarse,"management-tool-prep/data/non-synced/for-tool/env_raster_stack_coarse.tif",overwrite=TRUE, datatype="INT2S", options="COMPRESS=LZW")   ##738
+
 
 #### Save a table of predictor limits, to determine extrapolation ####
 
