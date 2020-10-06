@@ -152,7 +152,7 @@ plot_dhm <- plot_dhm %>%
   mutate(GrassHt = ifelse(is.na(GrassHt), 0, GrassHt)) %>%
   mutate(ShrubHt = ifelse(is.na(ShrubHt), 0, ShrubHt)) %>%
   mutate(ForbHt = ifelse(is.na(ForbHt), 0, ForbHt)) %>%
-  mutate(SeedWallConifer = ifelse(is.na(SeedWallConifer), 500, SeedWallConifer)) %>%
+  mutate(SeedWallConifer = ifelse(is.na(SeedWallConifer), 250, SeedWallConifer)) %>%
   mutate(log10SeedWallConifer = log10(SeedWallConifer)) %>%
   mutate(totalCov = Shrubs + Grasses + Forbs) %>%
   mutate(totalCovxHt = (Shrubs*ShrubHt + Grasses*GrassHt + Forbs*ForbHt)) %>%

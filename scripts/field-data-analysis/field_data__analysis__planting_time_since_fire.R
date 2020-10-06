@@ -6,6 +6,7 @@ library(gridExtra)
 library(effects)
 library(sjPlot)
 library(MuMIn)
+library(Hmisc)
 
 load("output/plotSeedlingData.RData") #load R object: plot_dhm_long
 #old not downscaled data here: plotSeedlingData_old_not_downscaled.RData
@@ -81,7 +82,10 @@ plot(allEffects(conif))
 #Find the messed up shrub heights.
 plot_dhm %>% filter(ShrubHt < 1) %>% select(PlotID, Shrubs, ShrubHt) %>% arrange(desc(Shrubs))
 #Shrub model
-shr <- lmer(scale(asin(sqrt(Shrubs/100))) ~ scale(normal_annual_precip)*scale(rad_winter) + 
+shr <- lmer(#cbind(Shrubs, 100-Shrubs)
+            #scale(Shrubs)
+            scale(asin(sqrt(Shrubs/100)))
+            ~ scale(normal_annual_precip)*scale(rad_winter) + 
                #I(scale(normal_annual_precip)^2) +
                #scale(rad_winter):I(scale(normal_annual_precip)^2) +
                #I(scale(rad_winter)^2) +
@@ -103,7 +107,8 @@ shr <- lmer(scale(asin(sqrt(Shrubs/100))) ~ scale(normal_annual_precip)*scale(ra
                #scale(bcm_snowpack) +
                #I(scale(twi)^2) +
                #scale(tpi500) +
-               (1|Fire) + (1|Fire:PairID), REML = F, data = plot_dhm)
+               #facts.released +
+               (1|Fire) + (1|Fire:PairID), data = plot_dhm %>% mutate(facts.released = as.factor(ifelse(fsplanted == "unplanted", 1, facts.released))) )
 AIC(shr)
 summary(shr)
 plot(shr)
@@ -111,7 +116,6 @@ hist(resid(shr))
 plot(allEffects(shr))
 
 r.squaredGLMM(shr)
-
 
 
 save(pltd, shr, file = "output/modelDataForPlots.RData")
@@ -134,9 +138,9 @@ pltd.nb <- glmer.nb(round(dens.planted, 0 ) ~ scale(tpi2000)*scale(elev) +
                       #(0+scale(tmin_mjjas)|Fire) + 
                       #(0+scale(tmin):scale(normal_annual_precip)|Fire) + 
                       #(0+scale(tpi2000)|Fire) +
-                      (1|Fire:PairID), data = plot_dhm_oldscale)
+                      (1|Fire:PairID), data = plot_dhm)
 summary(pltd.nb)
-
+plot(allEffects(pltd.nb))
 
 pltd.po <- glmer(round(dens.planted, 0 ) ~ scale(tpi2000)*scale(elev) + 
                    scale(Shrubs)*facts.planting.first.year*fsplanted +
@@ -149,7 +153,7 @@ pltd.po <- glmer(round(dens.planted, 0 ) ~ scale(tpi2000)*scale(elev) +
                    #(0+scale(tmin)|Fire) + 
                    #(0+scale(tmin):scale(normal_annual_precip)|Fire) + 
                    #(0+scale(tpi2000)|Fire) +
-                   (1|Fire:PairID) + (1|obs), family = poisson, data = plot_dhm[-c(levId),] %>% mutate(obs = row_number()))
+                   (1|Fire:PairID) + (1|obs), family = poisson, data = plot_dhm %>% mutate(obs = row_number()))
 AIC(pltd.po)
 summary(pltd.po)
 
