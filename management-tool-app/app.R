@@ -56,6 +56,8 @@ blank_plot = ggplot(d,aes(x=x,y=y)) +
 
 prep_mapping_vars = function(perim,sev,input,min_high_sev_manual) {
   
+  cat("starting to prep mapping vars")
+  
   if(is.null(sev)) return(NULL)
   
   if(input$resolution_input == 1) {
@@ -144,6 +146,8 @@ prep_mapping_vars = function(perim,sev,input,min_high_sev_manual) {
                       perim = perim,
                       sev = sev,
                       benefit_range = benefit_range)
+  
+  cat("mapping vars prepped")
   
   return(mapping_vars)
   
@@ -306,8 +310,8 @@ get_benefit_range = function(env_df) {
 
 #### Function for making maps based on inputs ####
 # This function relies on some globals from above
-make_maps = function(mapping_vars, plant_year, density_low, density_high, mask_non_high_sev, mask_extrapolation, mask_uncertain, mask_non_ypmc) {
-  
+make_maps = function(mapping_vars, plant_year, density_low, density_high, map_masking) {
+
   if(is.null(mapping_vars)) {
     
     ret = list("main" = blank_plot, "planting_benefit" = blank_plot, "density_unplanted" = blank_plot, "density_planted" = blank_plot,
@@ -358,7 +362,7 @@ make_maps = function(mapping_vars, plant_year, density_low, density_high, mask_n
     
     ####!!!! get uncertainty following http://bbolker.github.io/mixedmodels-misc/glmmFAQ.html # lme4 section
 
-    if(mask_uncertain) {
+    if("mask_uncertain" %in% map_masking) {
       
       newdat = env_df %>%
       mutate(ln.dens.planted = 0) %>%
@@ -454,19 +458,19 @@ make_maps = function(mapping_vars, plant_year, density_low, density_high, mask_n
     
   
     ## Drop rows of masked-out values
-    if(mask_non_high_sev) {
+    if("mask_non_high_sev" %in% map_masking) {
       df_plot = df_plot[df_plot$non_high_sev_mask != 1,]
     }
     
-    if(mask_uncertain) {
+    if("mask_uncertain" %in% map_masking) {
       df_plot = df_plot[df_plot$stderr_noplant < 0.60,]
     }
     
-    if(mask_extrapolation) {
+    if("mask_extrapolation" %in% map_masking) {
       df_plot = df_plot[df_plot$extrap != TRUE,]
     }
     
-    if(mask_non_ypmc) {
+    if("mask_non_ypmc" %in% map_masking) {
       df_plot = df_plot[which(df_plot$eveg > 0.5),]
     }
     
@@ -685,19 +689,16 @@ ui <- fluidPage(
                     label = "Planting year:",
                     choices = list("1 year post-fire" = 1, "2 years post-fire" = 2, "3 years post-fire" = 3),
                     selected = 2),
-        checkboxInput(inputId = "mask_non_high_sev",
-                      label = "Show high-severity area only",
-                      value = FALSE),
-        checkboxInput(inputId = "mask_non_ypmc",
-                      label = "Show yellow pine mixed-conifer only",
-                      value = TRUE),
-        checkboxInput(inputId = "mask_extrap",
-                      label = "Hide model extrapolation areas",
-                      value = FALSE),
-        checkboxInput(inputId = "mask_uncertain",
-                      label = "Hide low model confidence areas (slow)",
-                      value = FALSE),
-        tags$br(),
+        checkboxGroupInput(inputId = "map_masking",
+                           label = "Map filtering:",
+                           choices = list("Show high-severity area only" = "mask_non_high_sev",
+                                          "Show yellow pine mixed-conifer only" = "mask_non_ypmc",
+                                          "Hide model extrapolation areas" = "mask_extrap",
+                                          "Hide low model confidence areas (slow)" = "mask_uncertain"
+                           ),
+                           selected = c("mask_non_high_sev","mask_non_ypmc")),
+                           
+
         conditionalPanel(condition = "output.experimental_enabled === true",
                          sliderInput(inputId = "density_range",
                                      label = "Acceptable seedling density range (seedlings/acre):",
@@ -705,8 +706,8 @@ ui <- fluidPage(
                                      max = 600,
                                      value = c(50,250))
         ),
-        conditionalPanel(condition = "output.experimental_enabled != true",
-                          checkboxGroupInput(inputId = "map_selection",
+        conditionalPanel(condition = "output.experimental_enabled === false",
+                          checkboxGroupInput(inputId = "map_selection_basic",
                                              label = "Layers to display:",
                                              choices = list("Planting benefit" = "planting_benefit",
                                                             "Modeled shrub cover" = "cover_shrub",
@@ -714,11 +715,11 @@ ui <- fluidPage(
                                                             "Annual precipitation" = "precip",
                                                             "Topographic position index" = "tpi"
                                              ),
-                                             selected = "main")
+                                             selected = "planting_benefit")
         ),
         
         conditionalPanel(condition = "output.experimental_enabled === true",
-                         checkboxGroupInput(inputId = "map_selection",
+                         checkboxGroupInput(inputId = "map_selection_advanced",
                                             label = "Layers to display:",
                                             choices = list("Predicted outcomes" = "main",
                                                            "Planting benefit" = "planting_benefit",
@@ -749,6 +750,10 @@ ui <- fluidPage(
     # Main panel for displaying outputs ----
     mainPanel(
       
+      textOutput("experimental_enabled"),
+      "map loaded",
+      textOutput("map_loaded"),
+      
       # Conditional panel to hide all the maps if user has not yet uploaded a perimeter shapefile
       conditionalPanel(
           condition = "output.perim_uploaded === true",
@@ -757,62 +762,62 @@ ui <- fluidPage(
           
           ## Main map
           conditionalPanel(
-            condition = "input.map_selection.includes('main') === true",      
+            condition = "(!output.experimental_enabled && input.map_selection_basic.includes('main') === true) || (output.experimental_enabled && input.map_selection_advanced.includes('main') === true)",      
             plotOutput(outputId = "distPlot",height="600px"),
             tags$br()
           ),
           
           conditionalPanel(
-            condition = "input.map_selection.includes('planting_benefit') === true",      
+            condition = "(!output.experimental_enabled && input.map_selection_basic.includes('planting_benefit') === true) || (output.experimental_enabled && input.map_selection_advanced.includes('planting_benefit') === true)",      
             plotOutput(outputId = "plantingBenefitPlot",height="600px"),
             tags$br()
           ),
           
           ## Unplanted density
           conditionalPanel(
-            condition = "input.map_selection.includes('density_unplanted') === true",
+            condition = "(!output.experimental_enabled && input.map_selection_basic.includes('density_unplanted') === true) || (output.experimental_enabled && input.map_selection_advanced.includes('density_unplanted') === true)",      
             plotOutput(outputId = "densityUnplantedPlot",height="600px"),
             tags$br(" ")
           ),
           
           ## Planted density
           conditionalPanel(
-            condition = "input.map_selection.includes('density_planted') === true",
+            condition = "(!output.experimental_enabled && input.map_selection_basic.includes('density_planted') === true) || (output.experimental_enabled && input.map_selection_advanced.includes('density_planted') === true)",      
             plotOutput(outputId = "densityPlantedPlot",height="600px"),
             tags$br()
           ),
           
           ## Shrub cover
           conditionalPanel(
-            condition = "input.map_selection.includes('cover_shrub') === true",
+            condition = "(!output.experimental_enabled && input.map_selection_basic.includes('cover_shrub') === true) || (output.experimental_enabled && input.map_selection_advanced.includes('cover_shrub') === true)",      
             plotOutput(outputId = "coverShrubPlot",height="600px"),
             tags$br()
           ),
           
           ## Seed distance
           conditionalPanel(
-            condition = "input.map_selection.includes('seed_distance') === true",
+            condition = "(!output.experimental_enabled && input.map_selection_basic.includes('seed_distance') === true) || (output.experimental_enabled && input.map_selection_advanced.includes('seed_distance') === true)",      
             plotOutput(outputId = "seedDistancePlot",height="600px"),
             tags$br()
           ),
           
           ## Tmin
           conditionalPanel(
-            condition = "input.map_selection.includes('tmean') === true",
+            condition = "(!output.experimental_enabled && input.map_selection_basic.includes('tmean') === true) || (output.experimental_enabled && input.map_selection_advanced.includes('tmean') === true)",      
             plotOutput(outputId = "tmeanPlot",height="600px"),
             tags$br()
           ),
           
           ## Precip
           conditionalPanel(
-            condition = "input.map_selection.includes('precip') === true",
+            condition = "(!output.experimental_enabled && input.map_selection_basic.includes('precip') === true) || (output.experimental_enabled && input.map_selection_advanced.includes('precip') === true)",      
             plotOutput(outputId = "precipPlot",height="600px"),
             tags$br()
           ),
           
           ## TPI
           conditionalPanel(
-            condition = "input.map_selection.includes('tpi') === true",
+            condition = "(!output.experimental_enabled && input.map_selection_basic.includes('tpi') === true) || (output.experimental_enabled && input.map_selection_advanced.includes('tpi') === true)",      
             plotOutput(outputId = "tpiPlot",height="600px"),
             tags$br()
           )
@@ -930,7 +935,7 @@ server <- function(input, output, session) {
   
   mapping_vars = reactive({ prep_mapping_vars(perim(),sev(),input,min_high_sev_manual()) })
 
-  maps = reactive({ make_maps(mapping_vars(), input$planted_year, input$density_range[1], input$density_range[2], input$mask_non_high_sev, input$mask_extrap, input$mask_uncertain, input$mask_non_ypmc) })
+  maps = reactive({ make_maps(mapping_vars(), input$planted_year, input$density_range[1], input$density_range[2], input$map_masking) })
   
 
   
