@@ -50,7 +50,7 @@ blank_plot = ggplot(d,aes(x=x,y=y)) +
 
 #### Get predictors and predictions for a given fire ####
 
-prep_mapping_vars = function(perim,sev,input) {
+prep_mapping_vars = function(perim,sev,input,min_high_sev_manual) {
   
   if(is.null(sev)) return(NULL)
   
@@ -77,7 +77,12 @@ prep_mapping_vars = function(perim,sev,input) {
   ## get all the non-high-sev area
   sev_nonhigh = sev
   sev_nonhigh = projectRaster(sev_nonhigh,env,method="ngb")
-  sev_nonhigh[sev_nonhigh >= 7] = NA
+  
+  if(min_high_sev_manual == -1) {
+    sev_nonhigh[sev_nonhigh >= as.numeric(input$min_high_sev)] = NA
+  } else {
+    sev_nonhigh[sev_nonhigh >= min_high_sev_manual] = NA
+  }
   
   ## comp distance to non-high-sev
   seed_dist = distance(sev_nonhigh)
@@ -95,11 +100,15 @@ prep_mapping_vars = function(perim,sev,input) {
   
   
   #### Load and assemble env predictor data for focal area ####
-  
   env = stack(env,seed_dist,non_high_sev_mask)
   
   env_df = as.data.frame(env,xy=TRUE)
-  names(env_df) = c("x","y","tpi","ppt","tmean","shrub","elev","seed_dist","non_high_sev_mask")
+  names(env_df) = c("x","y","tpi","ppt","tmean","shrub","elev","eveg","seed_dist","non_high_sev_mask")
+  
+  ## manually set seed dist to its mean in the input data (~ 90 m)
+  
+  env_df$seed_dist = 90
+  
   env_df = env_df %>%
     rename(normal_annual_precip = ppt,
            tpi2000 = "tpi",
@@ -225,7 +234,7 @@ custom_debug = function(input) {
 
 #### Function for making maps based on inputs ####
 # This function relies on some globals from above
-make_maps = function(mapping_vars, plant_year, density_low, density_high, mask_non_high_sev, mask_extrapolation, mask_uncertain) {
+make_maps = function(mapping_vars, plant_year, density_low, density_high, mask_non_high_sev, mask_extrapolation, mask_uncertain, mask_non_ypmc) {
   
   if(is.null(mapping_vars)) {
     
@@ -382,8 +391,12 @@ make_maps = function(mapping_vars, plant_year, density_low, density_high, mask_n
       df_plot = df_plot[df_plot$extrap != TRUE,]
     }
     
+    if(mask_non_ypmc) {
+      df_plot = df_plot[which(df_plot$eveg > 0.5),]
+    }
+    
     df_plot_export(df_plot)
-    cat("Saved plto data table")
+    cat("Saved plot data table")
     
     perim = perim %>% st_transform(3310)
     
@@ -575,6 +588,9 @@ ui <- fluidPage(
         checkboxInput(inputId = "mask_non_high_sev",
                       label = "Show high-severity area only",
                       value = FALSE),
+        checkboxInput(inputId = "mask_non_ypmc",
+                      label = "Show yellow pine mixed-conifer only",
+                      value = TRUE),
         checkboxInput(inputId = "mask_extrap",
                       label = "Hide model extrapolation areas",
                       value = FALSE),
@@ -683,6 +699,7 @@ server <- function(input, output, session) {
   
   sev = reactiveVal(NULL) # Holds fire seveirty raster once loaded
   perim = reactiveVal(NULL) # Holds fire perimeter sf object once loaded
+  min_high_sev_manual = reactiveVal(-1) # Used to manually set the minimum high sev value (for, e.g., when the demo layer is loaded)
   
   output$map_loaded = reactive({ maps_loaded() })
   outputOptions(output, 'map_loaded', suspendWhenHidden=FALSE)
@@ -753,6 +770,9 @@ server <- function(input, output, session) {
   observeEvent(input$upload_button,
                        #{custom_debug(input)}
                {
+
+                 min_high_sev_manual(7)
+                 
                  caplesfile = NULL
                  caplesfile$sev_file$datapath = "data/caples_sev.tif"
                  sev(load_sev(caplesfile))
@@ -763,9 +783,9 @@ server <- function(input, output, session) {
                }
                     )
   
-  mapping_vars = reactive({ prep_mapping_vars(perim(),sev(),input) })
+  mapping_vars = reactive({ prep_mapping_vars(perim(),sev(),input,min_high_sev_manual()) })
 
-  maps = reactive({ make_maps(mapping_vars(), input$planted_year, input$density_range[1], input$density_range[2], input$mask_non_high_sev, input$mask_extrap, input$mask_uncertain) })
+  maps = reactive({ make_maps(mapping_vars(), input$planted_year, input$density_range[1], input$density_range[2], input$mask_non_high_sev, input$mask_extrap, input$mask_uncertain, input$mask_non_ypmc) })
   
 
   
@@ -784,7 +804,7 @@ server <- function(input, output, session) {
     # 
 
     ## Make model predictions
-
+    
     maps_list = maps()
     plot(maps_list$main)
     
