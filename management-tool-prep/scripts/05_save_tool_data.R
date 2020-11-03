@@ -41,6 +41,8 @@ shrub = raster("management-tool-prep/data/non-synced/intermediate/shrub.tif")
 
 eveg = raster("management-tool-prep/data/non-synced/intermediate/eveg_focal.tif")
 
+eveg[is.na(eveg)] = 0
+
 
 #### Stack and save seedl env predictor rasters ####
 
