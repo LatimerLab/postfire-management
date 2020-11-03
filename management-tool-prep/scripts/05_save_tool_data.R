@@ -8,7 +8,7 @@ library(raster)
 
 #### Fit and save the seedling density model ####
 
-load("output/plotSeedlingData.RData") #load R object: plot_dhm_long
+load("output/plotSeedlingData.RData") #load R object: plot_dhm
 
 
 pltd <- lmer(ln.dens.planted ~ scale(tpi2000)*scale(elev) +
@@ -39,15 +39,15 @@ elev = raster("management-tool-prep/data/non-synced/intermediate/elev.tif")
 #rad = raster("management-tool-prep/data/non-synced/intermediate/rad.tif")
 shrub = raster("management-tool-prep/data/non-synced/intermediate/shrub.tif")
 
+eveg = raster("management-tool-prep/data/non-synced/intermediate/eveg_focal.tif")
+
 
 #### Stack and save seedl env predictor rasters ####
 
-env = stack(tpi*10,ppt,tmean*100,shrub*100,elev) # mult tmin by 100 so it can be saved as an int to save space
+env = stack(tpi*10,ppt,tmean*100,shrub*100,elev,eveg) # mult tmin by 100 so it can be saved as an int to save space
 env = crop(env,region %>% st_transform(projection(env)))
 env = mask(env,region %>% st_transform(projection(env)))
 
-### TEMPORARY for development, make raster coarser so it's more wieldy
-#env = aggregate(env,fact=2)
 
 writeRaster(env,"management-tool-prep/data/non-synced/for-tool/env_raster_stack.tif",overwrite=TRUE, datatype="INT2S", options="COMPRESS=LZW")   ##738
 

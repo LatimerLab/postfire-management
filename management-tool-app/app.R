@@ -79,7 +79,6 @@ prep_mapping_vars = function(perim,sev,input) {
   sev_nonhigh = projectRaster(sev_nonhigh,env,method="ngb")
   sev_nonhigh[sev_nonhigh >= 7] = NA
   
-  
   ## comp distance to non-high-sev
   seed_dist = distance(sev_nonhigh)
   
@@ -184,7 +183,7 @@ load_perim = function(input) {
   if(is.null(input$perim_file)) {
     perim = NULL
   } else  {
-    perim = st_read(input$perim_file$datapath)
+    perim = st_read(input$perim_file$datapath) %>% st_transform
     cat("Perim loaded")
   }
   
