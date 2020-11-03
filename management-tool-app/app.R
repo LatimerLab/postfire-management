@@ -112,8 +112,13 @@ prep_mapping_vars = function(perim,sev,input,min_high_sev_manual) {
   names(env_df) = c("x","y","tpi","ppt","tmean","shrub","elev","eveg","seed_dist","non_high_sev_mask")
   
   ## manually set seed dist to its mean in the input data (~ 90 m)
-  
   env_df$seed_dist = 90
+  
+  ## override shrub cover based on input selection
+  if(input$shrub_assumption == "low") env_df$shrub = 3000
+  if(input$shrub_assumption == "moderate") env_df$shrub = 6000
+  if(input$shrub_assumption == "high") env_df$shrub = 9000
+  # otherwise, if it is "predicted", use the default value
   
   env_df = env_df %>%
     rename(normal_annual_precip = ppt,
@@ -246,7 +251,7 @@ custom_debug = function(input) {
 
 #### Function for computing range of potential planting benefit values on a fire (for scaling relative planting benefit display) ####
 get_benefit_range = function(env_df) {
-  
+
   env_df = env_df %>%
     filter(!is.na(tmean))
   
@@ -496,7 +501,7 @@ make_maps = function(mapping_vars, plant_year, density_low, density_high, map_ma
       theme_void(20) +
       scale_fill_manual(values = color_pal) +
       theme(legend.position="bottom", legend.title=element_blank(), plot.title = element_text(hjust = 0.5)) +
-      labs(title = "Seedling density") +
+      labs(title = "Predicted seedling density outcomes") +
       guides(fill = guide_legend(nrow = 6))
     
     
@@ -530,7 +535,7 @@ make_maps = function(mapping_vars, plant_year, density_low, density_high, map_ma
                          begin = 0.2,
                          end = 0.9) +
       theme(legend.position="bottom", plot.title = element_text(hjust = 0.5), legend.direction = "vertical") +
-      labs(title = "Seedling density: Natural", fill = "Seedlings / acre") #+
+      labs(title = "Predicted seedling density: Natural", fill = "Seedlings / acre") #+
       #guides(fill = guide_legend(reverse=FALSE))
       #guides(fill = guide_legend(nrow = 2))
     
@@ -546,7 +551,7 @@ make_maps = function(mapping_vars, plant_year, density_low, density_high, map_ma
                          begin = 0.2,
                          end = 0.9) +
       theme(legend.position="bottom", plot.title = element_text(hjust = 0.5), legend.direction = "vertical") +
-      labs(title = "Seedling density: Natural + planted", fill = "Seedlings / acre") #+
+      labs(title = "Predicted seedling density: Natural + planted", fill = "Seedlings / acre") #+
     
     cover_shrub = ggplot(df_plot,aes(x=x,y=y,fill=Shrubs)) +
       geom_raster() +
@@ -554,7 +559,7 @@ make_maps = function(mapping_vars, plant_year, density_low, density_high, map_ma
       theme_void(20) +
       scale_fill_viridis(direction = -1) +
       theme(legend.position="bottom", plot.title = element_text(hjust = 0.5), legend.direction = "vertical") +
-      labs(title = "Modeled shrub cover", fill = "Percent cover")
+      labs(title = "Shrub cover", fill = "Percent cover")
     
     seed_distance = ggplot(df_plot,aes(x=x,y=y,fill=seed_dist)) +
       geom_raster() +
@@ -643,7 +648,7 @@ ui <- fluidPage(
         fileInput("sev_file", "2. Upload severity raster"),
         
         conditionalPanel( condition = "output.severity_uploaded === true",
-              textInput("min_high_sev",label="2b. Minimum value to consider high-severity"),
+              textInput("min_high_sev",label="2b. Minimum value to consider high severity"),
               htmlOutput("severity_text")
  
                           ),
@@ -689,6 +694,10 @@ ui <- fluidPage(
                     label = "Planting year:",
                     choices = list("1 year post-fire" = 1, "2 years post-fire" = 2, "3 years post-fire" = 3),
                     selected = 2),
+        radioButtons(inputId = "shrub_assumption",
+                     label = "Ultimate shrub cover:",
+                     choices = list("Predicted (varies across space)" = "predicted", "Low (30%) everywhere" = "low", "Moderate (60%) everywhere" = "moderate", "High (90%) everywhere" = "high"),
+                     selected = "predicted"),
         checkboxGroupInput(inputId = "map_masking",
                            label = "Map filtering:",
                            choices = list("Show high-severity area only" = "mask_non_high_sev",
@@ -736,12 +745,32 @@ ui <- fluidPage(
                          ),
      
         tags$br(),
-        selectInput("dataset", "Select a layer to download:",
-                    choices = c("Main predictions", "Natural seedling density", "Planted + natural seedling density")),
-        downloadButton("downloadData", "Download"),
+        
+        conditionalPanel(condition = "output.experimental_enabled === true",
+          selectInput("dataset", "Download data:",
+                      choices = c("Main predictions", "Planting benefit", "Natural seedling density", "Planted + natural seedling density")),
+          downloadButton("downloadDataAdvanced", "Download"),
+        ),
+        conditionalPanel(condition = "output.experimental_enabled === false",
+                         selectInput("dataset", "Download data:",
+                                     choices = c("Planting benefit")),
+                         downloadButton("downloadDataBasic", "Download"),
+        ),
+        
+        
+        
+
         tags$br(),
         tags$br(),
-        actionButton("experimental_enabled","Enable experimental/beta tools"),"Important caveats"
+        
+        conditionalPanel(condition = "output.experimental_enabled === false",
+          actionButton("experimental_enabled","Enable experimental/beta tools")
+        ),
+        conditionalPanel(condition = "output.experimental_enabled === true",
+                         tags$b("Experimental/beta tools enabled.")
+        ),
+        
+        "Important caveats"
         
         
       )
@@ -749,11 +778,7 @@ ui <- fluidPage(
     
     # Main panel for displaying outputs ----
     mainPanel(
-      
-      textOutput("experimental_enabled"),
-      "map loaded",
-      textOutput("map_loaded"),
-      
+
       # Conditional panel to hide all the maps if user has not yet uploaded a perimeter shapefile
       conditionalPanel(
           condition = "output.perim_uploaded === true",
@@ -1010,21 +1035,23 @@ server <- function(input, output, session) {
 
   dataset_colname <- reactive({
     switch(input$dataset,
-           "Main predictions" = "overall_code",
+           "Predicted outcomes" = "overall_code",
+           "Planting benefit" = "planting_benefit",
            "Natural seedling density" = "pred_noplant",
            "Planted + natural seedling density" = "pred_plant")
   })
   
   dataset_filename <- reactive({
     switch(input$dataset,
-           "Main predictions" = "main_predictions",
+           "Main predictions" = "predicted_outcomes",
+           "Planting benefit" = "planting_benefit",
            "Natural seedling density" = "density_natural",
            "Planted + natural seedling density" = "density_planted_plus_natural")
   })
 
   
   
-  output$downloadData <- downloadHandler(
+  output$downloadDataBasic <- downloadHandler(
     
     filename = function() {
       paste0(dataset_filename(), ".tif")
@@ -1034,6 +1061,22 @@ server <- function(input, output, session) {
       xyz = df_plot_export() %>%
         dplyr::select(x,y,!!!dataset_colname())
 
+      rast = rasterFromXYZ(xyz, crs = albers)
+      
+      writeRaster(rast, file)
+    }
+  )
+  
+  output$downloadDataAdvanced <- downloadHandler(
+    
+    filename = function() {
+      paste0(dataset_filename(), ".tif")
+    },
+    content = function(file) {
+      
+      xyz = df_plot_export() %>%
+        dplyr::select(x,y,!!!dataset_colname())
+      
       rast = rasterFromXYZ(xyz, crs = albers)
       
       writeRaster(rast, file)
