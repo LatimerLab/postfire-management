@@ -9,6 +9,8 @@ library(fasterize)
 library(viridis)
 library(shinyjs)
 library(V8)
+library(tidyr)
+library(scales)
 
 options(shiny.sanitize.errors = FALSE)
 options(shiny.maxRequestSize = 100*1024^2)
@@ -24,6 +26,8 @@ maps_loaded = reactiveVal(FALSE) # Holds status of whether maps for display are 
 severity_uploaded = reactiveVal(FALSE)
 
 df_plot_export = reactiveVal(NULL) # for exporting raster maps in file download handler
+
+experimental_enabled = reactiveVal(FALSE) # stores whether the experimental tools are enabled
 
 jsResetCode <- "shinyjs.reset = function() {history.go(0)}" # Define the js method that resets the page
 
@@ -130,9 +134,16 @@ prep_mapping_vars = function(perim,sev,input,min_high_sev_manual) {
              !(tmean %>% between(var_lims$tmean_min,var_lims$tmean_max)) |
                !(elev %>% between(var_lims$elev_min,var_lims$elev_max))   )
   
+  
+  
+  benefit_range = get_benefit_range(env_df)
+  
+  
+  
   mapping_vars = list(env_df = env_df,
                       perim = perim,
-                      sev = sev)
+                      sev = sev,
+                      benefit_range = benefit_range)
   
   return(mapping_vars)
   
@@ -229,6 +240,67 @@ custom_debug = function(input) {
 }
 
 
+#### Function for computing range of potential planting benefit values on a fire (for scaling relative planting benefit display) ####
+get_benefit_range = function(env_df) {
+  
+  env_df = env_df %>%
+    filter(!is.na(tmean))
+  
+  ## replicate for each possible value of planting year
+  env_df = tidyr::expand_grid(env_df,facts.planting.first.year = c(1,2,3))
+  
+  # calc only for high sev, YPMC, non-extrapolation
+  env_df = env_df[env_df$non_high_sev_mask != 1,]
+  env_df = env_df[which(env_df$eveg > 0.5),]
+  env_df = env_df[env_df$extrap != TRUE,]
+  
+  
+  env_df_noplant = env_df %>%
+    mutate(fsplanted = "unplanted")
+  
+  ## for predictions of a planting scenario
+  env_df_plant = env_df %>%
+    mutate(fsplanted = "planted")
+  
+  ## put tables together for prediction
+  env_df = bind_rows(env_df_noplant,
+                     env_df_plant)
+  
+  # predict seedlings per ha (incl undoing the response variable trasformation)
+  pred = predict(mod,env_df,re.form=NA) %>% exp() - 24.99
+  
+  pred_df = env_df
+  
+  pred_df$pred = pred / 2.47 # convert seedlings/ha to seedlings/acre
+  
+  # any model predictions below 0 should be 0
+  pred_df[pred_df$pred < 0.1,"pred"] = 0.1
+  
+  ## put the two data frames side by side
+  pred_df_plant = pred_df %>%
+    filter(fsplanted == "planted") %>%
+    rename("pred_plant" = "pred")
+  
+  pred_df_noplant = pred_df %>%
+    filter(fsplanted == "unplanted") %>%
+    rename("pred_noplant" = "pred")
+  
+  pred_df = bind_cols(pred_df_plant,pred_df_noplant %>% dplyr::select(pred_noplant))
+  
+  df_plot = pred_df %>%
+    ### Compute planting benefit
+    mutate(planting_benefit = pred_plant - pred_noplant)
+
+  ## get min and max values
+  min_benefit = df_plot$planting_benefit %>% quantile(0.025)
+  max_benefit = df_plot$planting_benefit %>% quantile(0.975)
+  
+  benefit_range = c(min_benefit,max_benefit)
+
+  return(benefit_range)  
+  
+}
+
 
 
 
@@ -238,7 +310,7 @@ make_maps = function(mapping_vars, plant_year, density_low, density_high, mask_n
   
   if(is.null(mapping_vars)) {
     
-    ret = list("main" = blank_plot, "density_unplanted" = blank_plot, "density_planted" = blank_plot,
+    ret = list("main" = blank_plot, "planting_benefit" = blank_plot, "density_unplanted" = blank_plot, "density_planted" = blank_plot,
                "cover_shrub" = blank_plot,
                "seed_distance" = blank_plot,
                tmean = blank_plot,
@@ -376,7 +448,10 @@ make_maps = function(mapping_vars, plant_year, density_low, density_high, mask_n
     df_plot = pred_df %>%
       mutate(overall = factor(overall, levels = rev(names(color_pal)))) %>%
       mutate(pred_noplant_trunc = ifelse(pred_noplant > 400, 400, pred_noplant)) %>%
-      mutate(pred_plant_trunc = ifelse(pred_plant > 400, 400, pred_plant))
+      mutate(pred_plant_trunc = ifelse(pred_plant > 400, 400, pred_plant)) %>%
+    ### Compute planting benefit
+      mutate(planting_benefit = pred_plant - pred_noplant)
+    
   
     ## Drop rows of masked-out values
     if(mask_non_high_sev) {
@@ -395,8 +470,19 @@ make_maps = function(mapping_vars, plant_year, density_low, density_high, mask_n
       df_plot = df_plot[which(df_plot$eveg > 0.5),]
     }
     
+    ### get the range of possible benefit for this fire and scale the planting benefit column
+    benefit_range = mapping_vars$benefit_range
+    
+    df_plot = df_plot %>%
+      mutate(planting_benefit_rel = rescale(planting_benefit,from=benefit_range)) %>%
+      mutate(planting_benefit_rel = ifelse(planting_benefit_rel > 1,1,planting_benefit_rel),
+             planting_benefit_rel = ifelse(planting_benefit_rel < 0,0,planting_benefit_rel))
+
+    
+    
     df_plot_export(df_plot)
     cat("Saved plot data table")
+    
     
     perim = perim %>% st_transform(3310)
     
@@ -408,6 +494,25 @@ make_maps = function(mapping_vars, plant_year, density_low, density_high, mask_n
       theme(legend.position="bottom", legend.title=element_blank(), plot.title = element_text(hjust = 0.5)) +
       labs(title = "Seedling density") +
       guides(fill = guide_legend(nrow = 6))
+    
+    
+    
+    planting_benefit = ggplot(df_plot,aes(x=x,y=y,fill=planting_benefit_rel)) +
+      geom_raster() +
+      geom_sf(data=perim,color="black",fill = NA, inherit.aes = FALSE) +
+      theme_void(20) +
+      scale_fill_viridis(direction = -1,
+                         option = "inferno",
+                         begin = 0.2,
+                         end = 0.9,
+                         limits=c(0,1),
+                         labels = c("low","high"),
+                         breaks = c(0.1,0.9),
+                         guide = guide_colourbar(ticks=FALSE)) +
+      theme(legend.position="bottom", plot.title = element_text(hjust = 0.5), legend.direction = "vertical") +
+      labs(title = "Predicted planting benefit", fill = NULL)
+    
+    
     
     density_unplanted = ggplot(df_plot,aes(x=x,y=y,fill=pred_noplant_trunc)) +
       geom_raster() +
@@ -481,7 +586,7 @@ make_maps = function(mapping_vars, plant_year, density_low, density_high, mask_n
       theme(legend.position="bottom", plot.title = element_text(hjust = 0.5), legend.direction = "vertical") +
       labs(title = "Topographic position index", fill = "TPI")
     
-    ret = list("main" = main_map, "density_unplanted" = density_unplanted, "density_planted" = density_planted,
+    ret = list("main" = main_map, "planting_benefit" = planting_benefit, "density_unplanted" = density_unplanted, "density_planted" = density_planted,
                "cover_shrub" = cover_shrub,
                "seed_distance" = seed_distance,
                tmean = tmean,
@@ -570,12 +675,7 @@ ui <- fluidPage(
         #             min = -1.2,
         #             max = -0.6,
         #             value = -0.9),
-        tags$br(),
-        sliderInput(inputId = "density_range",
-                    label = "Acceptable seedling density range (seedlings/acre):",
-                    min = 0,
-                    max = 600,
-                    value = c(50,250)),
+
         # sliderInput(inputId = "max_density",
         #             label = "Maximum seedling density:",
         #             min = 0,
@@ -597,23 +697,50 @@ ui <- fluidPage(
         checkboxInput(inputId = "mask_uncertain",
                       label = "Hide low model confidence areas (slow)",
                       value = FALSE),
-        checkboxGroupInput(inputId = "map_selection",
-                      label = "Layers to display:",
-                      choices = list("Main predictions" = "main",
-                                     "Natural seedling density" = "density_unplanted",
-                                     "Planted + natural seedling density" = "density_planted",
-                                     "Modeled shrub cover" = "cover_shrub",
-                                     "Seed tree distance" = "seed_distance",
-                                     "Mean temperature" = "tmean",
-                                     "Annual precipitation" = "precip",
-                                     "Topographic position index" = "tpi"
-                                     ),
-                      selected = "main"),
+        tags$br(),
+        conditionalPanel(condition = "output.experimental_enabled === true",
+                         sliderInput(inputId = "density_range",
+                                     label = "Acceptable seedling density range (seedlings/acre):",
+                                     min = 0,
+                                     max = 600,
+                                     value = c(50,250))
+        ),
+        conditionalPanel(condition = "output.experimental_enabled != true",
+                          checkboxGroupInput(inputId = "map_selection",
+                                             label = "Layers to display:",
+                                             choices = list("Planting benefit" = "planting_benefit",
+                                                            "Modeled shrub cover" = "cover_shrub",
+                                                            "Mean temperature" = "tmean",
+                                                            "Annual precipitation" = "precip",
+                                                            "Topographic position index" = "tpi"
+                                             ),
+                                             selected = "main")
+        ),
         
+        conditionalPanel(condition = "output.experimental_enabled === true",
+                         checkboxGroupInput(inputId = "map_selection",
+                                            label = "Layers to display:",
+                                            choices = list("Predicted outcomes" = "main",
+                                                           "Planting benefit" = "planting_benefit",
+                                                           "Natural seedling density" = "density_unplanted",
+                                                           "Planted + natural seedling density" = "density_planted",
+                                                           "Modeled shrub cover" = "cover_shrub",
+                                                           "Seed tree distance" = "seed_distance",
+                                                           "Mean temperature" = "tmean",
+                                                           "Annual precipitation" = "precip",
+                                                           "Topographic position index" = "tpi"
+                                            ),
+                                            selected = "main")
+                         
+                         ),
+     
         tags$br(),
         selectInput("dataset", "Select a layer to download:",
                     choices = c("Main predictions", "Natural seedling density", "Planted + natural seedling density")),
-        downloadButton("downloadData", "Download")
+        downloadButton("downloadData", "Download"),
+        tags$br(),
+        tags$br(),
+        actionButton("experimental_enabled","Enable experimental/beta tools"),"Important caveats"
         
         
       )
@@ -632,6 +759,12 @@ ui <- fluidPage(
           conditionalPanel(
             condition = "input.map_selection.includes('main') === true",      
             plotOutput(outputId = "distPlot",height="600px"),
+            tags$br()
+          ),
+          
+          conditionalPanel(
+            condition = "input.map_selection.includes('planting_benefit') === true",      
+            plotOutput(outputId = "plantingBenefitPlot",height="600px"),
             tags$br()
           ),
           
@@ -707,6 +840,9 @@ server <- function(input, output, session) {
   output$severity_uploaded = reactive({ severity_uploaded() })
   outputOptions(output, 'severity_uploaded', suspendWhenHidden=FALSE)
   
+  output$experimental_enabled = reactive({ experimental_enabled() })
+  outputOptions(output, 'experimental_enabled', suspendWhenHidden=FALSE)
+  
   # output$max_sev_value = reactive({ max_sev_value() })
   # outputOptions(output, 'max_sev_value', suspendWhenHidden=FALSE)
   
@@ -764,6 +900,15 @@ server <- function(input, output, session) {
                }
               )
   
+  observeEvent(input$experimental_enabled,
+               
+               {
+                 
+                 cat("clicket")
+                 experimental_enabled(TRUE)
+               }
+  )
+  
   output$perim_uploaded = reactive({ return(!is.null(perim())) })
   outputOptions(output, 'perim_uploaded', suspendWhenHidden=FALSE)
 
@@ -817,7 +962,10 @@ server <- function(input, output, session) {
     
   })
   
-  
+  output$plantingBenefitPlot = renderPlot({
+    maps_list = maps()
+    plot(maps_list$planting_benefit)
+  })
   
   output$densityUnplantedPlot = renderPlot({
     maps_list = maps()
