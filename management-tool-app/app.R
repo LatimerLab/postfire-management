@@ -135,7 +135,8 @@ prep_mapping_vars = function(perim,sev,input,min_high_sev_manual) {
     ## undo the raster scaling that was done to be able to save layers as int
     mutate(tmean = tmean/100,
            tpi2000 = tpi2000/10,
-           Shrubs = Shrubs/100) %>%
+           Shrubs = Shrubs/100,
+           eveg = eveg/100) %>%
     # apply transformation needed by stat model
     ###!!! consider different cap on seed wall max distance
     mutate(seed_dist = ifelse(seed_dist == 0,15,seed_dist)) %>% # correct for a limitation of using remotely sensed data: no plot center is exactly 0 m from a tree. Use 15 since we are focused on high-severity areas, so the closest a tree could be is half the width of the pixel. Also conveniently 15 m was the closest a tree was in our plot dataset.
