@@ -9,6 +9,8 @@ library(fasterize)
 library(viridis)
 library(shinyjs)
 library(V8)
+library(tidyr)
+library(scales)
 
 options(shiny.sanitize.errors = FALSE)
 options(shiny.maxRequestSize = 100*1024^2)
@@ -16,7 +18,7 @@ options(shiny.maxRequestSize = 100*1024^2)
 #### Globals ####
 
 var_lims = read.csv("data/var_lims.csv", header=TRUE)
-color_pal <- c("too low (even with planting)" = "#fde725", "good if planted" = "#7ad151", "good regardless of planting" = "#22a884",  "too low when unplanted; too high when planted" = "#2a788e", "good if unplanted" = "#414487", "too high (even without planting)" = "#440154")
+color_pal <- c("below acceptable density range (even with planting)" = "#fde725", "within acceptable density range if planted" = "#7ad151", "within acceptable density range regardless of planting" = "#22a884",  "below acceptable density range when unplanted; above it when planted" = "#2a788e", "within acceptable density range if unplanted" = "#414487", "above acceptable density range (even without planting)" = "#440154")
 mod = readRDS("data/model.rds")
 dat = readRDS("data/data.rds")
 
@@ -24,6 +26,8 @@ maps_loaded = reactiveVal(FALSE) # Holds status of whether maps for display are 
 severity_uploaded = reactiveVal(FALSE)
 
 df_plot_export = reactiveVal(NULL) # for exporting raster maps in file download handler
+
+experimental_enabled = reactiveVal(FALSE) # stores whether the experimental tools are enabled
 
 jsResetCode <- "shinyjs.reset = function() {history.go(0)}" # Define the js method that resets the page
 
@@ -50,14 +54,18 @@ blank_plot = ggplot(d,aes(x=x,y=y)) +
 
 #### Get predictors and predictions for a given fire ####
 
-prep_mapping_vars = function(perim,sev,input) {
+prep_mapping_vars = function(perim,sev,input,min_high_sev_manual) {
+  
+  cat("starting to prep mapping vars")
   
   if(is.null(sev)) return(NULL)
   
   if(input$resolution_input == 1) {
     env = brick("data/env_raster_stack.tif")
-  } else {
+  } else if (input$resolution_input == 2) {
     env = brick("data/env_raster_stack_coarse.tif")
+  } else {
+    env = brick("data/env_raster_stack_extracoarse.tif")
   }
   
   env = crop(env,perim %>% st_transform(projection(env)))
@@ -77,7 +85,12 @@ prep_mapping_vars = function(perim,sev,input) {
   ## get all the non-high-sev area
   sev_nonhigh = sev
   sev_nonhigh = projectRaster(sev_nonhigh,env,method="ngb")
-  sev_nonhigh[sev_nonhigh >= 7] = NA
+  
+  if(min_high_sev_manual == -1) {
+    sev_nonhigh[sev_nonhigh >= as.numeric(input$min_high_sev)] = NA
+  } else {
+    sev_nonhigh[sev_nonhigh >= min_high_sev_manual] = NA
+  }
   
   ## comp distance to non-high-sev
   seed_dist = distance(sev_nonhigh)
@@ -95,11 +108,26 @@ prep_mapping_vars = function(perim,sev,input) {
   
   
   #### Load and assemble env predictor data for focal area ####
-  
   env = stack(env,seed_dist,non_high_sev_mask)
   
   env_df = as.data.frame(env,xy=TRUE)
-  names(env_df) = c("x","y","tpi","ppt","tmean","shrub","elev","seed_dist","non_high_sev_mask")
+  names(env_df) = c("x","y","tpi","ppt","tmean","shrub","elev","eveg","seed_dist","non_high_sev_mask")
+  
+  env_df = env_df[!is.na(env_df$ppt),]
+  
+  ## manually set seed dist based on user selection
+  if(input$seed_dist_assumption == "30") env_df$seed_dist = 30
+  if(input$seed_dist_assumption == "70") env_df$seed_dist = 70
+  if(input$seed_dist_assumption == "250") env_df$seed_dist = 250
+  # if the final option, "severity", is selected, use the default of estimating from severity raster (distance to non-high severity)
+  
+  
+  ## override shrub cover based on input selection
+  if(input$shrub_assumption == "low") env_df$shrub = 3000
+  if(input$shrub_assumption == "moderate") env_df$shrub = 6000
+  if(input$shrub_assumption == "high") env_df$shrub = 9000
+  # otherwise, if it is "predicted", use the default value
+  
   env_df = env_df %>%
     rename(normal_annual_precip = ppt,
            tpi2000 = "tpi",
@@ -107,11 +135,12 @@ prep_mapping_vars = function(perim,sev,input) {
     ## undo the raster scaling that was done to be able to save layers as int
     mutate(tmean = tmean/100,
            tpi2000 = tpi2000/10,
-           Shrubs = Shrubs/100) %>%
+           Shrubs = Shrubs/100,
+           eveg = eveg/100) %>%
     # apply transformation needed by stat model
     ###!!! consider different cap on seed wall max distance
     mutate(seed_dist = ifelse(seed_dist == 0,15,seed_dist)) %>% # correct for a limitation of using remotely sensed data: no plot center is exactly 0 m from a tree. Use 15 since we are focused on high-severity areas, so the closest a tree could be is half the width of the pixel. Also conveniently 15 m was the closest a tree was in our plot dataset.
-    mutate(seed_dist = ifelse(seed_dist >= 200,200,seed_dist)) %>% # cap it at 200 since our field data only go that far and we know it tends to level off by then
+    mutate(seed_dist = ifelse(seed_dist >= 250,250,seed_dist)) %>% # cap it at 200 since our field data only go that far and we know it tends to level off by then
     mutate(log10SeedWallConifer = log10(seed_dist))
   
   ## make an extrapolation column
@@ -121,9 +150,18 @@ prep_mapping_vars = function(perim,sev,input) {
              !(tmean %>% between(var_lims$tmean_min,var_lims$tmean_max)) |
                !(elev %>% between(var_lims$elev_min,var_lims$elev_max))   )
   
+  
+  
+  benefit_range = get_benefit_range(env_df)
+  
+  
+  
   mapping_vars = list(env_df = env_df,
                       perim = perim,
-                      sev = sev)
+                      sev = sev,
+                      benefit_range = benefit_range)
+  
+  cat("mapping vars prepped")
   
   return(mapping_vars)
   
@@ -220,16 +258,77 @@ custom_debug = function(input) {
 }
 
 
+#### Function for computing range of potential planting benefit values on a fire (for scaling relative planting benefit display) ####
+get_benefit_range = function(env_df) {
+
+  env_df = env_df %>%
+    filter(!is.na(tmean))
+  
+  ## replicate for each possible value of planting year
+  env_df = tidyr::expand_grid(env_df,facts.planting.first.year = c(1,2,3))
+  
+  # calc only for high sev, YPMC, non-extrapolation
+  env_df = env_df[which(env_df$non_high_sev_mask != 1),]
+  env_df = env_df[which(env_df$eveg > 0.5),]
+  env_df = env_df[which(env_df$extrap != TRUE),]
+  
+  
+  env_df_noplant = env_df %>%
+    mutate(fsplanted = "unplanted")
+  
+  ## for predictions of a planting scenario
+  env_df_plant = env_df %>%
+    mutate(fsplanted = "planted")
+  
+  ## put tables together for prediction
+  env_df = bind_rows(env_df_noplant,
+                     env_df_plant)
+  
+  # predict seedlings per ha (incl undoing the response variable trasformation)
+  pred = predict(mod,env_df,re.form=NA) %>% exp() - 24.99
+  
+  pred_df = env_df
+  
+  pred_df$pred = pred / 2.47 # convert seedlings/ha to seedlings/acre
+  
+  # any model predictions below 0 should be 0
+  pred_df[pred_df$pred < 0.1,"pred"] = 0.1
+  
+  ## put the two data frames side by side
+  pred_df_plant = pred_df %>%
+    filter(fsplanted == "planted") %>%
+    rename("pred_plant" = "pred")
+  
+  pred_df_noplant = pred_df %>%
+    filter(fsplanted == "unplanted") %>%
+    rename("pred_noplant" = "pred")
+  
+  pred_df = bind_cols(pred_df_plant,pred_df_noplant %>% dplyr::select(pred_noplant))
+  
+  df_plot = pred_df %>%
+    ### Compute planting benefit
+    mutate(planting_benefit = pred_plant - pred_noplant)
+
+  ## get min and max values
+  min_benefit = df_plot$planting_benefit %>% quantile(0.025)
+  max_benefit = df_plot$planting_benefit %>% quantile(0.975)
+  
+  benefit_range = c(min_benefit,max_benefit)
+
+  return(benefit_range)  
+  
+}
+
 
 
 
 #### Function for making maps based on inputs ####
 # This function relies on some globals from above
-make_maps = function(mapping_vars, plant_year, density_low, density_high, mask_non_high_sev, mask_extrapolation, mask_uncertain) {
-  
+make_maps = function(mapping_vars, plant_year, density_low, density_high, map_masking) {
+
   if(is.null(mapping_vars)) {
     
-    ret = list("main" = blank_plot, "density_unplanted" = blank_plot, "density_planted" = blank_plot,
+    ret = list("main" = blank_plot, "planting_benefit" = blank_plot, "density_unplanted" = blank_plot, "density_planted" = blank_plot,
                "cover_shrub" = blank_plot,
                "seed_distance" = blank_plot,
                tmean = blank_plot,
@@ -244,7 +343,8 @@ make_maps = function(mapping_vars, plant_year, density_low, density_high, mask_n
     env_df = mapping_vars$env_df %>%
       mutate(#neglog5SeedWallConifer = input$seedwall,
         facts.planting.first.year = as.numeric(plant_year)) %>%
-      filter(!is.na(tmean))  ### exclude NA grid cells!
+      filter(!is.na(tmean)) %>%  ### exclude NA grid cells!
+      filter(!is.na(tpi2000))
     # fsplanted = input$planted)
     #  Shrubs = input$shrub_cover,  
     #ShrubHt = input$shrub_height,
@@ -277,11 +377,12 @@ make_maps = function(mapping_vars, plant_year, density_low, density_high, mask_n
     
     ####!!!! get uncertainty following http://bbolker.github.io/mixedmodels-misc/glmmFAQ.html # lme4 section
 
-    if(mask_uncertain) {
+    if("mask_uncertain" %in% map_masking) {
       
       newdat = env_df %>%
       mutate(ln.dens.planted = 0) %>%
       mutate(fsplanted = as.factor(fsplanted))
+      
       mm = model.matrix(terms(mod),newdat)
       tcross = tcrossprod(vcov(mod),mm)
       
@@ -315,7 +416,7 @@ make_maps = function(mapping_vars, plant_year, density_low, density_high, mask_n
     
     
     # any model predictions below 0 should be 0
-    pred_df[pred_df$pred < 0.1,"pred"] = 0.1
+    pred_df[which(pred_df$pred < 0.1),"pred"] = 0.1
     
     
     ## put the two data frames side by side
@@ -342,48 +443,72 @@ make_maps = function(mapping_vars, plant_year, density_low, density_high, mask_n
     
     pred_df$overall = NA
     ##too low even with planting
-    pred_df[which(pred_df$plant == "low"),"overall"] = "too low (even with planting)"
+    pred_df[which(pred_df$plant == "low"),"overall"] = "below acceptable density range (even with planting)"
     ##too high even without planting
-    pred_df[which(pred_df$noplant == "high"),"overall"] = "too high (even without planting)"
+    pred_df[which(pred_df$noplant == "high"),"overall"] = "above acceptable density range (even without planting)"
     ## good with planting only
-    pred_df[which(pred_df$noplant != "good" & pred_df$plant == "good"),"overall"] = "good if planted"
+    pred_df[which(pred_df$noplant != "good" & pred_df$plant == "good"),"overall"] = "within acceptable density range if planted"
     ## good with natural only
-    pred_df[which(pred_df$noplant == "good" & pred_df$plant != "good"), "overall"] = "good if unplanted"
+    pred_df[which(pred_df$noplant == "good" & pred_df$plant != "good"), "overall"] = "within acceptable density range if unplanted"
     ## good regardless of planting
-    pred_df[which(pred_df$noplant == "good" & pred_df$plant == "good"), "overall"] = "good regardless of planting"
+    pred_df[which(pred_df$noplant == "good" & pred_df$plant == "good"), "overall"] = "within acceptable density range regardless of planting"
     ## too low when unplanted; too high when planted
-    pred_df[which(pred_df$noplant == "low" & pred_df$plant == "high"), "overall"] = "too low when unplanted; too high when planted"
+    pred_df[which(pred_df$noplant == "low" & pred_df$plant == "high"), "overall"] = "below acceptable density range when unplanted; above it when planted"
     
     # make a column with these values as numeric codes
     pred_df = pred_df %>%
       mutate(overall_code = recode(overall,
-                                   "too low (even with planting)" = 1,
-                                   "good if planted" = 2,
-                                   "good regardless of planting" = 3,
-                                   "too low when unplanted; too high when planted" = 4,
-                                   "good if unplanted" = 5,
-                                   "too high (even without planting)" = 6))
+                                   "below acceptable density range (even with planting)" = 1,
+                                   "within acceptable density range if planted" = 2,
+                                   "within acceptable density range regardless of planting" = 3,
+                                   "below acceptable density range when unplanted; abive it when planted" = 4,
+                                   "within acceptable density range if unplanted" = 5,
+                                   "above acceptable density range (even without planting)" = 6))
     
     df_plot = pred_df %>%
       mutate(overall = factor(overall, levels = rev(names(color_pal)))) %>%
       mutate(pred_noplant_trunc = ifelse(pred_noplant > 400, 400, pred_noplant)) %>%
-      mutate(pred_plant_trunc = ifelse(pred_plant > 400, 400, pred_plant))
+      mutate(pred_plant_trunc = ifelse(pred_plant > 400, 400, pred_plant)) %>%
+    ### Compute planting benefit
+      mutate(planting_benefit = pred_plant - pred_noplant)
+    
   
     ## Drop rows of masked-out values
-    if(mask_non_high_sev) {
-      df_plot = df_plot[df_plot$non_high_sev_mask != 1,]
+    if("mask_non_high_sev" %in% map_masking) {
+      df_plot = df_plot[which(df_plot$non_high_sev_mask != 1),]
     }
     
-    if(mask_uncertain) {
-      df_plot = df_plot[df_plot$stderr_noplant < 0.60,]
+    if("mask_uncertain" %in% map_masking) {
+      df_plot = df_plot[which(df_plot$stderr_noplant < 0.60),]
     }
     
-    if(mask_extrapolation) {
-      df_plot = df_plot[df_plot$extrap != TRUE,]
+    if("mask_extrapolation" %in% map_masking) {
+      df_plot = df_plot[which(df_plot$extrap != TRUE),]
     }
     
+    if("mask_non_ypmc" %in% map_masking) {
+      df_plot = df_plot[which(df_plot$eveg > 0.5),]
+    }
+    
+    ### get the range of possible benefit for this fire and scale the planting benefit column
+    benefit_range = mapping_vars$benefit_range
+    
+    ## set the max to a reasonable cap (400)
+    cap = 300
+    if(benefit_range[2] > cap) benefit_range[2] = cap
+    if(benefit_range[1] > cap) benefit_range[1] = cap-10
+    
+    
+    df_plot = df_plot %>%
+      mutate(planting_benefit = ifelse(planting_benefit > cap,cap,planting_benefit)) %>%
+      mutate(planting_benefit_rel = rescale(planting_benefit,from=benefit_range)) %>%
+      mutate(planting_benefit_rel = ifelse(planting_benefit_rel > 1,1,planting_benefit_rel),
+             planting_benefit_rel = ifelse(planting_benefit_rel < 0,0,planting_benefit_rel))
+
+
     df_plot_export(df_plot)
-    cat("Saved plto data table")
+    cat("Saved plot data table")
+    
     
     perim = perim %>% st_transform(3310)
     
@@ -393,8 +518,27 @@ make_maps = function(mapping_vars, plant_year, density_low, density_high, mask_n
       theme_void(20) +
       scale_fill_manual(values = color_pal) +
       theme(legend.position="bottom", legend.title=element_blank(), plot.title = element_text(hjust = 0.5)) +
-      labs(title = "Seedling density") +
+      labs(title = "Predicted seedling density outcomes") +
       guides(fill = guide_legend(nrow = 6))
+    
+    
+    
+    planting_benefit = ggplot(df_plot,aes(x=x,y=y,fill=planting_benefit_rel)) +
+      geom_raster() +
+      geom_sf(data=perim,color="black",fill = NA, inherit.aes = FALSE) +
+      theme_void(20) +
+      scale_fill_viridis(direction = -1,
+                         option = "inferno",
+                         begin = 0.2,
+                         end = 0.9,
+                         limits=c(0,1),
+                         labels = c("low","high"),
+                         breaks = c(0.1,0.9),
+                         guide = guide_colourbar(ticks=FALSE)) +
+      theme(legend.position="bottom", plot.title = element_text(hjust = 0.5), legend.direction = "vertical") +
+      labs(title = "Predicted planting benefit", fill = NULL)
+    
+    
     
     density_unplanted = ggplot(df_plot,aes(x=x,y=y,fill=pred_noplant_trunc)) +
       geom_raster() +
@@ -408,7 +552,7 @@ make_maps = function(mapping_vars, plant_year, density_low, density_high, mask_n
                          begin = 0.2,
                          end = 0.9) +
       theme(legend.position="bottom", plot.title = element_text(hjust = 0.5), legend.direction = "vertical") +
-      labs(title = "Seedling density: Natural", fill = "Seedlings / acre") #+
+      labs(title = "Predicted seedling density: Natural", fill = "Seedlings / acre") #+
       #guides(fill = guide_legend(reverse=FALSE))
       #guides(fill = guide_legend(nrow = 2))
     
@@ -424,7 +568,7 @@ make_maps = function(mapping_vars, plant_year, density_low, density_high, mask_n
                          begin = 0.2,
                          end = 0.9) +
       theme(legend.position="bottom", plot.title = element_text(hjust = 0.5), legend.direction = "vertical") +
-      labs(title = "Seedling density: Natural + planted", fill = "Seedlings / acre") #+
+      labs(title = "Predicted seedling density: Natural + planted", fill = "Seedlings / acre") #+
     
     cover_shrub = ggplot(df_plot,aes(x=x,y=y,fill=Shrubs)) +
       geom_raster() +
@@ -432,7 +576,7 @@ make_maps = function(mapping_vars, plant_year, density_low, density_high, mask_n
       theme_void(20) +
       scale_fill_viridis(direction = -1) +
       theme(legend.position="bottom", plot.title = element_text(hjust = 0.5), legend.direction = "vertical") +
-      labs(title = "Modeled shrub cover", fill = "Percent cover")
+      labs(title = "Shrub cover", fill = "Percent cover")
     
     seed_distance = ggplot(df_plot,aes(x=x,y=y,fill=seed_dist)) +
       geom_raster() +
@@ -468,7 +612,7 @@ make_maps = function(mapping_vars, plant_year, density_low, density_high, mask_n
       theme(legend.position="bottom", plot.title = element_text(hjust = 0.5), legend.direction = "vertical") +
       labs(title = "Topographic position index", fill = "TPI")
     
-    ret = list("main" = main_map, "density_unplanted" = density_unplanted, "density_planted" = density_planted,
+    ret = list("main" = main_map, "planting_benefit" = planting_benefit, "density_unplanted" = density_unplanted, "density_planted" = density_planted,
                "cover_shrub" = cover_shrub,
                "seed_distance" = seed_distance,
                tmean = tmean,
@@ -495,9 +639,9 @@ ui <- fluidPage(
   # App title ----
   titlePanel("Post-fire reforestation success estimation tool"),
   h4('aka "PRESET"'),
-  h6('v 0.0.4 beta'),
-  h6("Developed by: Derek Young, Quinn Sorenson, Andrew Latimer"),
-  h6("Latimer Lab, UC Davis"),
+  h6('v 0.1 (beta)'),
+  h6("Developed by: ",a(href="http://www.changingforests.com","Derek Young",.noWS="after"),", ",a(href="https://twitter.com/qmsorenson?lang=en","Quinn Sorenson",.noWS="after"),", ",a(href="https://www.plantsciences.ucdavis.edu/people/andrew-latimer","Andrew Latimer",.noWS="after")),
+  h6(a(href="https://latimer.ucdavis.edu/","Latimer Lab",.noWS="after")," and ",a(href="http://www.changingforests.com","Young Lab",.noWS="after"),", Department of Plant Sciences, UC Davis"),
   
   # Sidebar layout with input and output definitions ----
   sidebarLayout(
@@ -512,23 +656,23 @@ ui <- fluidPage(
         condition="output.map_loaded ===false",
         
         radioButtons(inputId = "resolution_input",
-                     label = "1. Choose resolution:",
-                     choices = list("30 m pixels (slower)" = 1, "60 m pixels (faster)" = 2),
-                     selected = 2),
+                     label = "1. Choose spatial resolution:",
+                     choices = list("30 m pixels (slowest)" = 1, "60 m pixels" = 2, "120 m pixels (fastest)" = 3),
+                     selected = 3),
         
         tags$br(),
         
         fileInput("sev_file", "2. Upload severity raster"),
         
         conditionalPanel( condition = "output.severity_uploaded === true",
-              textInput("min_high_sev",label="2b. Minimum value to consider high-severity"),
+              textInput("min_high_sev",label="2b. Minimum value to consider high severity"),
               htmlOutput("severity_text")
  
                           ),
         
-        fileInput("perim_file", "3. Upload fire perimeter"),
+        fileInput("perim_file", "3. Upload fire perimeter (or focal area perimeter)"),
         
-        HTML('&emsp;'),tags$b("Or,"),"use 2019 Caples Fire (Eldorado NF) demo data: ",
+        HTML('&emsp;'),tags$b("Or,"),"use 2020 Creek Fire demo data: ",
         
         actionButton("upload_button","Go")
       ),
@@ -557,12 +701,7 @@ ui <- fluidPage(
         #             min = -1.2,
         #             max = -0.6,
         #             value = -0.9),
-        tags$br(),
-        sliderInput(inputId = "density_range",
-                    label = "Acceptable seedling density range (seedlings/acre):",
-                    min = 0,
-                    max = 600,
-                    value = c(50,250)),
+
         # sliderInput(inputId = "max_density",
         #             label = "Maximum seedling density:",
         #             min = 0,
@@ -572,32 +711,90 @@ ui <- fluidPage(
                     label = "Planting year:",
                     choices = list("1 year post-fire" = 1, "2 years post-fire" = 2, "3 years post-fire" = 3),
                     selected = 2),
-        checkboxInput(inputId = "mask_non_high_sev",
-                      label = "Show high-severity area only",
-                      value = FALSE),
-        checkboxInput(inputId = "mask_extrap",
-                      label = "Hide model extrapolation areas",
-                      value = FALSE),
-        checkboxInput(inputId = "mask_uncertain",
-                      label = "Hide low model confidence areas (slow)",
-                      value = FALSE),
-        checkboxGroupInput(inputId = "map_selection",
-                      label = "Layers to display:",
-                      choices = list("Main predictions" = "main",
-                                     "Natural seedling density" = "density_unplanted",
-                                     "Planted + natural seedling density" = "density_planted",
-                                     "Modeled shrub cover" = "cover_shrub",
-                                     "Seed tree distance" = "seed_distance",
-                                     "Mean temperature" = "tmean",
-                                     "Annual precipitation" = "precip",
-                                     "Topographic position index" = "tpi"
-                                     ),
-                      selected = "main"),
+        radioButtons(inputId = "shrub_assumption",
+                     label = "Expected shrub cover:",
+                     choices = list("Predicted (varies across space)" = "predicted", "Low (30%) everywhere" = "low", "Moderate (60%) everywhere" = "moderate", "High (90%) everywhere" = "high"),
+                     selected = "predicted"),
+        checkboxGroupInput(inputId = "map_masking",
+                           label = "Map filtering:",
+                           choices = list("Show high-severity area only" = "mask_non_high_sev",
+                                          "Show yellow pine & mixed-conifer only" = "mask_non_ypmc",
+                                          #"Hide model extrapolation areas" = "mask_extrap",
+                                          "Hide low model confidence areas (slow)" = "mask_uncertain"
+                           ),
+                           selected = c("mask_non_high_sev","mask_non_ypmc")),
+                           
+
+        conditionalPanel(condition = "output.experimental_enabled === true",
+                         sliderInput(inputId = "density_range",
+                                     label = "Acceptable seedling density range (seedlings/acre):",
+                                     min = 0,
+                                     max = 600,
+                                     value = c(50,250)),
+                         
+                         radioButtons(inputId = "seed_dist_assumption",
+                                      label = "Seed source distance:",
+                                      choices = list("Near (100 ft)" = "30",
+                                                     "Moderate (230 ft)" = "70",
+                                                     "Far (820 ft)" = "820",
+                                                     "Derived from severity map (dist. to non-high sev.)" = "severity"),
+                                      selected = 70),
+        ),
+        conditionalPanel(condition = "output.experimental_enabled === false",
+                          checkboxGroupInput(inputId = "map_selection_basic",
+                                             label = "Layers to display:",
+                                             choices = list("Planting benefit" = "planting_benefit",
+                                                            "Shrub cover" = "cover_shrub",
+                                                            "Mean temperature" = "tmean",
+                                                            "Annual precipitation" = "precip",
+                                                            "Topographic position index" = "tpi"
+                                             ),
+                                             selected = "planting_benefit")
+        ),
         
+        conditionalPanel(condition = "output.experimental_enabled === true",
+                         checkboxGroupInput(inputId = "map_selection_advanced",
+                                            label = "Layers to display:",
+                                            choices = list("Predicted outcomes" = "main",
+                                                           "Planting benefit" = "planting_benefit",
+                                                           "Natural seedling density" = "density_unplanted",
+                                                           "Planted + natural seedling density" = "density_planted",
+                                                           "Modeled shrub cover" = "cover_shrub",
+                                                           "Seed tree distance" = "seed_distance",
+                                                           "Mean temperature" = "tmean",
+                                                           "Annual precipitation" = "precip",
+                                                           "Topographic position index" = "tpi"
+                                            ),
+                                            selected = "main")
+                         
+                         ),
+     
         tags$br(),
-        selectInput("dataset", "Select a layer to download:",
-                    choices = c("Main predictions", "Natural seedling density", "Planted + natural seedling density")),
-        downloadButton("downloadData", "Download")
+        
+        conditionalPanel(condition = "output.experimental_enabled === true",
+          selectInput("dataset_advanced", "Download data:",
+                      choices = c("Predicted outcomes", "Planting benefit", "Natural seedling density", "Planted + natural seedling density"))
+        ),
+        conditionalPanel(condition = "output.experimental_enabled === false",
+                         selectInput("dataset_basic", "Download data:",
+                                     choices = c("Planting benefit"))
+
+        ),
+        downloadButton("downloadData", "Download"),
+        
+        
+
+        tags$br(),
+        tags$br(),
+        
+        conditionalPanel(condition = "output.experimental_enabled === false",
+          actionButton("experimental_enabled","Enable experimental/beta tools")
+        ),
+        conditionalPanel(condition = "output.experimental_enabled === true",
+                         tags$b("Experimental/beta tools enabled.")
+        ),
+        
+        "Important caveats"
         
         
       )
@@ -605,7 +802,7 @@ ui <- fluidPage(
     
     # Main panel for displaying outputs ----
     mainPanel(
-      
+
       # Conditional panel to hide all the maps if user has not yet uploaded a perimeter shapefile
       conditionalPanel(
           condition = "output.perim_uploaded === true",
@@ -614,56 +811,62 @@ ui <- fluidPage(
           
           ## Main map
           conditionalPanel(
-            condition = "input.map_selection.includes('main') === true",      
+            condition = "(!output.experimental_enabled && input.map_selection_basic.includes('main') === true) || (output.experimental_enabled && input.map_selection_advanced.includes('main') === true)",      
             plotOutput(outputId = "distPlot",height="600px"),
+            tags$br()
+          ),
+          
+          conditionalPanel(
+            condition = "(!output.experimental_enabled && input.map_selection_basic.includes('planting_benefit') === true) || (output.experimental_enabled && input.map_selection_advanced.includes('planting_benefit') === true)",      
+            plotOutput(outputId = "plantingBenefitPlot",height="600px"),
             tags$br()
           ),
           
           ## Unplanted density
           conditionalPanel(
-            condition = "input.map_selection.includes('density_unplanted') === true",
+            condition = "(!output.experimental_enabled && input.map_selection_basic.includes('density_unplanted') === true) || (output.experimental_enabled && input.map_selection_advanced.includes('density_unplanted') === true)",      
             plotOutput(outputId = "densityUnplantedPlot",height="600px"),
             tags$br(" ")
           ),
           
           ## Planted density
           conditionalPanel(
-            condition = "input.map_selection.includes('density_planted') === true",
+            condition = "(!output.experimental_enabled && input.map_selection_basic.includes('density_planted') === true) || (output.experimental_enabled && input.map_selection_advanced.includes('density_planted') === true)",      
             plotOutput(outputId = "densityPlantedPlot",height="600px"),
             tags$br()
           ),
           
           ## Shrub cover
           conditionalPanel(
-            condition = "input.map_selection.includes('cover_shrub') === true",
+            condition = "(!output.experimental_enabled && input.map_selection_basic.includes('cover_shrub') === true) || (output.experimental_enabled && input.map_selection_advanced.includes('cover_shrub') === true)",      
             plotOutput(outputId = "coverShrubPlot",height="600px"),
             tags$br()
           ),
           
           ## Seed distance
           conditionalPanel(
-            condition = "input.map_selection.includes('seed_distance') === true",
+            condition = "(!output.experimental_enabled && input.map_selection_basic.includes('seed_distance') === true) || (output.experimental_enabled && input.map_selection_advanced.includes('seed_distance') === true)",      
             plotOutput(outputId = "seedDistancePlot",height="600px"),
             tags$br()
           ),
           
           ## Tmin
           conditionalPanel(
-            condition = "input.map_selection.includes('tmean') === true",
+            condition = "(!output.experimental_enabled && input.map_selection_basic.includes('tmean') === true) || (output.experimental_enabled && input.map_selection_advanced.includes('tmean') === true)",      
             plotOutput(outputId = "tmeanPlot",height="600px"),
             tags$br()
           ),
           
           ## Precip
           conditionalPanel(
-            condition = "input.map_selection.includes('precip') === true",
+            condition = "(!output.experimental_enabled && input.map_selection_basic.includes('precip') === true) || (output.experimental_enabled && input.map_selection_advanced.includes('precip') === true)",      
             plotOutput(outputId = "precipPlot",height="600px"),
             tags$br()
           ),
           
           ## TPI
           conditionalPanel(
-            condition = "input.map_selection.includes('tpi') === true",
+            condition = "(!output.experimental_enabled && input.map_selection_basic.includes('tpi') === true) || (output.experimental_enabled && input.map_selection_advanced.includes('tpi') === true)",      
             plotOutput(outputId = "tpiPlot",height="600px"),
             tags$br()
           )
@@ -683,12 +886,16 @@ server <- function(input, output, session) {
   
   sev = reactiveVal(NULL) # Holds fire seveirty raster once loaded
   perim = reactiveVal(NULL) # Holds fire perimeter sf object once loaded
+  min_high_sev_manual = reactiveVal(-1) # Used to manually set the minimum high sev value (for, e.g., when the demo layer is loaded)
   
   output$map_loaded = reactive({ maps_loaded() })
   outputOptions(output, 'map_loaded', suspendWhenHidden=FALSE)
   
   output$severity_uploaded = reactive({ severity_uploaded() })
   outputOptions(output, 'severity_uploaded', suspendWhenHidden=FALSE)
+  
+  output$experimental_enabled = reactive({ experimental_enabled() })
+  outputOptions(output, 'experimental_enabled', suspendWhenHidden=FALSE)
   
   # output$max_sev_value = reactive({ max_sev_value() })
   # outputOptions(output, 'max_sev_value', suspendWhenHidden=FALSE)
@@ -706,11 +913,12 @@ server <- function(input, output, session) {
   output$severity_text = renderUI({ 
     
     if(!is.null(sev())) {
+      
       ## get severity range
       sev_values = values(sev())
-      min_sev = min(sev_values)
-      max_sev = max(sev_values)
-      range_text = paste0(min_sev, " - ", max_sev)
+      min_sev = min(sev_values, na.rm = TRUE)
+      max_sev = max(sev_values, na.rm = TRUE)
+      range_text = paste0(min_sev, " to ", max_sev)
     } else {
       range_text = "[no severity uploaded yet]"
     }
@@ -747,25 +955,37 @@ server <- function(input, output, session) {
                }
               )
   
+  observeEvent(input$experimental_enabled,
+               
+               {
+                 
+                 cat("clicket")
+                 experimental_enabled(TRUE)
+               }
+  )
+  
   output$perim_uploaded = reactive({ return(!is.null(perim())) })
   outputOptions(output, 'perim_uploaded', suspendWhenHidden=FALSE)
 
   observeEvent(input$upload_button,
                        #{custom_debug(input)}
                {
-                 caplesfile = NULL
-                 caplesfile$sev_file$datapath = "data/caples_sev.tif"
-                 sev(load_sev(caplesfile))
-                 caplesfile = NULL
-                 caplesfile$perim_file$datapath = "data/caples_perim.gpkg"
-                 perim(load_perim(caplesfile))
+
+                 min_high_sev_manual(300)
+                 
+                 demofile = NULL
+                 demofile$sev_file$datapath = "data/demo-data/creek_dnbr_utm.tif"
+                 sev(load_sev(demofile))
+                 demofile = NULL
+                 demofile$perim_file$datapath = "data/demo-data/creek_perim.kml"
+                 perim(load_perim(demofile))
                  
                }
                     )
   
-  mapping_vars = reactive({ prep_mapping_vars(perim(),sev(),input) })
+  mapping_vars = reactive({ prep_mapping_vars(perim(),sev(),input,min_high_sev_manual()) })
 
-  maps = reactive({ make_maps(mapping_vars(), input$planted_year, input$density_range[1], input$density_range[2], input$mask_non_high_sev, input$mask_extrap, input$mask_uncertain) })
+  maps = reactive({ make_maps(mapping_vars(), input$planted_year, input$density_range[1], input$density_range[2], input$map_masking) })
   
 
   
@@ -784,7 +1004,7 @@ server <- function(input, output, session) {
     # 
 
     ## Make model predictions
-
+    
     maps_list = maps()
     plot(maps_list$main)
     
@@ -797,7 +1017,10 @@ server <- function(input, output, session) {
     
   })
   
-  
+  output$plantingBenefitPlot = renderPlot({
+    maps_list = maps()
+    plot(maps_list$planting_benefit)
+  })
   
   output$densityUnplantedPlot = renderPlot({
     maps_list = maps()
@@ -836,15 +1059,17 @@ server <- function(input, output, session) {
   
 
   dataset_colname <- reactive({
-    switch(input$dataset,
-           "Main predictions" = "overall_code",
+    switch(ifelse(experimental_enabled(),input$dataset_advanced,input$dataset_basic),
+           "Predicted outcomes" = "overall_code",
+           "Planting benefit" = "planting_benefit_rel",
            "Natural seedling density" = "pred_noplant",
            "Planted + natural seedling density" = "pred_plant")
   })
   
   dataset_filename <- reactive({
-    switch(input$dataset,
-           "Main predictions" = "main_predictions",
+    switch(ifelse(experimental_enabled(),input$dataset_advanced,input$dataset_basic),
+           "Predicted outcomes" = "predicted_outcomes",
+           "Planting benefit" = "planting_benefit",
            "Natural seedling density" = "density_natural",
            "Planted + natural seedling density" = "density_planted_plus_natural")
   })
@@ -866,6 +1091,7 @@ server <- function(input, output, session) {
       writeRaster(rast, file)
     }
   )
+  
 
   
   

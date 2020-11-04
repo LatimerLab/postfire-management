@@ -21,8 +21,6 @@ pltd <- lmer(ln.dens.planted ~ scale(tpi2000)*scale(elev) +
              , REML = T,
              data = plot_dhm) # removed [-c(levId),]
 
-ggpairs(plot_dhm %>% dplyr::select(elev, tmean, normal_annual_precip))
-
 ## Save it
 saveRDS(pltd,"management-tool-prep/data/non-synced/for-tool/model.rds")
 saveRDS(plot_dhm,"management-tool-prep/data/non-synced/for-tool/data.rds")
@@ -41,10 +39,12 @@ shrub = raster("management-tool-prep/data/non-synced/intermediate/shrub.tif")
 
 eveg = raster("management-tool-prep/data/non-synced/intermediate/eveg_focal.tif")
 
+eveg[is.na(eveg)] = 0
+
 
 #### Stack and save seedl env predictor rasters ####
 
-env = stack(tpi*10,ppt,tmean*100,shrub*100,elev,eveg) # mult tmin by 100 so it can be saved as an int to save space
+env = stack(tpi*10,ppt,tmean*100,shrub*100,elev,eveg*100) # mult tmin by 100 so it can be saved as an int to save space
 env = crop(env,region %>% st_transform(projection(env)))
 env = mask(env,region %>% st_transform(projection(env)))
 
@@ -54,6 +54,9 @@ writeRaster(env,"management-tool-prep/data/non-synced/for-tool/env_raster_stack.
 # Write an alternative smaller (coarser) raster for faster computation
 env_coarse = aggregate(env,fact=2,fun=mean)
 writeRaster(env_coarse,"management-tool-prep/data/non-synced/for-tool/env_raster_stack_coarse.tif",overwrite=TRUE, datatype="INT2S", options="COMPRESS=LZW")   ##738
+
+env_extracoarse = aggregate(env_coarse,fact=2,fun=mean)
+writeRaster(env_extracoarse,"management-tool-prep/data/non-synced/for-tool/env_raster_stack_extracoarse.tif",overwrite=TRUE, datatype="INT2S", options="COMPRESS=LZW")   ##738
 
 
 #### Save a table of predictor limits, to determine extrapolation ####
