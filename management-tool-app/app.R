@@ -639,7 +639,7 @@ ui <- fluidPage(
   # App title ----
   titlePanel("Post-fire reforestation success estimation tool"),
   h4('aka "PRESET"'),
-  h6('v 0.0.4 beta'),
+  h6('v 0.1 (beta)'),
   h6("Developed by: ",a(href="http://www.changingforests.com","Derek Young",.noWS="after"),", ",a(href="https://twitter.com/qmsorenson?lang=en","Quinn Sorenson",.noWS="after"),", ",a(href="https://www.plantsciences.ucdavis.edu/people/andrew-latimer","Andrew Latimer",.noWS="after")),
   h6(a(href="https://latimer.ucdavis.edu/","Latimer Lab",.noWS="after")," and ",a(href="http://www.changingforests.com","Young Lab",.noWS="after"),", Department of Plant Sciences, UC Davis"),
   
