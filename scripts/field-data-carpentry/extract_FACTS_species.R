@@ -1,5 +1,3 @@
-setwd("~/Research Projects/Post-fire management/postfire-management")
-
 libs <- c("raster", "rgdal", "sf", "spatialEco", "tidyverse", "maptools", "rgeos","readxl")
 lapply(libs, require, character.only = TRUE)
 
@@ -104,11 +102,110 @@ for(i in 1:nrow(studyplots)) {
 
 
 ## summarize our SUIDs to get density
-sp_summ = species_planted %>%
+sp_summ = species %>%
   filter(suid %in% plots_df$suid) %>%
-  filter(seedling_uom == "Trees per Acre") %>%
+  filter(seedling_uom %in% c("Trees","Trees per Acre")) %>%
+  ## if reported as "Trees", compute TPA
+  mutate(planted_density = ifelse(seedling_uom == "Trees", actual_seedlings.uom / acres_planted, actual_seedlings.uom)) %>%
+  mutate(planned_density = ifelse(seedling_uom == "Trees", planned_seedlings.uom / acres_planted, planned_seedlings.uom)) %>%
+  ## if actual is not avaialable, use planned
+  mutate(seedlings = ifelse(is.na(planted_density),planned_density,planted_density)) %>%
+  
+  ### Can run just the above to get suid-specific summaries
   group_by(suid) %>%
-  summarize(tpa = sum(actual_seedlings.uom))
+  summarize(tpa = sum(seedlings))
+
+
+
+### Get the fire associated with each SUID, summarize by fire
+
+# For each plot, get the average density of all the suids with planting data
+plots_planted = studyplots %>%
+  filter(Type == "treatment")
+
+for(i in 1:nrow(plots_planted)) {
+  
+  plot = plots_planted[i,]
+  
+  suids = str_split(plot$facts.planting.suids.noslivers,pattern=fixed(", "))[[1]]
+  
+  density = sp_summ %>%
+    filter(suid %in% suids) %>%
+    pull(tpa) %>%
+    mean
+  
+  plots_planted[i,"mean_planted_density"] = density
+  
+}
+
+plots_planted = plots_planted %>%
+  dplyr::select(PlotID,Fire,facts.planting.suids.noslivers,mean_planted_density) %>%
+  mutate(density_reported = !is.na(mean_planted_density))
+
+
+#### for the plots that don't have density, extract it from the nearest plot that does.
+
+## load  plot geospatial
+
+plots_sf = st_read("data/field-processed/spatial/plots_points.gpkg")
+plots_sf_planted = plots_sf %>%
+  filter(Type == "treatment")
+
+plots_sf_w_density = left_join(plots_sf_planted,plots_planted,by="PlotID") %>%
+  filter(!is.na(mean_planted_density))
+
+for(i in 1:nrow(plots_planted)) {
+  
+  plot = plots_planted[i,]
+  
+  if(is.na(plot$mean_planted_density)) {
+    
+    ## find the nearest plot that does have density
+    focal_plot_sf = plots_sf %>%
+      filter(PlotID == plot$PlotID)
+    
+    dists = st_distance(focal_plot_sf,plots_sf_w_density)
+    # get closest
+    closest_index = which(dists == min(dists))[1]
+    closest_plot = plots_sf_w_density[closest_index,]
+    closest_plot_density = closest_plot$mean_planted_density
+    
+    plots_planted[i,"mean_planted_density"] = closest_plot_density
+    
+  }
+
+}
+
+
+## summarize the mean and variation by fire
+planted_summ = plots_planted %>%
+  group_by(Fire) %>%
+  summarize(mean = mean(mean_planted_density, na.rm = TRUE),
+            min = min(mean_planted_density, na.rm = TRUE),
+            lwr = quantile(mean_planted_density, 0.25, na.rm = TRUE),
+            upr = quantile(mean_planted_density, 0.75, na.rm = TRUE),
+            max = max(mean_planted_density, na.rm = TRUE),
+            n_plots_w_reported_density = sum(density_reported),
+            n_plots_total = n()) %>%
+  select(Fire,min,lwr,mean,upr,max, everything()) %>%
+  mutate_at(vars(min,lwr,mean,upr,max),~./2.471) %>%
+  mutate_if(is.numeric,round)
+
+write.csv(planted_summ,"tables/planting_density.csv", row.names=FALSE)
+
+
+
+
+## Save plots with planted density
+plots_planted = plots_planted %>%
+  select(PlotID,mean_planted_density)
+
+write.csv(plots_planted,"data/intermediate/density_per_plot.csv", row.names=FALSE)
+
+
+
+
+
   
 
 ## from the species data, only keep records from our focal suids
