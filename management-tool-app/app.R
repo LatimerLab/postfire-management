@@ -343,7 +343,8 @@ make_maps = function(mapping_vars, plant_year, density_low, density_high, map_ma
     env_df = mapping_vars$env_df %>%
       mutate(#neglog5SeedWallConifer = input$seedwall,
         facts.planting.first.year = as.numeric(plant_year)) %>%
-      filter(!is.na(tmean))  ### exclude NA grid cells!
+      filter(!is.na(tmean)) %>%  ### exclude NA grid cells!
+      filter(!is.na(tpi2000))
     # fsplanted = input$planted)
     #  Shrubs = input$shrub_cover,  
     #ShrubHt = input$shrub_height,
@@ -381,6 +382,7 @@ make_maps = function(mapping_vars, plant_year, density_low, density_high, map_ma
       newdat = env_df %>%
       mutate(ln.dens.planted = 0) %>%
       mutate(fsplanted = as.factor(fsplanted))
+      
       mm = model.matrix(terms(mod),newdat)
       tcross = tcrossprod(vcov(mod),mm)
       
@@ -670,7 +672,7 @@ ui <- fluidPage(
         
         fileInput("perim_file", "3. Upload fire perimeter (or focal area perimeter)"),
         
-        HTML('&emsp;'),tags$b("Or,"),"use 2019 Caples Fire (Eldorado NF) demo data: ",
+        HTML('&emsp;'),tags$b("Or,"),"use 2020 Creek Fire demo data: ",
         
         actionButton("upload_button","Go")
       ),
@@ -717,7 +719,7 @@ ui <- fluidPage(
                            label = "Map filtering:",
                            choices = list("Show high-severity area only" = "mask_non_high_sev",
                                           "Show yellow pine & mixed-conifer only" = "mask_non_ypmc",
-                                          "Hide model extrapolation areas" = "mask_extrap",
+                                          #"Hide model extrapolation areas" = "mask_extrap",
                                           "Hide low model confidence areas (slow)" = "mask_uncertain"
                            ),
                            selected = c("mask_non_high_sev","mask_non_ypmc")),
@@ -970,14 +972,14 @@ server <- function(input, output, session) {
                        #{custom_debug(input)}
                {
 
-                 min_high_sev_manual(7)
+                 min_high_sev_manual(300)
                  
-                 caplesfile = NULL
-                 caplesfile$sev_file$datapath = "data/caples_sev.tif"
-                 sev(load_sev(caplesfile))
-                 caplesfile = NULL
-                 caplesfile$perim_file$datapath = "data/caples_perim.gpkg"
-                 perim(load_perim(caplesfile))
+                 demofile = NULL
+                 demofile$sev_file$datapath = "data/demo-data/creek_dnbr_utm.tif"
+                 sev(load_sev(demofile))
+                 demofile = NULL
+                 demofile$perim_file$datapath = "data/demo-data/creek_perim.kml"
+                 perim(load_perim(demofile))
                  
                }
                     )
