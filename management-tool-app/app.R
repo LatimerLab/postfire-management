@@ -640,8 +640,8 @@ ui <- fluidPage(
   titlePanel("Post-fire reforestation success estimation tool"),
   h4('aka "PRESET"'),
   h6('v 0.0.4 beta'),
-  h6("Developed by: ",a(href="http://www.changingforests.com","Derek Young")," Quinn Sorenson, Andrew Latimer"),
-  h6("Latimer Lab, UC Davis"),
+  h6("Developed by: ",a(href="http://www.changingforests.com","Derek Young",.noWS="after"),", ",a(href="https://twitter.com/qmsorenson?lang=en","Quinn Sorenson",.noWS="after"),", ",a(href="https://www.plantsciences.ucdavis.edu/people/andrew-latimer","Andrew Latimer",.noWS="after")),
+  h6(a(href="https://latimer.ucdavis.edu/","Latimer Lab",.noWS="after")," and ",a(href="http://www.changingforests.com","Young Lab",.noWS="after"),", Department of Plant Sciences, UC Davis"),
   
   # Sidebar layout with input and output definitions ----
   sidebarLayout(
@@ -772,16 +772,15 @@ ui <- fluidPage(
         tags$br(),
         
         conditionalPanel(condition = "output.experimental_enabled === true",
-          selectInput("dataset", "Download data:",
-                      choices = c("Main predictions", "Planting benefit", "Natural seedling density", "Planted + natural seedling density")),
-          downloadButton("downloadDataAdvanced", "Download"),
+          selectInput("dataset_advanced", "Download data:",
+                      choices = c("Predicted outcomes", "Planting benefit", "Natural seedling density", "Planted + natural seedling density"))
         ),
         conditionalPanel(condition = "output.experimental_enabled === false",
-                         selectInput("dataset", "Download data:",
-                                     choices = c("Planting benefit")),
-                         downloadButton("downloadDataBasic", "Download"),
+                         selectInput("dataset_basic", "Download data:",
+                                     choices = c("Planting benefit"))
+
         ),
-        
+        downloadButton("downloadData", "Download"),
         
         
 
@@ -1060,16 +1059,16 @@ server <- function(input, output, session) {
   
 
   dataset_colname <- reactive({
-    switch(input$dataset,
+    switch(ifelse(experimental_enabled(),input$dataset_advanced,input$dataset_basic),
            "Predicted outcomes" = "overall_code",
-           "Planting benefit" = "planting_benefit",
+           "Planting benefit" = "planting_benefit_rel",
            "Natural seedling density" = "pred_noplant",
            "Planted + natural seedling density" = "pred_plant")
   })
   
   dataset_filename <- reactive({
-    switch(input$dataset,
-           "Main predictions" = "predicted_outcomes",
+    switch(ifelse(experimental_enabled(),input$dataset_advanced,input$dataset_basic),
+           "Predicted outcomes" = "predicted_outcomes",
            "Planting benefit" = "planting_benefit",
            "Natural seedling density" = "density_natural",
            "Planted + natural seedling density" = "density_planted_plus_natural")
@@ -1077,7 +1076,7 @@ server <- function(input, output, session) {
 
   
   
-  output$downloadDataBasic <- downloadHandler(
+  output$downloadData <- downloadHandler(
     
     filename = function() {
       paste0(dataset_filename(), ".tif")
@@ -1093,21 +1092,6 @@ server <- function(input, output, session) {
     }
   )
   
-  output$downloadDataAdvanced <- downloadHandler(
-    
-    filename = function() {
-      paste0(dataset_filename(), ".tif")
-    },
-    content = function(file) {
-      
-      xyz = df_plot_export() %>%
-        dplyr::select(x,y,!!!dataset_colname())
-      
-      rast = rasterFromXYZ(xyz, crs = albers)
-      
-      writeRaster(rast, file)
-    }
-  )
 
   
   
