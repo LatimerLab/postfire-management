@@ -1,5 +1,3 @@
-setwd("~/repos/postfire-management")
-
 library(tidyverse)
 library(raster)
 library(sf)
@@ -61,6 +59,7 @@ shr_pred_env = mask(shr_pred_env,region %>% st_transform(projection(ppt)))
 
 ## write shrub pred raster for checking/debugging
 writeRaster(shr_pred_env,"management-tool-prep/data/non-synced/intermediate/shrub_env_pred_checking.grd", overwrite=TRUE)
+shr_pred_env = stack("management-tool-prep/data/non-synced/intermediate/shrub_env_pred_checking.grd")
 
 ## Convert predictor brick to DF
 shr_env_df = as.data.frame(shr_pred_env,xy=TRUE)
