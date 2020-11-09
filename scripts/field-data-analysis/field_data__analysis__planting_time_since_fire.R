@@ -18,7 +18,7 @@ load("output/plotSeedlingData.RData") #load R object: plot_dhm_long
 ##### final models for planted species and conifers --------------------------------------------------------------------------------
 
 #USE THIS MODEL FOR THE TOOL
-pltd <- lmer(ln.dens.planted ~ scale(tpi2000)*scale(elev) +
+pltd2 <- lmer(ln.dens.planted ~ scale(tpi2000)*scale(elev) +
                #scale(elev) +
                scale(Shrubs)*facts.planting.first.year*fsplanted +
                #scale(Shrubs):facts.planting.first.year:fsplanted + 
@@ -42,15 +42,15 @@ pltd <- lmer(ln.dens.planted ~ scale(tpi2000)*scale(elev) +
                #(0+scale(tpi2000)|Fire) +
                #(0+scale(Shrubs)|Fire) +
                #(0+scale(bcm_snowpack)|Fire)+
-               (1|Fire:PairID)
-                , REML = T,
+               (1|Fire:PairID),
+                REML = T,
               data = plot_dhm)
 
-summary(pltd)
+summary(pltd2)
 AIC(pltd)
 
 
-anova(pltd)
+anova(pltd,pltd2)
 ranef(pltd)
 plot(pltd)
 plot(allEffects(pltd))
@@ -61,109 +61,80 @@ qqnorm(residuals(pltd))
 
 #for recording model selection
 pltd <- lmer(ln.dens.planted ~ 
-               #scale(tpi100) +
-               #scale(tpi500) +
-               #scale(tpi2000) +
-               scale(tpi5000)*scale(elev)  +
                
-              
-                
-               #scale(ParentMaterial) +
-               
+### climate
+               #scale(tmean) +
+               scale(tmin)*scale(normal_annual_precip) +
+               #scale(tmax) +
+               #scale(normal_annual_precip) +
+               #scale(rad_summer) +
+### competition
                #scale(Forbs) +
                #scale(Grasses) +
-               #scale(ShrubHt) +
-               #scale(totalCov) +
-               #scale(totalCovxHt) +
-               
-               
-               scale(Shrubs)*facts.planting.first.year*fsplanted + 
-               #fsplanted +
-                 
-               #Logged +
-               #facts.released +
-               
-               #scale(tmean) +
-               
-               #scale(tmax) +
-               
-               #scale(rad_winter) +
-               #scale(rad_winter_spring) +
-               #scale(rad_spring) +
-               #scale(rad_spring_summer) +
-               #scale(rad_summer) + 
-               
-               scale(normal_annual_precip)*scale(tmin) +
-               #scale(bcm_tmax_july) +
-               #scale(bcm_aet)+
-               #scale(bcm_cwd) +
-               #scale(bcm_snowpack) +
-               #scale(twi) +
-               
-               scale(log10SeedWallConifer) +
-               
-               #scale(LitterDepth) +
-               #scale(DuffDepth) +
-               scale(LitDuff) +
-               #scale(CWD_rotten) + 
-               #scale(CWD_sound) +
+               scale(Shrubs)*facts.planting.first.year*fsplanted +
                #scale(LiveOverstory) +
-               #scale(LiveUnderstory) +
-               
+               #scale(ShrubHt) +
+### dispersal
+               scale(log10SeedWallConifer) +
+###Topography
+               scale(tpi2000)*scale(elev) +
+               #scale(twi) +
+               #scale(elev)  +   
+               scale(LitDuff) +
+               #scale(CWD_sound) +
+###planting  
+               # +
+               # +
                (1|Fire) +
-               #(0+scale(normal_annual_precip)|Fire) + 
-               #(0+scale(tmean_mjjas)|Fire) 
-               #(0+scale(tmin_mjjas):scale(normal_annual_precip)|Fire) 
-               #(0+scale(tpi2000)|Fire) +
-               #(0+scale(Shrubs)|Fire) +
-               #(0+scale(bcm_snowpack)|Fire)+
                (1|Fire:PairID), 
-               REML = T,
-               data = plot_dhm )
+             REML = T,
+             data = plot_dhm)
 
+               
+
+summary(pltd)#, correlation=TRUE)
+mod.selc.record2 <- rbind(as.data.frame(cbind(as.character(pltd@call)[2], AIC(pltd))), mod.selc.record2) #mod.selc.record2[2:nrow(mod.selc.record2),]
+mod.selc.est.list2 <- list(mod.selc.est.list2, summary(pltd)$coefficients)
 AIC(pltd)
-print(summary(pltd), correlation=TRUE)
-#mod.selc.record <- rbind(as.data.frame(cbind(as.character(pltd@call)[2], AIC(pltd))), mod.selc.record)
-#mod.selc.est.list <- list(mod.selc.est.list, summary(pltd)$coefficients)
 #results.table <- summary(pltd)$coefficients
 
-mod.selc.record.fr <- mod.selc.record %>% 
-  mutate(V1 = str_replace(V1, pattern = "ln.dens.planted ~", replacement = "Seedling Density =")) %>% 
-  mutate(V1 = str_replace(V1, pattern = "scale\\(tpi100\\)", replacement = "Topographic Position Index 100")) %>% 
-  mutate(V1 = str_replace(V1, pattern = "scale\\(tpi500\\)", replacement = "Topographic Position Index 500")) %>% 
-  mutate(V1 = str_replace(V1, pattern = "scale\\(tpi2000\\)", replacement = "Topographic Position Index 2000")) %>% 
-  mutate(V1 = str_replace(V1, pattern = "scale\\(tpi5000\\)", replacement = "Topographic Position Index 5000")) %>% 
-  mutate(V1 = str_replace(V1, pattern = "scale\\(elev\\)", replacement = "Elevation")) %>% 
-  mutate(V1 = str_replace(V1, pattern = "scale\\(Forbs\\)", replacement = "%Forb")) %>% 
-  mutate(V1 = str_replace(V1, pattern = "scale\\(Grasses\\)", replacement = "%Grasses")) %>% 
-  mutate(V1 = str_replace(V1, pattern = "scale\\(ShrubHt\\)", replacement = "Ave. Shrub Ht")) %>% 
-  mutate(V1 = str_replace(V1, pattern = "scale\\(Shrubs\\)", replacement = "%Shrubs")) %>% 
-  mutate(V1 = str_replace(V1, pattern = "facts.planting.first.year", replacement = "Year Planted")) %>% 
-  mutate(V1 = str_replace(V1, pattern = "fsplanted", replacement = "Planting")) %>% 
-  mutate(V1 = str_replace(V1, pattern = "facts.released", replacement = "Released")) %>% 
-  mutate(V1 = str_replace(V1, pattern = "scale\\(tmean\\)", replacement = "Mean Annual Temp.")) %>% 
-  mutate(V1 = str_replace(V1, pattern = "scale\\(tmax\\)", replacement = "Max. Annual Temp.")) %>% 
-  mutate(V1 = str_replace(V1, pattern = "scale\\(rad_winter\\)", replacement = "Winter Solar Insolation")) %>% 
-  mutate(V1 = str_replace(V1, pattern = "scale\\(rad_winter_spring\\)", replacement = "Winter/Spring Solar Insolation")) %>% 
-  mutate(V1 = str_replace(V1, pattern = "scale\\(rad_spring\\)", replacement = "Spring Solar Insolation")) %>%  
-  mutate(V1 = str_replace(V1, pattern = "scale\\(rad_spring_summer\\)", replacement = "Spring/Summer Solar Insolation")) %>%  
-  mutate(V1 = str_replace(V1, pattern = "scale\\(rad_summer\\)", replacement = "Summer Solar Insolation")) %>%  
-  mutate(V1 = str_replace(V1, pattern = "scale\\(normal_annual_precip\\)", replacement = "Normal Annual Precipitation")) %>%  
-  mutate(V1 = str_replace(V1, pattern = "scale\\(tmin\\)", replacement = "Min. Annual Temp.")) %>%  
-  mutate(V1 = str_replace(V1, pattern = "scale\\(bcm_snowpack\\)", replacement = "Snowpack")) %>%  
-  mutate(V1 = str_replace(V1, pattern = "scale\\(twi\\)", replacement = "Total Water Index")) %>%  
-  mutate(V1 = str_replace(V1, pattern = "scale\\(log10SeedWallConifer\\)", replacement = "Seed Source")) %>%  
-  mutate(V1 = str_replace(V1, pattern = "scale\\(LitterDepth\\)", replacement = "Litter Depth")) %>% 
-  mutate(V1 = str_replace(V1, pattern = "scale\\(DuffDepth\\)", replacement = "Duff Depth")) %>% 
-  mutate(V1 = str_replace(V1, pattern = "scale\\(LitDuff\\)", replacement = "Litter + Duff Depth")) %>% 
-  mutate(V1 = str_replace(V1, pattern = "scale\\(CWD_rotten\\)", replacement = "Rotten Coarse Woody Debris")) %>% 
-  mutate(V1 = str_replace(V1, pattern = "scale\\(CWD_sound\\)", replacement = "Coarse Woody Debris")) %>% 
-  mutate(V1 = str_replace(V1, pattern = "scale\\(LiveOverstory\\)", replacement = "%Overstory")) %>% 
-  mutate(V1 = str_replace(V1, pattern = "scale\\(aspect_dem\\)", replacement = "Aspect"))  %>% 
-  mutate(V1 = str_replace(V1, pattern = "scale\\(slope_dem\\)", replacement = "Slope"))  
+mod.selc.record2.fr <- mod.selc.record2 %>% 
+  mutate(V1 = str_replace_all(V1, pattern = "ln.dens.planted ~", replacement = "Seedling Density =")) %>% 
+  mutate(V1 = str_replace_all(V1, pattern = "scale\\(tpi100\\)", replacement = "Topographic Position Index 100")) %>% 
+  mutate(V1 = str_replace_all(V1, pattern = "scale\\(tpi500\\)", replacement = "Topographic Position Index 500")) %>% 
+  mutate(V1 = str_replace_all(V1, pattern = "scale\\(tpi2000\\)", replacement = "Topographic Position Index 2000")) %>% 
+  mutate(V1 = str_replace_all(V1, pattern = "scale\\(tpi5000\\)", replacement = "Topographic Position Index 5000")) %>% 
+  mutate(V1 = str_replace_all(V1, pattern = "scale\\(elev\\)", replacement = "Elevation")) %>% 
+  mutate(V1 = str_replace_all(V1, pattern = "scale\\(Forbs\\)", replacement = "%Forb")) %>% 
+  mutate(V1 = str_replace_all(V1, pattern = "scale\\(Grasses\\)", replacement = "%Grasses")) %>% 
+  mutate(V1 = str_replace_all(V1, pattern = "scale\\(ShrubHt\\)", replacement = "Ave. Shrub Ht")) %>% 
+  mutate(V1 = str_replace_all(V1, pattern = "scale\\(Shrubs\\)", replacement = "%Shrubs")) %>% 
+  mutate(V1 = str_replace_all(V1, pattern = "facts.planting.first.year", replacement = "Year Planted")) %>% 
+  mutate(V1 = str_replace_all(V1, pattern = "fsplanted", replacement = "Planting")) %>% 
+  mutate(V1 = str_replace_all(V1, pattern = "facts.released", replacement = "Released")) %>% 
+  mutate(V1 = str_replace_all(V1, pattern = "scale\\(tmean\\)", replacement = "Mean Annual Temp.")) %>% 
+  mutate(V1 = str_replace_all(V1, pattern = "scale\\(tmax\\)", replacement = "Max. Annual Temp.")) %>% 
+  mutate(V1 = str_replace_all(V1, pattern = "scale\\(rad_winter\\)", replacement = "Winter Solar Insolation")) %>% 
+  mutate(V1 = str_replace_all(V1, pattern = "scale\\(rad_winter_spring\\)", replacement = "Winter/Spring Solar Insolation")) %>% 
+  mutate(V1 = str_replace_all(V1, pattern = "scale\\(rad_spring\\)", replacement = "Spring Solar Insolation")) %>%  
+  mutate(V1 = str_replace_all(V1, pattern = "scale\\(rad_spring_summer\\)", replacement = "Spring/Summer Solar Insolation")) %>%  
+  mutate(V1 = str_replace_all(V1, pattern = "scale\\(rad_summer\\)", replacement = "Summer Solar Insolation")) %>%  
+  mutate(V1 = str_replace_all(V1, pattern = "scale\\(normal_annual_precip\\)", replacement = "Normal Annual Precipitation")) %>%  
+  mutate(V1 = str_replace_all(V1, pattern = "scale\\(tmin\\)", replacement = "Min. Annual Temp.")) %>%  
+  mutate(V1 = str_replace_all(V1, pattern = "scale\\(bcm_snowpack\\)", replacement = "Snowpack")) %>%  
+  mutate(V1 = str_replace_all(V1, pattern = "scale\\(twi\\)", replacement = "Total Water Index")) %>%  
+  mutate(V1 = str_replace_all(V1, pattern = "scale\\(log10SeedWallConifer\\)", replacement = "Seed Source")) %>%  
+  mutate(V1 = str_replace_all(V1, pattern = "scale\\(LitterDepth\\)", replacement = "Litter Depth")) %>% 
+  mutate(V1 = str_replace_all(V1, pattern = "scale\\(DuffDepth\\)", replacement = "Duff Depth")) %>% 
+  mutate(V1 = str_replace_all(V1, pattern = "scale\\(LitDuff\\)", replacement = "Litter + Duff Depth")) %>% 
+  mutate(V1 = str_replace_all(V1, pattern = "scale\\(CWD_rotten\\)", replacement = "Rotten Coarse Woody Debris")) %>% 
+  mutate(V1 = str_replace_all(V1, pattern = "scale\\(CWD_sound\\)", replacement = "Coarse Woody Debris")) %>% 
+  mutate(V1 = str_replace_all(V1, pattern = "scale\\(LiveOverstory\\)", replacement = "%Overstory")) %>% 
+  mutate(V1 = str_replace_all(V1, pattern = "scale\\(aspect_dem\\)", replacement = "Aspect"))  %>% 
+  mutate(V1 = str_replace_all(V1, pattern = "scale\\(slope_dem\\)", replacement = "Slope"))  
 
-#write.csv(mod.selc.record.fr, "output/mod.selc.record.csv")
-#save(mod.selc.est.list, file = "output/mod.selc.est.list_backup.RData")
+write.csv(mod.selc.record2.fr, "output/mod.selc.record2.csv")
+#save(mod.selc.est.list2, file = "output/mod.selc.est.list_backup2.RData")
 
 results.table <- as.data.frame(results.table) %>% mutate(Vars = row.names(results.table))
 results.table <- results.table %>% 

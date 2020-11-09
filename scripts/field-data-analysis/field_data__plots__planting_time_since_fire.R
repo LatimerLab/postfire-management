@@ -119,7 +119,7 @@ ggsave(plantedYearShrubs, file="figures/manuscript/plantedYearShrubs.pdf", width
 
   
 
-##### tmean by annual precip -----------------------------------------------
+##### tmin by annual precip -----------------------------------------------
 
 
 # median value for other variables in the model
@@ -336,34 +336,6 @@ predict_pltd.te <- expand.grid(Shrubs = Shrubs_median,
                                PairID = "hypothetical")
 
 
-
-
-predict_pltd.te <- plot_dhm %>% select(tpi2000)
-predict_pltd.te$tmin <- median(plot_dhm$tmin)
-predict_pltd.te$facts.planting.first.year <- 2
-predict_pltd.te$log10SeedWallConifer <- median(plot_dhm$log10SeedWallConifer)
-predict_pltd.te$normal_annual_precip <- median(plot_dhm$normal_annual_precip)
-predict_pltd.te$Shrubs <- median(plot_dhm$Shrubs)
-predict_pltd.te$LitDuff <- median(plot_dhm$LitDuff)
-ele12 <- as.data.frame(rep(1200, nrow(predict_pltd.te)))
-ele17 <- as.data.frame(rep(1700, nrow(predict_pltd.te)))
-ele22 <- as.data.frame(rep(2200,  nrow(predict_pltd.te)))
-colnames(ele12)[1] <- c("elev")
-colnames(ele17)[1] <- c("elev")
-colnames(ele22)[1] <- c("elev")
-predict_pltd.tee <- rbind(cbind(predict_pltd.te, ele12),
-                          cbind(predict_pltd.te, ele17),
-                          cbind(predict_pltd.te, ele22))
-predict_pltd.teep <- predict_pltd.tee
-predict_pltd.teeu <- predict_pltd.tee
-predict_pltd.teep$fsplanted <- "planted"
-predict_pltd.teeu$fsplanted <- "unplanted"
-predict_pltd.tee <- rbind(cbind(predict_pltd.tee, predict_pltd.teep %>% select(fsplanted)),
-                          cbind(predict_pltd.tee, predict_pltd.teeu %>% select(fsplanted)))
-predict_pltd.tee <- predict_pltd.tee %>% mutate(fsplanted = as.factor(fsplanted))
-
-
-
 elev.labs <- c(c("1200m", "1700m", "2200m"))
 names(elev.labs) <- c(1200, 1700, 2200)
 
@@ -441,7 +413,8 @@ ggsave(tpiYear , file="figures/manuscript/tpiYear .pdf", width=3.25, height=3.45
 
 Fire.Table.Median <- plot_dhm %>% 
   group_by(Fire) %>%
-  summarize(ln.dens.planted = median(ln.dens.planted),              
+  summarize(ln.dens.planted = median(ln.dens.planted),
+            fire_year = median(fire_year),
             tpi100 =  median(tpi100),
             tpi500 =  median(tpi500),
             tpi2000 =  median(tpi2000),
@@ -478,7 +451,8 @@ Fire.Table.Median <- plot_dhm %>%
 
 Fire.Table.Minimum <- plot_dhm %>% 
   group_by(Fire) %>%
-  summarize(ln.dens.planted = min(ln.dens.planted),              
+  summarize(ln.dens.planted = min(ln.dens.planted),
+            fire_year = median(fire_year),              
             tpi100 =  min(tpi100),
             tpi500 =  min(tpi500),
             tpi2000 =  min(tpi2000),
@@ -515,38 +489,39 @@ Fire.Table.Minimum <- plot_dhm %>%
 
 Fire.Table.Maximum <- plot_dhm %>% 
   group_by(Fire) %>%
-  summarize(ln.dens.planted = min(ln.dens.planted),              
-            tpi100 =  min(tpi100),
-            tpi500 =  min(tpi500),
-            tpi2000 =  min(tpi2000),
-            tpi5000 =  min(tpi5000),
-            elev =  min(elev),
-            Forbs =  min(Forbs),
-            Grasses =  min(Grasses),
-            ShrubHt =  min(ShrubHt),
-            Shrubs =  min(Shrubs),
-            facts.planting.first.year =  min(facts.planting.first.year),
-            #facts.release =  min(facts.released),
-            tmean =  min(tmean),
-            tmax =  min(tmax),
-            rad_winter =  min(rad_winter),
-            rad_winter_spring = min(rad_winter_spring),
-            rad_spring =  min(rad_spring),
-            rad_spring_summer =  min(rad_spring_summer),
-            rad_summer =  min(rad_summer),
-            normal_annual_precip =  min(normal_annual_precip),
-            tmin =  min(tmin),
-            bcm_snowpack =  min(bcm_snowpack),
-            twi =  min(twi),
-            log10SeedWall =  min(log10SeedWallConifer),
-            LitterDepth =  min(LitterDepth),
-            DuffDepth =  min(DuffDepth),
-            LitDuff =  min(LitDuff),
-            CWD_rotten =  min(CWD_rotten),
-            CWD_sound =  min(CWD_sound),
-            LiveOverstory =  min(LiveOverstory),
-            aspect_dem =   min(aspect_dem),
-            slope_dem =  min(slope_dem)
+  summarize(ln.dens.planted = max(ln.dens.planted),
+            fire_year = median(fire_year),           
+            tpi100 =  max(tpi100),
+            tpi500 =  max(tpi500),
+            tpi2000 =  max(tpi2000),
+            tpi5000 =  max(tpi5000),
+            elev =  max(elev),
+            Forbs =  max(Forbs),
+            Grasses =  max(Grasses),
+            ShrubHt =  max(ShrubHt),
+            Shrubs =  max(Shrubs),
+            facts.planting.first.year =  max(facts.planting.first.year),
+            #facts.release =  max(facts.released),
+            tmean =  max(tmean),
+            tmax =  max(tmax),
+            rad_winter =  max(rad_winter),
+            rad_winter_spring = max(rad_winter_spring),
+            rad_spring =  max(rad_spring),
+            rad_spring_summer =  max(rad_spring_summer),
+            rad_summer =  max(rad_summer),
+            normal_annual_precip =  max(normal_annual_precip),
+            tmin =  max(tmin),
+            bcm_snowpack =  max(bcm_snowpack),
+            twi =  max(twi),
+            log10SeedWall =  max(log10SeedWallConifer),
+            LitterDepth =  max(LitterDepth),
+            DuffDepth =  max(DuffDepth),
+            LitDuff =  max(LitDuff),
+            CWD_rotten =  max(CWD_rotten),
+            CWD_sound =  max(CWD_sound),
+            LiveOverstory =  max(LiveOverstory),
+            aspect_dem =   max(aspect_dem),
+            slope_dem =  max(slope_dem)
   ) %>%
   mutate(Type = "Maximum")
 
@@ -586,13 +561,17 @@ Fire.Table <- Fire.Table %>%
   mutate(aspect_dem                = str_replace( aspect_dem                 , pattern = "aspect_dem", replacement = "Aspect"))  %>% 
   mutate(slope_dem                 = str_replace( slope_dem                  , pattern = "slope_dem", replacement = "Slope")) %>%
   arrange(Fire, Type) %>%
-  select(Fire, Type, ln.dens.planted, normal_annual_precip, tmin, tmean, tmax, bcm_snowpack, rad_winter, rad_winter_spring, 
+  select(Fire, Type, ln.dens.planted, fire_year, normal_annual_precip, tmin, tmean, tmax, bcm_snowpack, rad_winter, rad_winter_spring, 
          rad_spring, rad_spring_summer, rad_summer, aspect_dem, slope_dem, elev, tpi100, tpi500, tpi2000, tpi5000, twi, 
          log10SeedWall, Forbs, Grasses, Shrubs, ShrubHt, CWD_sound, CWD_rotten, LitterDepth, DuffDepth, LitDuff,
          facts.planting.first.year)
                                               
 
 write.csv(Fire.Table, file = "output/Fire.Table.csv")
+
+Fire.Table.1 <- Fire.Table %>% select(Fire, fire_year, elev, facts.planting.first.year)
+
+plantinglisttable <- plot_dhm %>% select(Fire, plantingList) %>% distinct()
 
 #####################################################################################
 #####################################################################################

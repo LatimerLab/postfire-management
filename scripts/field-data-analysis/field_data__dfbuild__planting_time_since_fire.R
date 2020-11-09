@@ -162,29 +162,6 @@ plot_dhm <- plot_dhm %>%
   mutate(LitDuff = LitterDepth + DuffDepth) %>%
   mutate(ShrubHt2 = ifelse(ShrubHt == 0, ShrubErectHt, ShrubHt))
 
-### Shrubs remove bear clover
-load("output/plotSeedlingData.RData") 
-
-shrub_by_plot <- shrubs_spp %>% 
-  filter(Species != "CHAFOL") %>%
-  mutate(CovDen = as.numeric(ifelse(Density == "L", .333, ifelse(Density == "M", .666, 1)))) %>%
-  group_by(PlotID) %>%
-  summarise(cover = sum(Cover),
-            cover.wtd = sum(Cover*CovDen),
-            height = sum(Height*Cover)/sum(Cover),
-            volume = sum(Height*Cover),
-            cover.live = sum(Cover-ifelse(is.na(PctDead), 0, PctDead)),
-            cover.live.wtd = sum((Cover-ifelse(is.na(PctDead), 0, PctDead))*CovDen) )
-
-plot_dhm <- plot_dhm %>%
-  left_join(shrub_by_plot, by = "PlotID")
-
-plot_dhm <- plot_dhm %>% mutate_at(vars(c("cover", "cover.wtd", "height", "volume", "cover.live")), ~replace(., is.na(.), 0)) %>%
-  mutate(cover = ifelse(cover > 100, 100, cover), 
-         cover.wtd = ifelse(cover.wtd > 100, 100, cover.wtd), 
-         cover.live = ifelse(cover.live > 100, 100, cover.live),
-         cover.live.wtd = ifelse(cover.live.wtd > 100, 100, cover.live.wtd))
-            
 
 
 ## make it long form so we can plot them as panels
@@ -227,6 +204,43 @@ plot_dhm_long <- plot_dhm %>%
 #  | | | | |  #                                  \/     \/     \/                   #
 #  |_______|  #######################################################################
 #####################################################################################
+
+
+### Shrubs remove bear clover
+load("output/plotSeedlingData.RData") 
+
+shrub_by_plot <- shrubs_spp %>% 
+  filter(Species != "CHAFOL") %>%
+  mutate(CovDen = as.numeric(ifelse(Density == "L", .333, ifelse(Density == "M", .666, 1)))) %>%
+  group_by(PlotID) %>%
+  summarise(cover = sum(Cover),
+            cover.wtd = sum(Cover*CovDen),
+            height = sum(Height*Cover)/sum(Cover),
+            volume = sum(Height*Cover),
+            cover.live = sum(Cover-ifelse(is.na(PctDead), 0, PctDead)),
+            cover.live.wtd = sum((Cover-ifelse(is.na(PctDead), 0, PctDead))*CovDen) )
+
+plot_dhm <- plot_dhm %>%
+  left_join(shrub_by_plot, by = "PlotID")
+
+plot_dhm <- plot_dhm %>% mutate_at(vars(c("cover", "cover.wtd", "height", "volume", "cover.live")), ~replace(., is.na(.), 0)) %>%
+  mutate(cover = ifelse(cover > 100, 100, cover), 
+         cover.wtd = ifelse(cover.wtd > 100, 100, cover.wtd), 
+         cover.live = ifelse(cover.live > 100, 100, cover.live),
+         cover.live.wtd = ifelse(cover.live.wtd > 100, 100, cover.live.wtd))
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 plot_dhm %>%  filter(Type == "internal", fire_code != "E") #search for plots that are coded internal that arent in Cw site
 
