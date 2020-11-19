@@ -15,38 +15,23 @@ load("output/plotSeedlingData.RData") #load R object: plot_dhm_long
 #plant.yr.per.fire <- plot_dhm %>% select(Fire, facts.planting.first.year)
 #unique(plant.yr.per.fire)
 
+
+
 ##### final models for planted species and conifers --------------------------------------------------------------------------------
 
 #USE THIS MODEL FOR THE TOOL
-pltd2 <- lmer(ln.dens.planted ~ scale(tpi2000)*scale(elev) +
-               #scale(elev) +
-               scale(Shrubs)*facts.planting.first.year*fsplanted +
-               #scale(Shrubs):facts.planting.first.year:fsplanted + 
-               #scale(Shrubs):facts.planting.first.year:fsplanted +
-               #scale(ShrubHolisticVolume)*facts.planting.first.year*fsplanted +
+pltd <- lmer(ln.dens.planted ~ scale(tpi2000)*scale(elev) +
+               scale(Shrubs)*facts.planting.first.year*fsplanted + 
+               #scale(log(planted_density_tpa+24.99)) +
                scale(tmin)*scale(normal_annual_precip) +
-               #scale(bcm_tmax_july) +
-               #scale(bcm_aet)+
-               #scale(bcm_cwd) +
                scale(log10SeedWallConifer) +
                scale(LitDuff) +
-               #scale((1-cos((pi/180)*(aspect_dem)))/2)+scale(slope_dem) + 
-               #scale(bcm_snowpack) +
-               #scale(rad_summer)*scale(tmax) +
-               #scale(ShrubHt2) +
-               #scale(ShrubHolisticVolume) +
-               (1|Fire) +
-               #(0+scale(normal_annual_precip)|Fire) + 
-               #(0+scale(tmean_mjjas)|Fire) 
-               #(0+scale(tmin_mjjas):scale(normal_annual_precip)|Fire) 
-               #(0+scale(tpi2000)|Fire) +
-               #(0+scale(Shrubs)|Fire) +
-               #(0+scale(bcm_snowpack)|Fire)+
+               (1|Fire),
                (1|Fire:PairID),
-                REML = T,
+                REML = F,
               data = plot_dhm)
 
-summary(pltd2)
+summary(pltd)
 AIC(pltd)
 
 
