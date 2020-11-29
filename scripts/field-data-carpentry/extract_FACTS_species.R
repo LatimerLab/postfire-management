@@ -188,7 +188,7 @@ planted_summ = plots_planted %>%
             n_plots_w_reported_density = sum(density_reported),
             n_plots_total = n()) %>%
   select(Fire,min,lwr,mean,upr,max, everything()) %>%
-  mutate_at(vars(min,lwr,mean,upr,max),~./2.471) %>%
+  mutate_at(vars(min,lwr,mean,upr,max),~.*2.471) %>%
   mutate_if(is.numeric,round)
 
 write.csv(planted_summ,"tables/planting_density.csv", row.names=FALSE)
