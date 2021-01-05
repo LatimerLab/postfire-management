@@ -4,7 +4,7 @@ library(qpcR)
 library(tidyverse)
 
 
-#####  load data -----------------------------------------------------------------------------------
+### load data -----------------------------------------------------------------------------------
 
 plots = read.csv("data/field-processed/compiled-processed/plots_w_gis_data_newTWI.csv",stringsAsFactors = FALSE)
 subsample_threshold = read.csv("data/field-processed/compiled-processed/subsample_threshold.csv",stringsAsFactors = FALSE)
@@ -12,6 +12,8 @@ seedlings_plot = read.csv("data/field-processed/compiled-processed/seedlings_plo
 seedlings_transect = read.csv("data/field-processed/compiled-processed/seedlings_transect.csv",stringsAsFactors = FALSE)
 shrubs_spp <- read.csv("data/field-processed/compiled-processed/shrubs.csv",stringsAsFactors = FALSE)
 
+
+### fix errors -----------------------------------------------------------------------------------
 
 seedlings_plot <- seedlings_plot %>%
   mutate(Species = recode(Species, "ACMA" = "ABMA", "AMBA" = "ABMA"))
@@ -33,6 +35,9 @@ seelings_plot <- seedlings_plot %>%
 #A2030T should be 
 #B1023T switch comp cover and height
 #B1024C change all to 100
+
+### make list of planted species by plot-------------------------------------------------------------------------
+
 
 plots <- plots %>%
   mutate(fsplanted = ifelse(!is.na(facts.planting.first.year), "planted", "unplanted")) %>% # create a variable for whether were planted or no
@@ -90,6 +95,7 @@ seedl_dhm <- seedlings_plot %>%
             #dens.oak = sum(DensitySlope*oak),
             dens.conif = sum(DensitySlope*conif),
             dens.planted =sum(DensitySlope*plantedFromList),
+            
             
             ave.ht.all = mean(TotHeight * DensitySlope),
             ave.ht.yelPine = mean(TotHeight * DensitySlope*yelPine),
@@ -173,6 +179,18 @@ plot_dhm_long <- plot_dhm %>%
 
 #save(plot_dhm_long, plot_dhm, file= "output/plotSeedlingData.RData")
 
+### Make species matrix for CAP --------------------------------------------------------
+
+spp_matrix <- seedlings_plot %>% as_tibble() %>%
+  count(Species, PlotID) %>%
+  pivot_wider(names_from = Species,
+              values_from = n)
+spp_matrix[is.na(spp_matrix)] <- 0
+
+spp_matrix <- spp_matrix %>%
+  left_join(plots %>% select(PlotID, Fire, fsplanted), by = "PlotID")
+
+#save(spp_matrix, file = "output/spp_matrix.RData")
 
 
 ##### Check to see if shrub cover around each tree is similar to plot level ------------
