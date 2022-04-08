@@ -12,16 +12,17 @@ plot_dhm$p.pine <- cbind(round(plot_dhm$dens.pine/24.94098, 0), round(plot_dhm$d
                          
 pine.comp <- glmer(p.pine ~ 
 ### climate
-                     #scale(tmean) + #interact with planting in end
+                     scale(tmean) + #interact with planting in end
                      #scale(tmin) +
                      #scale(tmax) +
                      scale(normal_annual_precip) +
-                     #scale(rad_summer) +
+                     scale(rad_summer) +
 ### competition
-                     scale(Forbs)*fsplanted +
-                     facts.planting.first.year*fsplanted +
-                     #scale(Grasses) +
-                     scale(Shrubs)*scale(ShrubHt)  +
+                     scale(Forbs) +#*fsplanted +
+                     facts.planting.first.year + #*fsplanted +
+                     scale(Grasses) +
+                     scale(Shrubs) + #*scale(ShrubHt)  +
+                     scale(ShrubHt)  +
                      
   
                      scale(LiveOverstory) +
@@ -32,7 +33,7 @@ pine.comp <- glmer(p.pine ~
                      #scale(tpi500) +
                      scale(twi) +
                      #scale(elev) +   
-                     scale(LitDuff)*fsplanted +
+                     scale(LitDuff) #*fsplanted +
                      #scale(CWD_sound) +
 ###planting  
                      # *facts.planting.first.year* +
@@ -40,11 +41,17 @@ pine.comp <- glmer(p.pine ~
                      (1|Fire) +
                      (1|Fire:PairID),
                    family = binomial,
-                   data = plot_dhm %>% filter(dens.conif != 0) %>% mutate(ForShr = Shrubs + Forbs))
+                   data = plot_dhm %>% filter(dens.conif != 0)))
                                   #%>% mutate(facts.planting.first.year = as.factor(facts.planting.first.year)))                          
 AIC(pine.comp)
 summary(pine.comp)
+mod.selc.record5 <- as.data.frame(cbind(as.character(pine.comp@call)[2], AIC(pine.comp)))
+mod.selc.record5 <- rbind(as.data.frame(cbind(as.character(pine.comp@call)[2], AIC(pine.comp))), mod.selc.record2) #mod.selc.record2[2:nrow(mod.selc.record2),]
+
+
+
 plot(allEffects(pine.comp))
+r.squaredGLMM(pine.comp)
 
 comp <- spp_matrix %>%
   mutate(PIPJ = PIPJ + PIPO + PIJE,

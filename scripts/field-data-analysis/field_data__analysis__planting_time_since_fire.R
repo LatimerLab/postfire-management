@@ -25,8 +25,8 @@ pltd <- lmer(ln.dens.planted ~ scale(tpi2000)*scale(elev) +
                #scale(log(planted_density_tpa+24.99)) +
                scale(tmin)*scale(normal_annual_precip) +
                scale(log10SeedWallConifer) +
-               scale(LitDuff) +
-               (1|Fire),
+               #scale(LitDuff) +
+               (1|Fire) +
                (1|Fire:PairID),
                 REML = F,
               data = plot_dhm)
@@ -51,12 +51,13 @@ pltd <- lmer(ln.dens.planted ~
                #scale(tmean) +
                scale(tmin)*scale(normal_annual_precip) +
                #scale(tmax) +
-               #scale(normal_annual_precip) +
+               scale(normal_annual_precip) +
                #scale(rad_summer) +
 ### competition
                #scale(Forbs) +
                #scale(Grasses) +
-               scale(Shrubs)*facts.planting.first.year*fsplanted +
+               scale(Shrubs)*fsplanted*facts.planting.first.year + # *facts.planting.first.year*fsplanted +
+               #fsplanted*facts.planting.first.year +
                #scale(LiveOverstory) +
                #scale(ShrubHt) +
 ### dispersal
@@ -65,22 +66,21 @@ pltd <- lmer(ln.dens.planted ~
                scale(tpi2000)*scale(elev) +
                #scale(twi) +
                #scale(elev)  +   
-               scale(LitDuff) +
+               #scale(LitDuff) +
                #scale(CWD_sound) +
 ###planting  
-               # +
-               # +
+
                (1|Fire) +
                (1|Fire:PairID), 
-             REML = T,
+             REML = F,
              data = plot_dhm)
-
-               
-
+#AIC(pltd)
 summary(pltd)#, correlation=TRUE)
-mod.selc.record2 <- rbind(as.data.frame(cbind(as.character(pltd@call)[2], AIC(pltd))), mod.selc.record2) #mod.selc.record2[2:nrow(mod.selc.record2),]
-mod.selc.est.list2 <- list(mod.selc.est.list2, summary(pltd)$coefficients)
 AIC(pltd)
+#mod.selc.record2 <- as.data.frame(cbind(as.character(pltd@call)[2], AIC(pltd)))
+#mod.selc.record2 <- rbind(as.data.frame(cbind(as.character(pltd@call)[2], AIC(pltd))), mod.selc.record2) #mod.selc.record2[2:nrow(mod.selc.record2),]
+#mod.selc.est.list2 <- list(mod.selc.est.list2, summary(pltd)$coefficients)
+#AIC(pltd)
 #results.table <- summary(pltd)$coefficients
 
 mod.selc.record2.fr <- mod.selc.record2 %>% 
@@ -118,7 +118,7 @@ mod.selc.record2.fr <- mod.selc.record2 %>%
   mutate(V1 = str_replace_all(V1, pattern = "scale\\(aspect_dem\\)", replacement = "Aspect"))  %>% 
   mutate(V1 = str_replace_all(V1, pattern = "scale\\(slope_dem\\)", replacement = "Slope"))  
 
-write.csv(mod.selc.record2.fr, "output/mod.selc.record2.csv")
+write.csv(mod.selc.record2.fr, "output/mod.selc.record3.csv")
 #save(mod.selc.est.list2, file = "output/mod.selc.est.list_backup2.RData")
 
 results.table <- as.data.frame(results.table) %>% mutate(Vars = row.names(results.table))
@@ -250,11 +250,11 @@ plot(allEffects(pltd.nb))
 
 pltd.po <- glmer(round(dens.planted/24.94098, 0 ) ~ scale(tpi2000)*scale(elev) + 
                    scale(Shrubs)*facts.planting.first.year*fsplanted +
-                   scale(slope_dem)*scale((1-cos((pi/180)*(aspect_dem)))/2) + 
+                   #scale(slope_dem)*scale((1-cos((pi/180)*(aspect_dem)))/2) + 
                    #scale(ShrubHolisticVolume^(2/3))*facts.planting.first.year*fsplanted +
                    scale(tmin)*scale(normal_annual_precip) +
                    scale(log10SeedWallConifer) +
-                   scale(LitDuff) +
+                   #scale(LitDuff) +
                    (1|Fire) +
                    #l(0+scale(normal_annual_precip)|Fire) + 
                    #(0+scale(tmin)|Fire) + 
