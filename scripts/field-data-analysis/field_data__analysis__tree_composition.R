@@ -79,9 +79,10 @@ ggplot(cap_plot, aes(x = CAP1, y = CAP2, color = Fire, shape = fsplanted)) +
 
 ggplot(nmds_plot, aes(x = MDS1, y = MDS2)) +
   geom_point(size = 3, aes(x = MDS1, y = MDS2, color = Fire, shape = fsplanted)) +
-  geom_text(data = as.data.frame(nmds_1$species) %>% mutate(spp = row.names(as.data.frame(nmds_1$species))), 
+  geom_text(data = as.data.frame(nmds_1$species) %>% 
+              mutate(spp = row.names(as.data.frame(nmds_1$species))), 
             aes(x = MDS1, y = MDS2, label = spp)) +
-  stat_ellipse(aes(x = MDS1, y = MDS2, linetype = fsplanted), type = "t")+
+  stat_ellipse(aes(x = MDS1, y = MDS2, linetype = fsplanted), type = "t") +
   scale_shape_manual(values=c(16, 21)) 
 
 nmdsFire <- ggplot(nmds_plot %>% 

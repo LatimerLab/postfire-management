@@ -223,6 +223,52 @@ plot(allEffects(shr))
 
 r.squaredGLMM(shr)
 
+#Model select procedure
+
+#Shrub model
+shr <- lmer(#cbind(Shrubs, 100-Shrubs)
+  #scale(Shrubs)
+  scale(asin(sqrt(Shrubs/100))) ~
+    scale(tmean) + # tmin, tmax #stay
+    scale(normal_annual_precip) + #stay 
+    scale(rad_winter) + #stay
+    #scale(tpi2000) + #8
+    scale(twi) + #stay 
+    #facts.released + #7
+    scale(tmean)*scale(rad_winter) + #stay
+    #scale(tmean)*scale(normal_annual_precip) + #5
+    scale(normal_annual_precip)*scale(rad_winter) + #stay 
+    #scale(tmean)*scale(normal_annual_precip)*scale(rad_winter) + #1
+    #scale(twi)*scale(normal_annual_precip) + #3
+    #scale(twi)*scale(tmean) + #4
+    #scale(tpi2000)*scale(normal_annual_precip) + #2
+    #scale(tpi2000)*scale(tmean) + #6
+    (1|Fire) + (1|Fire:PairID), REML = F, data = plot_dhm %>% 
+    mutate(facts.released = as.factor(ifelse(fsplanted == "unplanted", 1, facts.released))))
+#anova(shr, shr2)
+AIC(shr)
+summary(shr)
+shr.selc.record2 <- rbind(as.data.frame(cbind(as.character(shr@call)[2], AIC(shr))), shr.selc.record2) #mod.selc.record2[2:nrow(mod.selc.record2),]
+shr.selc.est.list2 <- list(shr.selc.est.list2, summary(shr)$coefficients)
+#shr.selc.record2 <- as.data.frame(cbind(as.character(shr@call)[2], AIC(shr)))
+#shr.selc.est.list2 <- summary(shr)$coefficients
+
+
+mod.selc.record2.shr <- shr.selc.record2 %>% 
+  mutate(V1 = str_replace_all(V1, pattern = "scale(asin(sqrt(Shrubs/100))) ~", replacement = "Shrub Cover =")) %>% 
+  mutate(V1 = str_replace_all(V1, pattern = "scale\\(tpi2000\\)", replacement = "Topographic Position Index 2000")) %>% 
+  mutate(V1 = str_replace_all(V1, pattern = "fsplanted", replacement = "Planting")) %>% 
+  mutate(V1 = str_replace_all(V1, pattern = "facts.released", replacement = "Released")) %>% 
+  mutate(V1 = str_replace_all(V1, pattern = "scale\\(tmean\\)", replacement = "Mean Annual Temp.")) %>% 
+  mutate(V1 = str_replace_all(V1, pattern = "scale\\(tmax\\)", replacement = "Max. Annual Temp.")) %>% 
+  mutate(V1 = str_replace_all(V1, pattern = "scale\\(rad_winter\\)", replacement = "Winter Solar Insolation")) %>%
+  mutate(V1 = str_replace_all(V1, pattern = "scale\\(normal_annual_precip\\)", replacement = "Normal Annual Precipitation")) %>%  
+  mutate(V1 = str_replace_all(V1, pattern = "scale\\(twi\\)", replacement = "Total Water Index"))
+
+write.csv(mod.selc.record2.shr, "output/shr.selc.record2.csv")
+#save(mod.selc.est.list2, file = "output/mod.selc.est.list_backup2.RData")
+
+r.squaredGLMM(shr)
 
 save(pltd, shr, file = "output/modelDataForPlots.RData")
 
