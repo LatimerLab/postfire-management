@@ -26,9 +26,9 @@ pltd <- lmer(ln.dens.planted ~ scale(tpi2000)*scale(elev) +
                scale(tmin)*scale(normal_annual_precip) +
                scale(log10SeedWallConifer) +
                scale(LitDuff) +
-               (1|Fire),
+               (1|Fire) +
                (1|Fire:PairID),
-                REML = F,
+              REML = F,
               data = plot_dhm)
 
 summary(pltd)
@@ -65,7 +65,7 @@ pltd <- lmer(ln.dens.planted ~
                scale(tpi2000)*scale(elev) +
                #scale(twi) +
                #scale(elev)  +   
-               scale(LitDuff) +
+               #scale(LitDuff) +
                #scale(CWD_sound) +
 ###planting  
                # +
@@ -78,10 +78,17 @@ pltd <- lmer(ln.dens.planted ~
                
 
 summary(pltd)#, correlation=TRUE)
-mod.selc.record2 <- rbind(as.data.frame(cbind(as.character(pltd@call)[2], AIC(pltd))), mod.selc.record2) #mod.selc.record2[2:nrow(mod.selc.record2),]
-mod.selc.est.list2 <- list(mod.selc.est.list2, summary(pltd)$coefficients)
 AIC(pltd)
 #results.table <- summary(pltd)$coefficients
+
+#mod.selc.record2 <- rbind(as.data.frame(cbind(as.character(pltd@call)[2], AIC(pltd))), mod.selc.record2) #mod.selc.record2[2:nrow(mod.selc.record2),]
+#mod.selc.est.list2 <- list(mod.selc.est.list2, summary(pltd)$coefficients)
+
+# For revision, load model selection results that were saved earlier 
+mod.selc.record2 <- read.csv("output/mod.selc.record2.csv")
+load("output/mod.selc.est.list_backup.Rdata")
+results.table <- read.csv("output/results.table.csv")
+
 
 mod.selc.record2.fr <- mod.selc.record2 %>% 
   mutate(V1 = str_replace_all(V1, pattern = "ln.dens.planted ~", replacement = "Seedling Density =")) %>% 
@@ -118,7 +125,7 @@ mod.selc.record2.fr <- mod.selc.record2 %>%
   mutate(V1 = str_replace_all(V1, pattern = "scale\\(aspect_dem\\)", replacement = "Aspect"))  %>% 
   mutate(V1 = str_replace_all(V1, pattern = "scale\\(slope_dem\\)", replacement = "Slope"))  
 
-write.csv(mod.selc.record2.fr, "output/mod.selc.record2.csv")
+#write.csv(mod.selc.record2.fr, "output/mod.selc.record2.csv")
 #save(mod.selc.est.list2, file = "output/mod.selc.est.list_backup2.RData")
 
 results.table <- as.data.frame(results.table) %>% mutate(Vars = row.names(results.table))
@@ -173,7 +180,7 @@ conif <- lmer(ln.dens.conif ~ scale(tpi2000)*scale(elev) +
                 #fsplanted +
                 facts.planting.first.year*fsplanted*scale(Shrubs) +
                 scale(tmin)*scale(normal_annual_precip) +
-                scale(LitDuff) +
+                #scale(LitDuff) +
                 log10SeedWallConifer + #scale(ShrubHt) +
                 (1|Fire) + (1|Fire:PairID), data = plot_dhm)
 
@@ -265,12 +272,12 @@ mod.selc.record2.shr <- shr.selc.record2 %>%
   mutate(V1 = str_replace_all(V1, pattern = "scale\\(normal_annual_precip\\)", replacement = "Normal Annual Precipitation")) %>%  
   mutate(V1 = str_replace_all(V1, pattern = "scale\\(twi\\)", replacement = "Total Water Index"))
 
-write.csv(mod.selc.record2.shr, "output/shr.selc.record2.csv")
+#write.csv(mod.selc.record2.shr, "output/shr.selc.record2.csv")
 #save(mod.selc.est.list2, file = "output/mod.selc.est.list_backup2.RData")
 
 r.squaredGLMM(shr)
 
-save(pltd, shr, file = "output/modelDataForPlots.RData")
+#save(pltd, shr, file = "output/modelDataForPlots.RData")
 
 
 cor(plots %>% dplyr::select(elev, rad_winter, slope_dem, normal_annual_precip, twi, tpi100, tpi500, tpi2000, tpi5000, tmax, tmin, tmean),  use = "complete.obs", method = "pearson")
@@ -284,7 +291,7 @@ pltd.nb <- glmer.nb(round(dens.planted/24.94098, 0 ) ~ scale(tpi2000)*scale(elev
                       #scale(ShrubHolisticVolume^(2/3))*facts.planting.first.year*fsplanted +
                       scale(tmin)*scale(normal_annual_precip) +
                       scale(log10SeedWallConifer) +
-                      scale(LitDuff) +
+                      #scale(LitDuff) +
                       (1|Fire) +
                       #l(0+scale(normal_annual_precip)|Fire) + 
                       #(0+scale(tmin_mjjas)|Fire) + 

@@ -13,32 +13,31 @@ plot_dhm$p.pine <- cbind(round(plot_dhm$dens.pine/24.94098, 0), round(plot_dhm$d
 pine.comp <- glmer(p.pine ~ 
 ### climate
                      #scale(tmean) + #interact with planting in end
-                     #scale(tmin) +
                      #scale(tmax) +
-                     scale(normal_annual_precip) +
+                     scale(normal_annual_precip) * scale(tmin) +
                      #scale(rad_summer) +
 ### competition
-                     scale(Forbs)*fsplanted +
-                     facts.planting.first.year*fsplanted +
+                     #scale(Forbs)*fsplanted +
+  scale(Shrubs) * facts.planting.first.year*fsplanted +
                      #scale(Grasses) +
-                     scale(Shrubs)*scale(ShrubHt)  +
+                     #scale(ShrubHt)  +
                      
   
-                     scale(LiveOverstory) +
+                     #scale(LiveOverstory) +
 
 ### dispersal
-                     #scale(log10SeedWallConifer) +
+                     scale(log10SeedWallConifer) +
 ###Topography
                      #scale(tpi500) +
-                     scale(twi) +
-                     #scale(elev) +   
-                     scale(LitDuff)*fsplanted +
+                     #scale(twi) +
+                     scale(tpi2000) * scale(elev) +   
+                     #scale(LitDuff)*fsplanted +
                      #scale(CWD_sound) +
 ###planting  
                      # *facts.planting.first.year* +
                      # fsplanted +
-                     (1|Fire) +
-                     (1|Fire:PairID),
+                     (1|Fire),
+                     #(1|Fire:PairID),
                    family = binomial,
                    data = plot_dhm %>% filter(dens.conif != 0) %>% mutate(ForShr = Shrubs + Forbs))
                                   #%>% mutate(facts.planting.first.year = as.factor(facts.planting.first.year)))                          
