@@ -8,39 +8,51 @@ library(Hmisc)
 library(car)
 library(BiodiversityR)
 
-plot_dhm$p.pine <- cbind(round(plot_dhm$dens.pine/24.94098, 0), round(plot_dhm$dens.conif/24.94098, 0)-round(plot_dhm$dens.pine/24.94098, 0))
-                         
+# Make proportion pine data set for analysis 
+plot_dhm_pine <- plot_dhm
+plot_dhm_pine$p.pine <- cbind(round(plot_dhm$dens.pine/24.94098, 0), round(plot_dhm$dens.conif/24.94098, 0)-round(plot_dhm$dens.pine/24.94098, 0))   
+plot_dhm_pine <- plot_dhm_pine %>% 
+  filter(dens.conif != 0) %>%
+  mutate(ForShr = Shrubs + Forbs)
+
+nrow(plot_dhm_pine) # 119 rows -- this is substantially smaller, so may need to refit a simpler model
+nrow(plot_dhm) # 182 rows 
+
+
+
 pine.comp <- glmer(p.pine ~ 
 ### climate
-                     #scale(tmean) + #interact with planting in end
+                     scale(tmean) + #interact with planting in end
                      #scale(tmax) +
-                     scale(normal_annual_precip) * scale(tmin) +
-                     #scale(rad_summer) +
+                     scale(normal_annual_precip) + 
+                    #scale(tmin) +
+                     scale(rad_summer) +
 ### competition
-                     #scale(Forbs)*fsplanted +
-  scale(Shrubs) * facts.planting.first.year*fsplanted +
-                     #scale(Grasses) +
-                     #scale(ShrubHt)  +
+                     scale(Forbs) +
+                    scale(Shrubs) +
+                     scale(Grasses) +
+                     scale(ShrubHt)  +
                      
   
-                     #scale(LiveOverstory) +
+                     scale(LiveOverstory) +
 
 ### dispersal
                      scale(log10SeedWallConifer) +
 ###Topography
                      #scale(tpi500) +
-                     #scale(twi) +
-                     scale(tpi2000) * scale(elev) +   
+                     scale(twi) +
+                     scale(tpi2000) + 
+                      scale(elev) +   
                      #scale(LitDuff)*fsplanted +
-                     #scale(CWD_sound) +
+                     scale(CWD_sound) +
 ###planting  
-                     # *facts.planting.first.year* +
-                     # fsplanted +
-                     (1|Fire),
-                     #(1|Fire:PairID),
+                      facts.planting.first.year +
+                      fsplanted +
+  
+                     (1|Fire) +
+                     (1|Fire:PairID),
                    family = binomial,
-                   data = plot_dhm %>% filter(dens.conif != 0) %>% mutate(ForShr = Shrubs + Forbs))
-                                  #%>% mutate(facts.planting.first.year = as.factor(facts.planting.first.year)))                          
+                   data = plot_dhm_pine)               
 AIC(pine.comp)
 summary(pine.comp)
 plot(allEffects(pine.comp))
