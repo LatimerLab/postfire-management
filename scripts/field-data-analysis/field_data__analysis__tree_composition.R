@@ -8,6 +8,9 @@ library(Hmisc)
 library(car)
 library(BiodiversityR)
 
+# Load data 
+load("output/plotSeedlingData.RData") 
+
 # Make proportion pine data set for analysis 
 plot_dhm_pine <- plot_dhm
 plot_dhm_pine$p.pine <- cbind(round(plot_dhm$dens.pine/24.94098, 0), round(plot_dhm$dens.conif/24.94098, 0)-round(plot_dhm$dens.pine/24.94098, 0))   
@@ -18,6 +21,92 @@ plot_dhm_pine <- plot_dhm_pine %>%
 nrow(plot_dhm_pine) # 119 rows -- this is substantially smaller, so may need to refit a simpler model
 nrow(plot_dhm) # 182 rows 
 
+vars_to_test_continuous <- c("normal_annual_precip", "rad_summer", "Forbs", "Shrubs", "Grasses", "ShrubHt", 
+                  "LiveOverstory", "log10SeedWallConifer", "twi", "tpi2000", "elev", "CWD_sound")
+vars_to_test_binary <- c("facts.planting.first.year", "fsplanted")
+
+# scale continuous variables 
+plot_dhm_pine_std <- stdize(plot_dhm_pine[ , vars_to_test_continuous], prefix = FALSE)
+plot_dhm_pine_std <- cbind(plot_dhm_pine_std, plot_dhm_pine[, vars_to_test_binary])
+
+# add the response 
+plot_dhm_pine_std <- cbind(plot_dhm_pine_std, plot_dhm_pine[, "p.pine"])
+names(plot_dhm_pine_std)[15] <- "seedling_count"
+names(plot_dhm_pine_std)[16] <- "pine_count"
+
+# Add the grouping variables 
+plot_dhm_pine_std <- cbind(plot_dhm_pine_std, plot_dhm_pine[, c("Fire", "PairID")])
+
+# Recode binary variables 
+plot_dhm_pine_std$fsplanted <- case_match(plot_dhm_pine_std$fsplanted, "planted" ~ 1, "unplanted" ~ 0)
+
+# remove NAs so model comparison is on par for all variable combinations 
+apply(plot_dhm_pine_std, 2, f <- function(x) {return(sum(is.na(x)))}) # only 1 row has missing data
+plot_dhm_pine_std <- plot_dhm_pine_std[complete.cases(plot_dhm_pine_std),]
+
+# Full model without interactions 
+fm_formula <- as.formula("cbind(seedling_count, pine_count) ~ normal_annual_precip + rad_summer + Forbs + Shrubs + Grasses + ShrubHt + LiveOverstory + 
+  log10SeedWallConifer + twi + tpi2000 + elev + CWD_sound + facts.planting.first.year + fsplanted + (1|Fire) + (1|Fire:PairID)")
+
+fm1 <- glmer(fm_formula, data = plot_dhm_pine_std, family = "binomial", na.action = na.fail) # note won't converge 
+
+# Try model selection using MuMin from a base model that has to include "planted" and "timing" 
+fm1_dredge <- dredge(fm1, fixed = ~ fsplanted + facts.planting.first.year + (1|Fire) + (1|Fire:PairID), m.lim = c(0, 3), trace = TRUE, evaluate = TRUE)
+get.models(fm1_dredge, subset = delta < 4)
+
+# Top variable is LiveOverstory -- add to fixed and proceed 
+fm1_dredge <- dredge(fm1, fixed = ~ LiveOverstory + fsplanted + facts.planting.first.year + (1|Fire) + (1|Fire:PairID), m.lim = c(0, 4), trace = TRUE, evaluate = TRUE)
+get.models(fm1_dredge, subset = delta < 4)
+
+# Top variable is Shrubs -- add to fixed and proceed 
+fm1_dredge <- dredge(fm1, fixed = ~ Shrubs + LiveOverstory + fsplanted + facts.planting.first.year + (1|Fire) + (1|Fire:PairID), m.lim = c(0, 5), trace = TRUE, evaluate = TRUE)
+get.models(fm1_dredge, subset = delta < 4)
+
+# Nothing added this time. 
+# I tried adding 2 at a time but those more highly parameterized models didn't converge. 
+# So let's use fm1_dredge as a base and test adding one interaction at a time. 
+
+# Next test interactions between planted and other fixed effects 
+fm1 <- get.models(fm1_dredge, subset = delta < 4)[[1]]
+
+# facts.planting.first.year
+fm2 <- glmer(cbind(seedling_count, pine_count) ~ (1|Fire) + (1|Fire:PairID) + Shrubs + LiveOverstory + 
+               fsplanted + facts.planting.first.year + 
+               fsplanted:facts.planting.first.year,
+                data = plot_dhm_pine_std, 
+                family = "binomial")
+AICc(fm1 , fm2) # interaction added 
+
+# facts.planting.first.year
+fm3 <- glmer(cbind(seedling_count, pine_count) ~ (1|Fire) + (1|Fire:PairID) + Shrubs + LiveOverstory + 
+               fsplanted + facts.planting.first.year + 
+               fsplanted:facts.planting.first.year + fsplanted:Shrubs,
+             data = plot_dhm_pine_std, 
+             family = "binomial")
+AICc(fm3 , fm2) # interaction rejected 
+
+# facts.planting.first.year
+fm4 <- glmer(cbind(seedling_count, pine_count) ~ (1|Fire) + (1|Fire:PairID) + Shrubs + LiveOverstory + 
+               fsplanted + facts.planting.first.year + 
+               fsplanted:facts.planting.first.year + fsplanted:LiveOverstory,
+             data = plot_dhm_pine_std, 
+             family = "binomial")
+AICc(fm4 , fm2) # interaction rejected 
+
+# FINAL MODEL 
+pine_comp <- fm2
+
+summary(pine_comp)
+
+########
+fm1 <- glmer(p.pine ~                      
+               
+               (1|Fire) +
+               (1|Fire:PairID),
+             family = binomial,
+             data = plot_dhm_pine)   
+
+
 
 
 pine.comp <- glmer(p.pine ~ 
@@ -25,7 +114,7 @@ pine.comp <- glmer(p.pine ~
                      scale(tmean) + #interact with planting in end
                      #scale(tmax) +
                      scale(normal_annual_precip) + 
-                    #scale(tmin) +
+                     #scale(tmin) +
                      scale(rad_summer) +
 ### competition
                      scale(Forbs) +
