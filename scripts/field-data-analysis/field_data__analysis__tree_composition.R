@@ -133,6 +133,7 @@ plot(allEffects(pine.comp))
 # Check correlation of the main effect variables
 cor(plot_dhm_pine_std[, c("Shrubs", "ShrubHt", "LiveOverstory", "facts.planting.first.year", "fsplanted")])
 
+##### Next step will be to modify plots code from field_data_plots_planting_time to handle the proportion pine model. 
 
 
 ########################
