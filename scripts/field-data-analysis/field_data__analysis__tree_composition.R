@@ -22,14 +22,14 @@ nrow(plot_dhm_pine) # 119 rows -- this is substantially smaller, so may need to 
 nrow(plot_dhm) # 182 rows 
 
 vars_to_test_continuous <- c("normal_annual_precip", "rad_summer", "Forbs", "Shrubs", "Grasses", "ShrubHt", 
-                  "LiveOverstory", "log10SeedWallConifer", "twi", "tpi2000", "elev", "CWD_sound","facts.planting.first.year")
-vars_to_test_binary <- "fsplanted"
+                  "LiveOverstory", "log10SeedWallConifer", "twi", "tpi2000", "elev", "CWD_sound")
+vars_to_test_factor <- c("fsplanted", "facts.planting.first.year")
 
 # scale continuous variables 
 plot_dhm_pine_std <- stdize(plot_dhm_pine[ , vars_to_test_continuous], prefix = FALSE)
 
-# add binary variable
-plot_dhm_pine_std <- cbind(plot_dhm_pine_std, plot_dhm_pine$fsplanted)
+# add factor variables
+plot_dhm_pine_std <- cbind(plot_dhm_pine_std, plot_dhm_pine_std[, vars_to_test_factor])
 names(plot_dhm_pine_std)[14] <- "fsplanted"
 
 # add the response 
@@ -40,8 +40,9 @@ names(plot_dhm_pine_std)[16] <- "pine_count"
 # Add the grouping variables 
 plot_dhm_pine_std <- cbind(plot_dhm_pine_std, plot_dhm_pine[, c("Fire", "PairID")])
 
-# Recode binary variable
-plot_dhm_pine_std$fsplanted <- case_match(plot_dhm_pine_std$fsplanted, "planted" ~ 1, "unplanted" ~ 0)
+# Reorder planted variable so unplanted is the base
+plot_dhm_pine_std <- mutate(plot_dhm_pine_std, fsplanted = relevel(fsplanted, "unplanted"))
+#plot_dhm_pine_std$fsplanted <- case_match(plot_dhm_pine_std$fsplanted, "planted" ~ 1, "unplanted" ~ 0)
 
 # remove NAs so model comparison is on par for all variable combinations 
 apply(plot_dhm_pine_std, 2, f <- function(x) {return(sum(is.na(x)))}) # only 1 row has missing data
@@ -79,6 +80,7 @@ fm1 <- glmer(cbind(seedling_count, pine_count) ~ facts.planting.first.year +
                 fsplanted + LiveOverstory + ShrubHt +  
                 Shrubs + (1 | Fire) + (1 | Fire:PairID), data = plot_dhm_pine_std, 
                 family = "binomial")
+summary(fm1)
 
 #### Next test interactions between planted and other fixed effects, testing one interaction at a time.  
 
@@ -88,7 +90,7 @@ fm2 <- glmer(cbind(seedling_count, pine_count) ~ (1|Fire) + (1|Fire:PairID) + Sh
                fsplanted:facts.planting.first.year,
                 data = plot_dhm_pine_std, 
                 family = "binomial")
-AICc(fm1 , fm2) # interaction added
+AIC(fm1, fm2) # interaction added
 summary(fm2)
 
 # Shrubs
@@ -134,6 +136,9 @@ plot(allEffects(pine.comp))
 cor(plot_dhm_pine_std[, c("Shrubs", "ShrubHt", "LiveOverstory", "facts.planting.first.year", "fsplanted")])
 
 ##### Next step will be to modify plots code from field_data_plots_planting_time to handle the proportion pine model. 
+
+# Save the model object for use with plots. 
+save(pine.comp, file = "./output/pine_composition_model_object.Rdata")
 
 
 ########################
