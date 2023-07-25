@@ -25,7 +25,7 @@ pltd <- lmer(ln.dens.planted ~ scale(tpi2000)*scale(elev) +
                #scale(log(planted_density_tpa+24.99)) +
                scale(tmin)*scale(normal_annual_precip) +
                scale(log10SeedWallConifer) +
-               scale(LitDuff) +
+               #scale(LitDuff) +
                (1|Fire) +
                (1|Fire:PairID),
               REML = F,
