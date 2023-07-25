@@ -6,7 +6,7 @@ library(sjPlot)
 library(MuMIn)
 library(Hmisc)
 library(car)
-library(BiodiversityR)
+#library(BiodiversityR)
 
 # Load data 
 load("output/plotSeedlingData.RData") 
@@ -30,7 +30,7 @@ plot_dhm_pine_std <- stdize(plot_dhm_pine[ , vars_to_test_continuous], prefix = 
 
 # add binary variable
 plot_dhm_pine_std <- cbind(plot_dhm_pine_std, plot_dhm_pine$fsplanted)
-names(plot_dhm_pine_std)[19] <- "fsplanted"
+names(plot_dhm_pine_std)[14] <- "fsplanted"
 
 # add the response 
 plot_dhm_pine_std <- cbind(plot_dhm_pine_std, plot_dhm_pine[, "p.pine"])
@@ -66,14 +66,21 @@ fm1_dredge <- dredge(fm1, rank = "AICc", fixed = ~ Shrubs + LiveOverstory + fspl
 get.models(fm1_dredge, subset = delta < 4)
 
 # Top variable is Shrub Height -- add to fixed and proceed 
-fm1_dredge <- dredge(fm1, fixed = ~ ShrubHt + Shrubs + LiveOverstory + fsplanted + facts.planting.first.year + (1|Fire) + (1|Fire:PairID), m.lim = c(0, 6), trace = TRUE, evaluate = TRUE)
-get.models(fm1_dredge, subset = delta < 4)
+fm1_dredge <- dredge(fm1, rank = "AICc", fixed = ~ ShrubHt + Shrubs + LiveOverstory + fsplanted + facts.planting.first.year + (1|Fire) + (1|Fire:PairID), m.lim = c(0, 6), trace = TRUE, evaluate = TRUE)
+ get.models(fm1_dredge, subset = delta < 4)
+ 
+ # Top variable is normal precip -- add to fixed and proceed 
+ fm1_dredge <- dredge(fm1, rank = "AICc", fixed = ~ normal_annual_precip + ShrubHt + Shrubs + LiveOverstory + fsplanted + facts.planting.first.year + (1|Fire) + (1|Fire:PairID), m.lim = c(0, 7), trace = TRUE, evaluate = TRUE)
+ get.models(fm1_dredge, subset = delta < 4)
+ 
+ ### STOP: model won't converge. Go back to previous model and use that as the full set of fixed effects 
+ 
+fm1 <- glmer(cbind(seedling_count, pine_count) ~ facts.planting.first.year +  
+                fsplanted + LiveOverstory + ShrubHt +  
+                Shrubs + (1 | Fire) + (1 | Fire:PairID), data = plot_dhm_pine_std, 
+                family = "binomial")
 
-# Nothing added this time. 
-# So let's use fm1_dredge as a base and test adding one interaction at a time. 
-
-# Next test interactions between planted and other fixed effects 
-fm1 <- get.models(fm1_dredge, subset = delta < 4)[[1]]
+#### Next test interactions between planted and other fixed effects, testing one interaction at a time.  
 
 # facts.planting.first.year
 fm2 <- glmer(cbind(seedling_count, pine_count) ~ (1|Fire) + (1|Fire:PairID) + Shrubs + LiveOverstory + 
