@@ -9,7 +9,11 @@ library(car)
 #library(BiodiversityR)
 
 # Load data 
-load("output/plotSeedlingData.RData") 
+load("./output/plotSeedlingData.RData") 
+
+# Calculate mean seedling densities for each fire 
+plot_dhm %>% group_by(Fire) %>% 
+  summarise(dens.all.mean = mean(dens.all))
 
 # Make proportion pine data set for analysis 
 plot_dhm_pine <- plot_dhm
@@ -29,8 +33,7 @@ vars_to_test_factor <- c("fsplanted", "facts.planting.first.year")
 plot_dhm_pine_std <- stdize(plot_dhm_pine[ , vars_to_test_continuous], prefix = FALSE)
 
 # add factor variables
-plot_dhm_pine_std <- cbind(plot_dhm_pine_std, plot_dhm_pine_std[, vars_to_test_factor])
-names(plot_dhm_pine_std)[14] <- "fsplanted"
+plot_dhm_pine_std <- cbind(plot_dhm_pine_std, plot_dhm_pine[, vars_to_test_factor])
 
 # add the response 
 plot_dhm_pine_std <- cbind(plot_dhm_pine_std, plot_dhm_pine[, "p.pine"])
@@ -133,7 +136,7 @@ summary(pine.comp)
 plot(allEffects(pine.comp))
 
 # Check correlation of the main effect variables
-cor(plot_dhm_pine_std[, c("Shrubs", "ShrubHt", "LiveOverstory", "facts.planting.first.year", "fsplanted")])
+cor(plot_dhm_pine_std[, c("Shrubs", "ShrubHt", "LiveOverstory", "facts.planting.first.year")])
 
 ##### Next step will be to modify plots code from field_data_plots_planting_time to handle the proportion pine model. 
 
