@@ -6,6 +6,7 @@ library(sjPlot)
 library(MuMIn)
 library(Hmisc)
 library(car)
+library(brms)
 #library(BiodiversityR)
 
 # Load data 
@@ -25,8 +26,7 @@ plot_dhm_pine <- plot_dhm_pine %>%
 nrow(plot_dhm_pine) # 119 rows -- this is substantially smaller, so may need to refit a simpler model
 nrow(plot_dhm) # 182 rows 
 
-vars_to_test_continuous <- c("normal_annual_precip", "rad_summer", "Forbs", "Shrubs", "Grasses", "ShrubHt", 
-                  "LiveOverstory", "log10SeedWallConifer", "twi", "tpi2000", "elev", "CWD_sound")
+vars_to_test_continuous <- c("tmax", "tmean", "tmin", "normal_annual_precip", "rad_summer", "Forbs", "Shrubs", "Grasses", "ShrubHt", "LiveOverstory", "log10SeedWallConifer", "twi", "tpi2000", "elev", "CWD_sound")
 vars_to_test_factor <- c("fsplanted", "facts.planting.first.year")
 
 # scale continuous variables 
@@ -36,29 +36,77 @@ plot_dhm_pine_std <- stdize(plot_dhm_pine[ , vars_to_test_continuous], prefix = 
 plot_dhm_pine_std <- cbind(plot_dhm_pine_std, plot_dhm_pine[, vars_to_test_factor])
 
 # add the response 
+
+#Binomial version: plot_dhm_pine_std <- mutate(plot_dhm_pine_std, 
+      #seedling_count = round(plot_dhm_pine$dens.conif/24.94098, 0), 
+      #pine_count = round(plot_dhm_pine$dens.pine/24.94098, 0))
+
+# Continuous [0,1] version for beta regression 
 plot_dhm_pine_std <- mutate(plot_dhm_pine_std, 
-      seedling_count = round(plot_dhm_pine$dens.conif/24.94098, 0), 
-      pine_count = round(plot_dhm_pine$dens.pine/24.94098, 0))
+        raw_prop = plot_dhm_pine$dens.pine / plot_dhm_pine$dens.conif)
+# Create new prop variable where 0s and 1s are replaced by halfway between min/max value and 0/1
+min_prop <- min(plot_dhm_pine_std$raw_prop[plot_dhm_pine_std$raw_prop>0])
+max_prop <- max(plot_dhm_pine_std$raw_prop[plot_dhm_pine_std$raw_prop<1])
+plot_dhm_pine_std$prop_response <- plot_dhm_pine_std$raw_prop
+plot_dhm_pine_std$prop_response[plot_dhm_pine_std$raw_prop == 0] <- min_prop
+plot_dhm_pine_std$prop_response[plot_dhm_pine_std$raw_prop == 1] <- max_prop
 
 # Add the grouping variables 
 plot_dhm_pine_std <- cbind(plot_dhm_pine_std, plot_dhm_pine[, c("Fire", "PairID")])
 
 # Reorder planted variable so unplanted is the base
 plot_dhm_pine_std <- mutate(plot_dhm_pine_std, fsplanted = relevel(fsplanted, "unplanted"))
-#plot_dhm_pine_std$fsplanted <- case_match(plot_dhm_pine_std$fsplanted, "planted" ~ 1, "unplanted" ~ 0)
 
 # remove NAs so model comparison is on par for all variable combinations 
 apply(plot_dhm_pine_std, 2, f <- function(x) {return(sum(is.na(x)))}) # only 1 row has missing data
 plot_dhm_pine_std <- plot_dhm_pine_std[complete.cases(plot_dhm_pine_std),]
 
+#### Fit same model as used for seedling density model ####
+
+prop_pine_formula <- as.formula("prop_response ~ tpi2000 * elev + Shrubs * facts.planting.first.year * fsplanted + tmin * normal_annual_precip + log10SeedWallConifer + (1|Fire) + (1|Fire:PairID)")
+
+pines.m1 <- brm(formula = prop_pine_formula, data=plot_dhm_pine_std, family="beta", save_pars = save_pars(all = TRUE))
+pines.m1
+loo(pines.m1, moment_match = TRUE)
+plot(pines.m1)
+
+# Only planting is significant -- and has strong positive effect on prop pine. Almost significant interaction with planting year, so that the effect of planting on pine composition is weaker when planting is sooner after fire (presumably because natural pine regen declines later on?). 
+
+# Other suggetive results are: 
+# - TPI has positive association with prop pines, but this association switches to negative at higher elevations. 
+# - shrubs lean negative but this is zeroed out in later years (shrubs more weakly associated with pine composition when planting done later, but still negative in planted areas?? -- but moderate uncertainty about all of this given wide CIs)
+
+# What results to show? Table of model coefficients in SI, plus one figure showing effect of planting on pine composition with different planting timing? 
+
+# Is there a library that can easily make these model prediction plots for brms? 
+
+
+#### Alternatively do model selection
+
 # Full model without interactions 
-fm_formula <- as.formula("cbind(seedling_count, pine_count) ~ normal_annual_precip + rad_summer + Forbs + Shrubs + Grasses + ShrubHt + LiveOverstory + 
+# binomial version 
+#fm_formula <- as.formula("cbind(seedling_count, pine_count) ~ normal_annual_precip + rad_summer + Forbs + Shrubs + Grasses + ShrubHt + LiveOverstory + 
+#  log10SeedWallConifer + twi + tpi2000 + elev + CWD_sound + facts.planting.first.year + fsplanted + (1|Fire) + (1|Fire:PairID)")
+# beta version  
+fm_formula <- as.formula("prop_response ~ tmin + tmean + normal_annual_precip + rad_summer + Forbs + Shrubs + Grasses + ShrubHt + LiveOverstory + 
   log10SeedWallConifer + twi + tpi2000 + elev + CWD_sound + facts.planting.first.year + fsplanted + (1|Fire) + (1|Fire:PairID)")
 
-fm1 <- glmer(fm_formula, data = plot_dhm_pine_std, family = "binomial", na.action = na.fail) # note won't converge 
+# Binomial 
+#fm1 <- glmer(fm_formula, data = plot_dhm_pine_std, family = "binomial", na.action = na.fail) # note won't converge 
+
+fm1 <- brm(formula = fm_formula, data=plot_dhm_pine_std, family="beta", save_pars = save_pars(all = TRUE))
+fm1
+loo(fm1, moment_match = TRUE)
+
+
+# How to proceed next? I guess try to follow the same procedure QUinn describes in the methods. First, try all interactions between planting and single variables. Then, try adding those specified biologically meaningful interactions in Table 2. Then test if individual variables can be dropped. 
+
+
+
+
 
 # Try model selection using MuMin from a base model that has to include "planted" and "timing" 
-fm1_dredge <- dredge(fm1, rank = "AIC", fixed = ~ fsplanted + facts.planting.first.year + (1|Fire) + (1|Fire:PairID), m.lim = c(0, 3), trace = TRUE, evaluate = TRUE)
+fm1_dredge <- dredge(fm1, rank = "loo", fixed = ~ fsplanted + facts.planting.first.year + (1|Fire) + (1|Fire:PairID), m.lim = c(0, 3), trace = TRUE, evaluate = TRUE)
 get.models(fm1_dredge, subset = delta < 4)
 
 # Top variable is twi -- add to fixed and proceed 
