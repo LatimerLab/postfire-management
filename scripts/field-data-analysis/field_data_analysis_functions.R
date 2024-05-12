@@ -6,6 +6,7 @@
 
 # The function fit_lmer_model() calls make_formula() and fits that model, returning the model object. 
 
+# Make formula for lmer models, given a response and vectors of predictors and groups
 make_formula <- function(response, predictors, groups = NULL) {
   if (is.null(response) | is.null(predictors)) {
     print("Missing response or predictors")
@@ -18,17 +19,30 @@ make_formula <- function(response, predictors, groups = NULL) {
   return(formula_out)
 }
 
-# testing
-# z = make_formula("response", c("pred1", "pred2") , groups ="Fire")
- 
-add_interaction <- function(formula, interaction_to_add) {
-  if (is.null(formula) | is.null(interaction_to_add)) {
-    print("Missing formula or interaction to add")
+# Fit lmer model, given a response and vectors of predictors and groups
+fit_lmer_model <- function(response, predictors, groups = NULL, dataset){
+  if (is.null(response) | is.null(predictors)) {
+    print("Missing response or predictors")
     return()
   }
-  formula_out <- paste0(formula, " + ", interaction_to_add)
-  return(formula_out)
+  mod_form <- make_formula(response, predictors, groups)
+  m <- lmer(mod_form, dataset, REML = TRUE)
+  return(m)
 }
-
+  
 # testing
-add_interaction(z, "twi:fsplanted")
+# z = make_formula("response", c("pred1", "pred2") , groups ="Fire")
+# m = fit_lmer_model("ln.dens.planted", vars_to_test, groups ="Fire", dataset = plot_dhm_for_model)
+
+
+ 
+#add_interaction <- function(formula, interaction_to_add) {
+#  if (is.null(formula) | is.null(interaction_to_add)) {
+#    print("Missing formula or interaction to add")
+#    return()
+#  }
+#  formula_out <- paste0(formula, " + ", interaction_to_add)
+#  return(formula_out)
+#}
+
+
