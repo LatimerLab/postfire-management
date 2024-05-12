@@ -99,7 +99,7 @@ which((AIC(base_model) - AIC_vals) >= 2) # Models 13 and 20 have lower AIC than 
 model_list[[13]] # tmin:normal_annual_precip
 model_list[[20]]# tpi2000:elev
 
-#### Start with a base model including the chosen 2-way interactions, and then test adding the 3-way interactions 
+#### Start with a base model including the chosen 2-way interactions, then test adding the 3-way interactions 
 
 vars_to_test_3way <- c(vars_to_test, "tmin:normal_annual_precip", "tpi2000:elev")
 
@@ -117,60 +117,16 @@ model_list_3way <- lapply(model_fixed_effects_3way, FUN = fit_lmer_model, respon
 
 AIC_vals_3way <- unlist(lapply(model_list_3way, AIC))
 
-which((AIC(base_model_2way) - AIC_vals_3way) >= 2) # Uh oh, no 3-way interactions are better. 
+which((AIC(base_model_2way) - AIC_vals_3way) >= 2) # Shrub interaction improves AIC. Maybe so does precip, but that model won't converge. Ditch it? 
 
 # QUESTION what happened to the shrubs effects? 
+summary(model_list_3way[[2]])
 summary(model_list_3way[[6]])
-AIC(model_list_3way[[6]])
-AIC(base_model_2way)
-
-# They're significant but don't improve AIC -- not sure what to do about that?? 
-
-plot_dhm_for_model$facts.planting.first.year
 
 
+#### Next and final step: Backward stepwise elimination of variables using AIC ####
 
+full_model_3way <- fit_lmer_model(x = c(vars_to_test_3way, two_way_interacs_to_test[6], three_way_interacs_to_test[6]), response = response_variable, groups = groups, dataset = plot_dhm_for_model) 
 
+step(full_model_3way, direction = "backward") # This is throwing an error for some reason?? 
 
-
-
-# Starting model
-base_model_formula <- paste0("ln.dens.planted ~ ", paste(vars_to_test, collapse = "+"), paste(" + (1|Fire)"))
-
-pltd <- lmer(formula = base_model_formula, data = plot_dhm_for_model, REML = TRUE)
-
-# Test 2-way interactions 
-
-model_list <- list() 
-for (i in two_way_interacs_to_test) {
-  formula_2way <- paste0("ln.dens.planted ~ ", paste(vars_to_test, collapse = "+"), paste0(" + ", i), paste0(" + (1|Fire)"))
-  mod_2way <- lmer(formula = formula_2way, data = plot_dhm_for_model, REML = TRUE)
-  model_list <- c(model_list, mod_2way)
-}
-
-AIC_2way <- unlist(lapply(model_list, AIC))
-AIC_base <- AIC(pltd)
-two_way_interacs_to_keep <- which((AIC_base-AIC_2way)>=2)
-
-# Model with 2-way interactions 
-formula_2way_final <- paste0("ln.dens.planted ~ ", paste(vars_to_test, collapse = "+"), paste0(" + ", two_way_interacs_to_test[two_way_interacs_to_keep[1]], " + ", two_way_interacs_to_test[two_way_interacs_to_keep[2]]), paste0(" + (1|Fire)"))
-
-# Test 3-way interaction
-three_way_interacs_to_test <- c("Shrubs:fsplanted:facts.planting.first.year")
-
-# Model with 3-way interaction 
-formula_3way <- paste0("ln.dens.planted ~ ", paste(vars_to_test, collapse = "+"), paste0(" + ", two_way_interacs_to_test[two_way_interacs_to_keep[1]], " + ", two_way_interacs_to_test[two_way_interacs_to_keep[2]], " + ",  "Shrubs:fsplanted", " + ", three_way_interacs_to_test), paste0(" + (1|Fire)"))
-
-mod_3way <- lmer(formula = formula_3way, data = plot_dhm_for_model, REML = TRUE)
-summary(mod_3way)
-AIC(mod_3way, mod_2way)                 
-
-# Drop variables that don't help model 
-step(mod_3way, direction = "backward")
-
-# Result: "ln.dens.planted ~ tmin + normal_annual_precip + Shrubs + log10SeedWallConifer + tpi2000 + elev + facts.planting.first.year + fsplanted + (1 | Fire) + tmin:normal_annual_precip + tpi2000:elev + Shrubs:fsplanted + Shrubs:facts.planting.first.year:fsplanted"
- 
-formula_final <- "ln.dens.planted ~ tmin + normal_annual_precip + Shrubs + log10SeedWallConifer + tpi2000 + elev + facts.planting.first.year + fsplanted +  tmin:normal_annual_precip + tpi2000:elev + Shrubs:fsplanted + Shrubs:facts.planting.first.year:fsplanted + (1 | Fire)"
-
-pltd_final <- lmer(formula_final, data = plot_dhm_for_model, REML = TRUE)
-summary(pltd_final)

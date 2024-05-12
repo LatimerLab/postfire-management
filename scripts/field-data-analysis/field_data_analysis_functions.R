@@ -20,13 +20,14 @@ make_formula <- function(response, predictors, groups = NULL) {
 }
 
 # Fit lmer model, given a response and vectors of predictors and groups
-fit_lmer_model <- function(response, predictors, groups = NULL, dataset){
-  if (is.null(response) | is.null(predictors)) {
+# Note this is set up so that it works with lapply() over the list of fixed effect vectors -- so the parameter x is a character vector of fixed effects to include in the model. 
+fit_lmer_model <- function(x, response, groups = NULL, dataset){
+  if (is.null(response) | is.null(x)) {
     print("Missing response or predictors")
     return()
   }
-  mod_form <- make_formula(response, predictors, groups)
-  m <- lmer(mod_form, dataset, REML = TRUE)
+  mod_form <- make_formula(response, predictors = x, groups)
+  m <- lmer(mod_form, dataset, REML = FALSE, control = lmerControl(optimizer="bobyqa", optCtrl=list(maxfun=2e5)))
   return(m)
 }
   
