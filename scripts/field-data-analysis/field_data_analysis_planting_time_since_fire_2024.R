@@ -126,7 +126,13 @@ summary(model_list_3way[[6]])
 
 #### Next and final step: Backward stepwise elimination of variables using AIC ####
 
-full_model_3way <- fit_lmer_model(x = c(vars_to_test_3way, two_way_interacs_to_test[6], three_way_interacs_to_test[6]), response = response_variable, groups = groups, dataset = plot_dhm_for_model) 
+full_model_3way <- fit_lmer_model(x = c(vars_to_test_3way, two_way_interacs_to_test[6], three_way_interacs_to_test[6]), response = response_variable, groups = groups, data = plot_dhm_for_model) 
 
 step(full_model_3way, direction = "backward") # This is throwing an error for some reason?? 
+dropterm(full_model_3way, direction = "backward") # This is throwing an error for some reason?? 
 
+
+drop_terms <- drop1(full_model_3way)
+names(drop_terms)
+
+stepcAIC(full_model_3way, direction = "backward", data = plot_dhm_for_model)
