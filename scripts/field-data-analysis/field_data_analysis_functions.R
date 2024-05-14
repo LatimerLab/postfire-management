@@ -35,19 +35,43 @@ fit_lmer_model <- function(x, response, groups = NULL, data){
 # z = make_formula("response", c("pred1", "pred2") , groups ="Fire")
 # m = fit_lmer_model("ln.dens.planted", vars_to_test, groups ="Fire", dataset = plot_dhm_for_model)
 
-backwards_eliminate <- function(m, k = 2) {
-  # Get the response, fixed effect variables, and random effect variables from the model object
-  terms <- all.vars(terms(m))
-  response <- terms[1]
-  fixef_vector <- terms[2:length(terms)]
+# From an lmer model, extract the response, main effects, interactions, and grouping variables and return a list containing those (the attributes of the list are "response", "main_effects_vector", "interaction_vector", and "groups")
+extract_model_terms <- function(m) {
+  require(stringr)
+  # Get the response variable, grouping variable, and lists of main effects and interaction terms from the model formula
+  terms <- attributes(terms(m))
+  response <- all.vars(terms(m))[1]
+  model_terms <- terms$term.labels # Get list of variables including main effects and interactions 
+  interaction_index <- str_detect(model_terms, ":")
+  main_effects_vector <- model_terms[!interaction_index]
+  interaction_vector <- model_terms[interaction_index]
   groups <- names(ranef(m))
-  # Loop through the fixed effects, dropping one at a time and refitting a reduced model for each reduced set of variables 
-  models_drop1 <- list()
-  n_fixef <- length(fixef_vector)
-  for (i in 1:n_fixef) {
-    fixef_drop1 <- fixef_vector[-i]
-    models_drop1[[i]] <- fit_lmer_model(x = fixef_drop1, response = response, groups = groups, data = m@frame)
+  model_terms <- list(response = response, main_effects_vector = main_effects_vector, interaction_vector = interaction_vector, groups = groups)
+  return(model_terms)
+}
+
+return_reduced_main_effects <- function(m, main_effects_vector, interac_vector) { # Function takes an lmer model as input, and returns a list of formulas that are all the formulas for models that are minus one main effect (as in drop1) 
+
+  #fixed_effects_vector <- names(fixef(m))
+  #fixed_effects_vector <- fixed_effect_vector[-1] # remove intercept
+  #interaction_index <- str_detect(fixed_effects_vector, ":")
+  #interac_vector <- fixed_effects_vector[interaction_index]
+  #main_effects_vector <- fixed_effects_vector[!interaction_index]
+  # Create a list to hold the formulas for reduced models 
+  formulas_drop1 <- list()
+  # Loop through and d
+  for (i in 1:length(main_effects_vector)) {
+    main_effects_drop1 <- main_effects_vector[-i]
+    formulas_drop1[[i]] <- make_formula(response = response, predictors = c(main_effects_drop1, interac_vector), groups = groups)
   }
+  return(formulas_drop1)
+}
+
+backwards_eliminate <- function(m, main_effects_vector, interac_vector) {
+  require(lmer)
+  # Get the response, fixed effect variables, and random effect variables from the model object
+  model_formulas_drop1 <- return_reduced_main_effects(m, main_effects_vector, interac_vector)
+  model_list_drop1 <- lapply(model_formulas_drop1, lmer, data = m@frame)
   # Get the AIC of the fitted models and find the one with lowest AIC
   AIC_drop1 <- unlist(lapply(models_drop1, AIC))
   lowest_AIC_variable <- which.min(AIC_drop1)
