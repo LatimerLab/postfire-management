@@ -50,37 +50,43 @@ extract_model_terms <- function(m) {
   return(model_terms)
 }
 
-return_reduced_main_effects <- function(m, main_effects_vector, interac_vector) { # Function takes an lmer model as input, and returns a list of formulas that are all the formulas for models that are minus one main effect (as in drop1) 
+# Return a list of "drop1" subsets of a vector, so that each subset in the list has one element of the vector sequentially deleted. 
+vector_drop1 <- function(v) {
+  vector_list_drop1 <- list() 
+  for (i in 1:length(v)) vector_list_drop1[[i]] <- v[-i]
+  return(vector_list_drop1)
+}
 
-  #fixed_effects_vector <- names(fixef(m))
-  #fixed_effects_vector <- fixed_effect_vector[-1] # remove intercept
-  #interaction_index <- str_detect(fixed_effects_vector, ":")
-  #interac_vector <- fixed_effects_vector[interaction_index]
-  #main_effects_vector <- fixed_effects_vector[!interaction_index]
-  # Create a list to hold the formulas for reduced models 
-  formulas_drop1 <- list()
-  # Loop through and d
-  for (i in 1:length(main_effects_vector)) {
-    main_effects_drop1 <- main_effects_vector[-i]
-    formulas_drop1[[i]] <- make_formula(response = response, predictors = c(main_effects_drop1, interac_vector), groups = groups)
+return_reduced_main_effects <- function(m) { # Function takes an lmer model as input, and returns a list of formulas that are all the formulas for models that are minus one main effect (as in drop1) 
+  model_terms <- extract_model_terms(m) # get info for model formulas
+  main_effects_drop1 <- vector_drop1(model_terms$main_effects_vector) # create list of main effects with one dropped sequentially
+  formulas_drop1 <- list() 
+  for (i in 1:length(main_effects_drop1)) { 
+    formulas_drop1[[i]] <- make_formula(response = model_terms$response, predictors = c(main_effects_drop1[[i]], model_terms$interaction_vector), groups = model_terms$groups)
   }
   return(formulas_drop1)
 }
 
-backwards_eliminate <- function(m, main_effects_vector, interac_vector) {
-  require(lmer)
+# This function takes a current model, m, and tests all nested subsets of the model that sequentially remove one main effect. 
+backwards_eliminate <- function(m) {
+  require(lme4)
   # Get the response, fixed effect variables, and random effect variables from the model object
-  model_formulas_drop1 <- return_reduced_main_effects(m, main_effects_vector, interac_vector)
-  model_list_drop1 <- lapply(model_formulas_drop1, lmer, data = m@frame)
+  formulas_drop1 <- return_reduced_main_effects(m)
+  model_list_drop1 <- lapply(formulas_drop1, lmer, data = m@frame, REML = FALSE)
   # Get the AIC of the fitted models and find the one with lowest AIC
-  AIC_drop1 <- unlist(lapply(models_drop1, AIC))
+  AIC_drop1 <- unlist(lapply(model_list_drop1, AIC))
   lowest_AIC_variable <- which.min(AIC_drop1)
-  lowest_AIC <- AIC(models_drop1[[lowest_AIC_variable]])
-  lowest_AIC_model <- models_drop1[[lowest_AIC_variable]]
-  
+  lowest_AIC <- AIC(model_list_drop1[[lowest_AIC_variable]])
+  lowest_AIC_model <- model_list_drop1[[lowest_AIC_variable]]
   # Check if the lowest AIC is more than 2 points higher than the AIC of the full model. If so, keep all the variables. If not, drop the variable whose removal leaves the model with the lowest AIC. 
-  if (lowest_AIC_model - AIC(m) < 2) {
-    print(past0("The least explanatory variable is ", )
+  if ((lowest_AIC - AIC(m) < 2)) {
+    variable_to_remove <- attributes(terms(m))$term.labels[lowest_AIC_variable]
+    print(paste0("The least explanatory variable is ", variable_to_remove, "."))
+    return(lowest_AIC_model)
+  }
+  else {
+    print("Eliminating any main effect increases AIC by >=2 points. All variables should be retained.")
+    return(NULL)
   }
 }
 
