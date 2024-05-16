@@ -126,13 +126,49 @@ summary(model_list_3way[[6]])
 
 #### Next and final step: Backward stepwise elimination of variables using AIC ####
 
-full_model_3way <- fit_lmer_model(x = c(vars_to_test_3way, two_way_interacs_to_test[6], three_way_interacs_to_test[6]), response = response_variable, groups = groups, data = plot_dhm_for_model) 
+# Set up full model from which to test dropping terms
+full_model_formula <- make_formula(response = response_variable, predictors = c(vars_to_test_3way, two_way_interacs_to_test[6], three_way_interacs_to_test[6]), groups = groups)
+full_model_3way <- lmer(full_model_formula, data = plot_dhm_for_model, na.action = na.pass, REML=FALSE)
 
-step(full_model_3way, direction = "backward") # This is throwing an error for some reason?? 
+# Variables not to include in the backwards stepwise elimination 
+# These are ones involved in interactions that were already tested and added 
+fixed_vars <- c("tmin", "normal_annual_precip", "tpi2000", "elev", "Shrubs", "fsplanted", "facts.planting.first.year")
+
+m2 <- backwards_eliminate(full_model_3way, fixed = fixed_vars) # Remove Shrubs
+m2
+
+m3 <- backwards_eliminate(m2$model_list[[11]])
+m3 # model wants to take out normal_annual_precip again. Next lowest AIC is the model without rad_summer 
+
+m4 <- backwards_eliminate(m3$model_list[[3]])
+m4 # same story, this time remove Forbs 
+
+m5 <- backwards_eliminate(m4$model_list[[3]])
+m5 # same story, this time remove Forbs 
+
+m4 <- backwards_eliminate(m3)
+m5 <- backwards_eliminate(m4)
+m6 <- backwards_eliminate(m5)
+m7 <- backwards_eliminate(m6)
+m7 <- backwards_eliminate(m7)
+
+
+# Try using dredge to do stepwise elimination (too slow! not sure how to best get it to consider only the models minus only one variable at a time. Could set up all single-variable deletion models then use dredge to rank?? 
+cl <- makeCluster(8)
+droptest <- dredge(full_model_3way, rank = "AIC", fixed = c("facts.planting.first.year", "fsplanted"), cluster = cl)
+droptest
+stopCluster(cl)
+
+
+
+stepAIC(full_model_3way)
+
+
+step(full_model_3way, direction = "backward", data = plot_dhm_for_model) # This is throwing an error for some reason?? 
 dropterm(full_model_3way, direction = "backward") # This is throwing an error for some reason?? 
 
 
 drop_terms <- drop1(full_model_3way)
 names(drop_terms)
 
-stepcAIC(full_model_3way, direction = "backward", data = plot_dhm_for_model)
+stepcAIC(full_model_3way, direction = "backward", data = plot_dhm_for_model, trace = TRUE, numberOfSavedModels = 10)
