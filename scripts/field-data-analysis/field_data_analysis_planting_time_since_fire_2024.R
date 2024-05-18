@@ -65,7 +65,8 @@ two_way_interacs_to_test <- c("tmin:fsplanted", "normal_annual_precip:fsplanted"
     "normal_annual_precip:rad_summer", "twi:normal_annual_precip", 
     "twi:rad_summer", "twi:elev", "tpi2000:normal_annual_precip", 
     "tpi2000:tmin", "tpi2000:elev")
-three_way_interacs_to_test <- c("tmin:fsplanted:facts.planting.first.year", 
+# Testing only one 3-way-interaction?? Shrubs:fsplanted:facts.planting.first.year
+#three_way_interacs_to_test <- c("tmin:fsplanted:facts.planting.first.year", 
     "normal_annual_precip:fsplanted:facts.planting.first.year", 
     "rad_summer:fsplanted:facts.planting.first.year", 
     "Forbs:fsplanted:facts.planting.first.year", 
