@@ -130,9 +130,11 @@ forward_select <- function(m, data, terms_to_add) {
   lowest_AIC_model <- models_add1[[lowest_AIC_variable]]
   
   if ((lowest_AIC - AIC(m)) < 2) {
-    variable_to_remove <- formulas_drop1$terms_tested[lowest_AIC_variable]
-    print(paste0("The least explanatory variable is ", variable_to_remove, "."))
-    return(list(model_list = model_list_drop1, AIC_values <- AIC_drop1))
+    variable_to_add <- terms_to_add[lowest_AIC_variable]
+    print(paste0("The most explanatory variable is ", variable_to_add, "."))
+    return(models_add1[[lowest_AIC_variable]])
   }
 }
 
+# Test: 
+#forward_select(pines_base_model, terms_to_add = vars_to_test[1:12])
