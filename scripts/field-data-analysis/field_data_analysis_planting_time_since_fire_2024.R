@@ -50,6 +50,9 @@ vars_to_test <- c("tmin", "normal_annual_precip",
 plot_dhm_for_model <- dplyr::select(plot_dhm, ln.dens.planted, paste(vars_to_test), Fire, PairID, PlotID)
 plot_dhm_for_model[, 2:13] <- scale(plot_dhm_for_model[, 2:13])
 
+# Reorder planted variable so unplanted is the base
+plot_dhm_for_model <- mutate(plot_dhm_for_model, fsplanted = relevel(fsplanted, "unplanted"))
+
 # Check for missing values 
 apply(plot_dhm_for_model, 2, f<-function(x) {return(sum(is.na(x)))}) # OK
 
@@ -118,10 +121,6 @@ model_list_3way <- lapply(model_fixed_effects_3way, FUN = fit_lmer_model, respon
 AIC_vals_3way <- unlist(lapply(model_list_3way, AIC))
 
 which((AIC(base_model_2way) - AIC_vals_3way) >= 2) # Shrub interaction improves AIC. Maybe so does precip, but that model won't converge. Ditch it? 
-
-# QUESTION what happened to the shrubs effects? 
-summary(model_list_3way[[2]])
-summary(model_list_3way[[6]])
 
 
 #### Next and final step: Backward stepwise elimination of variables using AIC ####
