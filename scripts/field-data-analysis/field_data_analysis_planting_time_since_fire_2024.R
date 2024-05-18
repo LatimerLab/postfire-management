@@ -91,10 +91,10 @@ response_variable <- "ln.dens.planted"
 groups <- "Fire"
 
 # Fit base model with only main effects
-base_model <- fit_lmer_model(x = vars_to_test, response = response_variable, groups = groups, dataset = plot_dhm_for_model) 
+base_model <- fit_lmer_model(x = vars_to_test, response = response_variable, groups = groups, data = plot_dhm_for_model) 
 
 # Fit all the models with interactions to test
-model_list <- lapply(model_fixed_effects, FUN = fit_lmer_model, response = response_variable, groups = groups, dataset = plot_dhm_for_model)
+model_list <- lapply(model_fixed_effects, FUN = fit_lmer_model, response = response_variable, groups = groups, data = plot_dhm_for_model)
 
 AIC_vals <- unlist(lapply(model_list, AIC))
 
@@ -107,7 +107,7 @@ model_list[[20]]# tpi2000:elev
 vars_to_test_3way <- c(vars_to_test, "tmin:normal_annual_precip", "tpi2000:elev")
 
 # Fit base model with 2-way interactions, but without any 3-way interactions 
-base_model_2way <- fit_lmer_model(x = vars_to_test_3way, response = response_variable, groups = groups, dataset = plot_dhm_for_model) 
+base_model_2way <- fit_lmer_model(x = vars_to_test_3way, response = response_variable, groups = groups, data = plot_dhm_for_model) 
 
 # Create a list of candidate 3-way interactions 
 model_fixed_effects_3way <- list()
@@ -116,7 +116,7 @@ for (i in 1:length(three_way_interacs_to_test)) {
 }
 
 # Fit all the models with 3-way interactions to test
-model_list_3way <- lapply(model_fixed_effects_3way, FUN = fit_lmer_model, response = response_variable, groups = groups, dataset = plot_dhm_for_model)
+model_list_3way <- lapply(model_fixed_effects_3way, FUN = fit_lmer_model, response = response_variable, groups = groups, data = plot_dhm_for_model)
 
 AIC_vals_3way <- unlist(lapply(model_list_3way, AIC))
 
