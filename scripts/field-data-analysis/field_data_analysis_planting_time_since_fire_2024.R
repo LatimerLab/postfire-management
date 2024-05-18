@@ -13,7 +13,7 @@ library(sjPlot)
 library(MuMIn)
 library(Hmisc)
 library(car)
-library(DHARMa)
+library(DHARMa) 
 
 # Load the functions needed for this script
 source("./scripts/field-data-analysis/field_data_analysis_functions.R")
@@ -137,38 +137,33 @@ fixed_vars <- c("tmin", "normal_annual_precip", "tpi2000", "elev", "Shrubs", "fs
 m2 <- backwards_eliminate(full_model_3way, fixed = fixed_vars) # Remove Shrubs
 m2
 
-m3 <- backwards_eliminate(m2$model_list[[11]])
-m3 # model wants to take out normal_annual_precip again. Next lowest AIC is the model without rad_summer 
+m3 <- backwards_eliminate(m2$model_list[[6]], fixed = fixed_vars)
+m3 # remove rad_summer
 
-m4 <- backwards_eliminate(m3$model_list[[3]])
-m4 # same story, this time remove Forbs 
+m4 <- backwards_eliminate(m3$model_list[[1]], fixed = fixed_vars)
+m4 # remove Forbs 
 
-m5 <- backwards_eliminate(m4$model_list[[3]])
-m5 # same story, this time remove Forbs 
+m5 <- backwards_eliminate(m4$model_list[[1]], fixed = fixed_vars)
+m5 # remove CWD_sound 
 
-m4 <- backwards_eliminate(m3)
-m5 <- backwards_eliminate(m4)
-m6 <- backwards_eliminate(m5)
-m7 <- backwards_eliminate(m6)
-m7 <- backwards_eliminate(m7)
+m6 <- backwards_eliminate(m5$model_list[[4]], fixed = fixed_vars)
+m6 # remove Grasses
 
-
-# Try using dredge to do stepwise elimination (too slow! not sure how to best get it to consider only the models minus only one variable at a time. Could set up all single-variable deletion models then use dredge to rank?? 
-cl <- makeCluster(8)
-droptest <- dredge(full_model_3way, rank = "AIC", fixed = c("facts.planting.first.year", "fsplanted"), cluster = cl)
-droptest
-stopCluster(cl)
+m7 <- backwards_eliminate(m6$model_list[[1]], fixed = fixed_vars)
+m7 # remove ShrubHt
 
 
+m8 <- backwards_eliminate(m7$model_list[[1]], fixed = fixed_vars)
+# STOP -- all variables retained. 
 
-stepAIC(full_model_3way)
+#### FINAL MODEL ##### 
+seedling_density_final_model <- m7$model_list[[1]]
 
+r.squaredGLMM(seedling_density_final_model) # R2 seems decent at 0.53 marginal
+summary(seedling_density_final_model)
 
-step(full_model_3way, direction = "backward", data = plot_dhm_for_model) # This is throwing an error for some reason?? 
-dropterm(full_model_3way, direction = "backward") # This is throwing an error for some reason?? 
+# Check model residuals using DHARMa residuals
+simulationOutput <- simulateResiduals(fittedModel = seedling_density_final_model)
+plot(simulationOutput) # Residuals qqplot and distribution are fine; quantile deviations detected at the lower quantile level. 
 
-
-drop_terms <- drop1(full_model_3way)
-names(drop_terms)
-
-stepcAIC(full_model_3way, direction = "backward", data = plot_dhm_for_model, trace = TRUE, numberOfSavedModels = 10)
+save(seedling_density_final_model, file = "./output/seedling_density_final_model.Rdata")
