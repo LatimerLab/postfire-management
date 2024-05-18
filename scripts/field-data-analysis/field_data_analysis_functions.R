@@ -19,6 +19,13 @@ make_formula <- function(response, predictors, groups = NULL) {
   return(as.formula(formula_out))
 }
 
+# Check a data frome for missing values and tell which columns have them
+check_missing_values <- function(d) {
+  missing_count <- apply(d, 2, f <- function(x){return(sum(is.na(x)))})
+  return(missing_count)
+}
+
+
 # Fit lmer model, given a response and vectors of predictors and groups
 # Note this is set up so that it works with lapply() over the list of fixed effect vectors -- so the parameter x is a character vector of fixed effects to include in the model. 
 fit_lmer_model <- function(x, response, groups = NULL, data){
@@ -38,15 +45,20 @@ fit_lmer_model <- function(x, response, groups = NULL, data){
 # From an lmer model, extract the response, main effects, interactions, and grouping variables and return a list containing those (the attributes of the list are "response", "main_effects_vector", "interaction_vector", and "groups")
 extract_model_terms <- function(m) {
   require(stringr)
-  # Get the response variable, grouping variable, and lists of main effects and interaction terms from the model formula
+  # Get the grouping variables, main effects, and interactions
   terms <- attributes(terms(m))
   response <- all.vars(terms(m))[1]
   model_terms <- terms$term.labels # Get list of variables including main effects and interactions 
   interaction_index <- str_detect(model_terms, ":")
   main_effects_vector <- model_terms[!interaction_index]
   interaction_vector <- model_terms[interaction_index]
-  groups <- names(ranef(m))
-  model_terms <- list(response = response, main_effects_vector = main_effects_vector, interaction_vector = interaction_vector, groups = groups)
+    groups <- names(ranef(m))
+  # Get the response variable (different for lmer vs glmer)
+  model_class <- class(m)[1]
+  if (model_class =="lmerModLmerTest") response <- all.vars(terms(m))[1]
+    else if (model_class == "glmerMod") response <- rownames(terms$factors)[1]
+    
+    model_terms <- list(response = response, main_effects_vector = main_effects_vector, interaction_vector = interaction_vector, groups = groups)
   return(model_terms)
 }
 
@@ -57,6 +69,17 @@ vector_drop1 <- function(v, fixed) {
   for (i in 1:length(v)) vector_list_drop1[[i]] <- c(v[-i], fixed)
   return(vector_list_drop1)
 }
+
+return_added_main_effects <- function(m, terms_to_add) { # Function takes an lmer model as input, and returns a list of formulas for models that include each of the variables from terms_to_add, one at a time
+  # the argument fixed is a character vector of terms to keep in the model and NOT consider dropping
+  model_terms <- extract_model_terms(m) # get info for model formulas
+  formulas_add1 <- list() 
+  for (i in 1:length(terms_to_add)) { # loop through the main effects and add one at a time
+    formulas_add1[[i]] <- make_formula(response = model_terms$response, predictors = c(model_terms$main_effects_vector, terms_to_add[i], model_terms$interaction_vector), groups = model_terms$groups)
+  }
+  return(formulas_add1 = formulas_add1)
+}
+
 
 return_reduced_main_effects <- function(m, fixed = NULL) { # Function takes an lmer model as input, and returns a list of formulas that are all the formulas for models that are minus one main effect (as in drop1) 
   # the argument fixed is a character vector of terms to keep in the model and NOT consider dropping
@@ -96,15 +119,20 @@ backwards_eliminate <- function(m, fixed = NULL) { ## TO DO: add "fixed" argumen
   }
 }
 
-
- 
-#add_interaction <- function(formula, interaction_to_add) {
-#  if (is.null(formula) | is.null(interaction_to_add)) {
-#    print("Missing formula or interaction to add")
-#    return()
-#  }
-#  formula_out <- paste0(formula, " + ", interaction_to_add)
-#  return(formula_out)
-#}
-
+# This function takes a current model, m, then tests all models that are single-variable additions to the base model. The variables to test are the character vector terms_to_add. The data frame data contains all the variables in the model plus the variables to be tested. 
+forward_select <- function(m, data, terms_to_add) {
+  formulas_add1 <- return_added_main_effects(m, terms_to_add)
+  models_add1 <- lapply(formulas_add1, glmer, data = plot_dhm_pine_std, family = "binomial")
+  # Check if the lowest AIC is more than 2 points higher than the AIC of the base model. If so, don't add any variables. If so, add the variable that improves the model AIC the most. 
+  AIC_add1 <- unlist(lapply(models_add1, AIC))
+  lowest_AIC_variable <- which.min(AIC_add1)
+  lowest_AIC <- AIC(models_add1[[lowest_AIC_variable]])
+  lowest_AIC_model <- models_add1[[lowest_AIC_variable]]
+  
+  if ((lowest_AIC - AIC(m)) < 2) {
+    variable_to_remove <- formulas_drop1$terms_tested[lowest_AIC_variable]
+    print(paste0("The least explanatory variable is ", variable_to_remove, "."))
+    return(list(model_list = model_list_drop1, AIC_values <- AIC_drop1))
+  }
+}
 
