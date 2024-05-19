@@ -1,3 +1,6 @@
+#### Script to set up data and do forward model selection for proportion pine ###
+# This approach treats the data as binomial with successes = count of pines, and failures = count of non-pine conifers. 
+
 library(tidyverse)
 library(lme4)
 library(lmerTest)
@@ -6,11 +9,12 @@ library(sjPlot)
 library(MuMIn)
 library(Hmisc)
 library(car)
-library(brms)
-#library(BiodiversityR)
 
 # Load data 
 load("./output/plotSeedlingData.RData") 
+
+# Load the functions needed for this script
+source("./scripts/field-data-analysis/field_data_analysis_functions.R")
 
 # Calculate mean seedling densities and other characteristics for each fire 
 plot_dhm %>% group_by(Fire) %>% 
@@ -47,22 +51,11 @@ plot_dhm_pine_std <- stdize(plot_dhm_pine[ , vars_to_test_continuous], prefix = 
 # add factor variables
 plot_dhm_pine_std <- cbind(plot_dhm_pine_std, plot_dhm_pine[, vars_to_test_factor])
 
-# Sdd the response 
-
-#Binomial version: 
+# Add the binomial response 
+# this step converts the density of tree per hectare to a count in the 401m2 plot
 plot_dhm_pine_std <- mutate(plot_dhm_pine_std, 
       seedling_count = round(plot_dhm_pine$dens.conif/24.94098, 0), 
       pine_count = round(plot_dhm_pine$dens.pine/24.94098, 0))
-
-# Continuous [0,1] version for beta regression 
-plot_dhm_pine_std <- mutate(plot_dhm_pine_std, 
-        raw_prop = plot_dhm_pine$dens.pine / plot_dhm_pine$dens.conif)
-# Create new prop variable where 0s and 1s are replaced by halfway between min/max value and 0/1
-min_prop <- min(plot_dhm_pine_std$raw_prop[plot_dhm_pine_std$raw_prop>0])
-max_prop <- max(plot_dhm_pine_std$raw_prop[plot_dhm_pine_std$raw_prop<1])
-plot_dhm_pine_std$prop_response <- plot_dhm_pine_std$raw_prop
-plot_dhm_pine_std$prop_response[plot_dhm_pine_std$raw_prop == 0] <- min_prop
-plot_dhm_pine_std$prop_response[plot_dhm_pine_std$raw_prop == 1] <- max_prop
 
 # Add the grouping variables 
 plot_dhm_pine_std <- cbind(plot_dhm_pine_std, plot_dhm_pine[, c("Fire", "PairID")])
@@ -88,5 +81,54 @@ AIC(pines_base_model)
 
 # Do this by testing all the variables individually, finding which gives lowest AIC (if any improve AIC by more than 2), then adding that variable, then repeat. 
 
+vars_to_try_adding <- vars_to_test_continuous
+m2 <- forward_select(pines_base_model, terms_to_add = vars_to_try_adding)
+
+m3 <- forward_select(m2$model, terms_to_add = m2$variables_to_test)
+m4 <- forward_select(m3$model, terms_to_add = m3$variables_to_test)
+m5 <- forward_select(m4$model, terms_to_add = m4$variables_to_test)
+# Model failed to converge here. Stop with m4. 
+
+#### Test adding interactions ####
+
+pines_main_effects_model <- m4$model
+
+model_terms <- extract_model_terms(pines_main_effects_model)
+
+two_way_interacs_to_test <- c("Shrubs:fsplanted", "ShrubHt:fsplanted", 
+                              "twi:fsplanted")
+
+# Create a list of fixed effects for all models with 2-way interactions 
+model_fixed_effects <- list()
+for (i in 1:length(two_way_interacs_to_test)) model_fixed_effects[[i]] <- c(model_terms$main_effects_vector, model_terms$interaction_vector, two_way_interacs_to_test[i]) 
 
 
+#### Fit all models with 2-way interactions and get AIC #### 
+
+response_variable <- "cbind(pine_count, seedling_count-pine_count)"
+groups <- "Fire"
+
+# Fit base model with only main effects
+base_model <- fit_binomial_glmer_model(x = vars_to_test, response = response_variable, groups = groups, data = plot_dhm_pine_std) 
+
+# Fit all the models with interactions to test
+model_list <- lapply(model_fixed_effects, FUN = fit_binomial_glmer_model, response = response_variable, groups = groups, data = plot_dhm_pine_std)
+
+AIC_vals <- unlist(lapply(model_list, AIC))
+
+which((AIC(base_model) - AIC_vals) >= 2) # Model 1 has lower AIC than the base model
+model_list[[1]] # fsplanted:Shrubs 
+
+#### Now test 3-way interaction with Shrubs #####
+
+pines_model_2way <- model_list[[1]]
+
+pines_model_3way <-fit_binomial_glmer_model(x = c(model_fixed_effects[[1]], "Shrubs:fsplanted:facts.planting.first.year"), response = response_variable, groups = groups, data = plot_dhm_pine_std)
+AIC(pines_model_2way, pines_model_3way) # Convergence problems with the 3-way interaction 
+# Checking AIC, the 3-way interaction doesn't improve model by 2 points. 
+
+# Stop here and leave out 3-way interaction. 
+
+pines_final_model <- pines_model_2way
+
+save(pines_final_model, file = "./output/proportion_pines_final_model.Rdata")
