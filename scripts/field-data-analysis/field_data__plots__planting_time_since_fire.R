@@ -117,7 +117,7 @@ plantedYearShrubs <- ggplot(data = predicted_pltd.pys,
         legend.position = "top", legend.title=element_blank(),
         panel.spacing.x = unit(.11, "lines"),
         panel.spacing.y = unit(.6, "lines"))
-ggsave(plantedYearShrubs, file="figures/manuscript/plantedYearShrubs.pdf", width=6.5, height=4.5)
+ggsave(plantedYearShrubs, file="figures/manuscript_resub/plantedYearShrubs.pdf", width=6.5, height=4.5)
 
   
 
@@ -128,7 +128,6 @@ ggsave(plantedYearShrubs, file="figures/manuscript/plantedYearShrubs.pdf", width
 Shrubs_median <- median(plot_dhm$Shrubs)
 facts.planting.first.year_median <- 2
 log10SeedWallConifer_median = median(plot_dhm$log10SeedWallConifer)
-LitDuff_median <- median(plot_dhm$LitDuff)
 tpi2000_median <- median(plot_dhm$tpi2000)
 elev_median <- median(plot_dhm$elev)
 
@@ -143,7 +142,6 @@ predict_pltd.tp <- expand.grid(Shrubs = Shrubs_median,
                                 log10SeedWallConifer = log10SeedWallConifer_median,
                                 tmin = tmin_levels,
                                 normal_annual_precip = normal_annual_precip_levels,
-                                LitDuff = LitDuff_median,
                                 tpi2000 = tpi2000_median,
                                 elev = elev_median,
                                 Fire = "hypothetical",
@@ -183,21 +181,16 @@ tminPrecip <-
         legend.position = "top", 
         panel.spacing.x = unit(.11, "lines"),
         panel.spacing.y = unit(.6, "lines"))
-ggsave(tminPrecip , file="figures/manuscript/tminPrecip.pdf", width=6.5, height=4.5)
-
-#plot(plot_dhm$normal_annual_precip, plot_dhm$tmin)
+ggsave(tminPrecip , file="figures/manuscript_resub/tminPrecip.pdf", width=6.5, height=4.5)
 
 
 ##### Seed wall  -----------------------------------------------
-
-  
   
 # median value for other variables in the model
 tmin_median <- median(plot_dhm$tmin)
 normal_annual_precip_median <- median(plot_dhm$normal_annual_precip)
 Shrubs_median <- median(plot_dhm$Shrubs)
 facts.planting.first.year_median <- 2
-LitDuff_median <- median(plot_dhm$LitDuff)
 tpi2000_median <- median(plot_dhm$tpi2000)
 elev_median <- median(plot_dhm$elev)
   
@@ -211,7 +204,6 @@ predict_pltd.sw <- expand.grid(Shrubs = Shrubs_median,
                                 log10SeedWallConifer = log10SeedWallConifer_levels,
                                 tmin = tmin_median,
                                 normal_annual_precip = normal_annual_precip_median,
-                                LitDuff = LitDuff_median,
                                 tpi2000 = tpi2000_median,
                                 elev = elev_median,
                                 Fire = "hypothetical",
@@ -221,23 +213,11 @@ predict_pltd.sw <- expand.grid(Shrubs = Shrubs_median,
 predicted_pltd.sw <- cbind(predict_pltd.sw, as.data.frame(
   predictSE(pltd, newdata = predict_pltd.sw, re.form = NA, level = 0, type="response", se.fit = TRUE)))
 
-#obs.sw <- predict(pltd, newdata = predict_pltd.sw, re.form=NA)
-#obs_resid.sw <- (obs.sw + resid(pltd,re.form=NA)) 
-#plot_dhm$obs_resid.sw <- exp(obs_resid.sw) -24.99
-
-
-
 seedw <- ggplot(data = predicted_pltd.sw, 
                  aes(y = exp(fit)-24.99, x = 10^(log10SeedWallConifer),linetype = fsplanted)) +
-                 #aes(y = fit*24.99, x = 10^(log10SeedWallConifer),linetype = fsplanted)) + #poisson
-  #geom_point(data = plot_dhm, aes(y=obs_resid.sw, x = 10^(log10SeedWallConifer)), color = "#696030", show.legend = FALSE) +
-  #geom_point(data = plot_dhm %>% filter(fsplanted == "unplanted"), aes(y=dens.planted, x = 10^(log10SeedWallConifer)), color = "#696030", show.legend = FALSE) +
   geom_ribbon(aes(ymax = (exp(fit + se.fit)-24.99), ymin=(exp(fit - se.fit)-24.99)), 
-  #geom_ribbon(aes(ymax = (fit + se.fit)*24.99, ymin = (fit - se.fit)*24.99), #Poisson
               alpha = .15, color = NA, fill = "#756156", show.legend = FALSE) +
-  geom_line(show.legend = FALSE, size = 2, color = "#756156", se = F) +
-  #scale_color_manual(values = c("#8c8863","#756156", "#48553b")) +
-  #scale_fill_manual(values = c("#8c8863","#756156", "#48553b")) +
+  geom_line(show.legend = FALSE, linewidth = 2, color = "#756156") +
   ylab("Seedling Density \n(indv./ha)") +
   xlab("Minimum distance from seed source (m)") +
   #ylim(-10, 230) +
@@ -245,66 +225,7 @@ seedw <- ggplot(data = predicted_pltd.sw,
          axis.text.y = rotatedAxisElementText(angle = 90, position = "y", Size = 10,  Color = "black"), #requires the function to be run at the head of this script
          panel.background = element_rect(fill = NA, color = "black"), panel.grid = element_blank(), 
          legend.position = "top")
-ggsave(seedw , file="figures/manuscript/seedw.pdf", width=3.25, height=3.45)
-
-##### Litter  -----------------------------------------------
-
-
-# median value for other variables in the model
-tmin_median <- median(plot_dhm$tmin) 
-normal_annual_precip_median <- median(plot_dhm$normal_annual_precip) 
-Shrubs_median <- median(plot_dhm$Shrubs)
-facts.planting.first.year_median <- 2
-log10SeedWallConifer_median <- median(plot_dhm$LitDuff)
-tpi2000_median <- median(plot_dhm$tpi2000)
-elev_median <- median(plot_dhm$elev)
-
-# variables to vary for the plot
-LitDuff_levels = (seq(from=min(plot_dhm$LitDuff),to=max(plot_dhm$LitDuff),length.out=701))
-fsplanted_levels <- c("planted","unplanted")
-
-predict_pltd.ld <- expand.grid(Shrubs = Shrubs_median,
-                               facts.planting.first.year = facts.planting.first.year_median,
-                               fsplanted = fsplanted_levels,
-                               log10SeedWallConifer = log10SeedWallConifer_median,
-                               tmin = tmin_median,
-                               normal_annual_precip = normal_annual_precip_median,
-                               LitDuff = LitDuff_levels,
-                               tpi2000 = tpi2000_median,
-                               elev = elev_median,
-                               Fire = "hypothetical",
-                               PairID = "hypothetical")
-
-
-predicted_pltd.ld <- cbind(predict_pltd.ld, as.data.frame(
-  predictSE(pltd, newdata = predict_pltd.ld, re.form = NA, level = 0, type="response", se.fit = TRUE)))
-
-#obs.sw <- predict(pltd, newdata = predict_pltd.sw, re.form=NA)
-#obs_resid.sw <- (obs.sw + resid(pltd,re.form=NA)) 
-#plot_dhm$obs_resid.sw <- exp(obs_resid.sw) -24.99
-
-
-
-litduf <- ggplot(data = predicted_pltd.ld, aes(y = 
-                                                     exp(fit)-24.99,
-                                                     #(fit)*24.99,
-                                               x = LitDuff, linetype = fsplanted)) +
-  #geom_point(data = plot_dhm, aes(y=obs_resid.sw, x = 10^(log10SeedWallConifer)), color = "#696030", show.legend = FALSE) +
-  #geom_point(data = plot_dhm %>% filter(fsplanted == "unplanted"), aes(y=dens.planted, x = 10^(log10SeedWallConifer)), color = "#696030", show.legend = FALSE) +
-  geom_ribbon(aes(ymax = (exp(fit + se.fit)-24.99), ymin=(exp(fit - se.fit)-24.99)), 
-  #geom_ribbon(aes(ymax = ((fit + se.fit)*24.99), ymin=((fit - se.fit)*24.99)), 
-              alpha = .15, color = NA, fill = "#291711", show.legend = FALSE) +
-  geom_line(show.legend = FALSE, size = 2, color = "#291711", se = F) +
-  #scale_color_manual(values = c("#8c8863","#756156", "#48553b")) +
-  #scale_fill_manual(values = c("#8c8863","#756156", "#48553b")) +
-  ylab("Seedling Density \n(indv./ha)") +
-  xlab("Litter + Duff (cm)") +
-  #ylim(-10, 75) +
-  theme( text = element_text(size = 12), 
-         axis.text.y = rotatedAxisElementText(angle = 90, position = "y", Size = 10,  Color = "black"), #requires the function to be run at the head of this script
-         panel.background = element_rect(fill = NA, color = "black"), panel.grid = element_blank(), 
-         legend.position = "top")
-ggsave(litduf, file="figures/manuscript/litduf.pdf", width=3.25, height=3.45)
+ggsave(seedw , file="figures/manuscript_resub/seedw.pdf", width=3.25, height=3.45)
 
 ##### tpi elevation -----------------------------------------------
 
@@ -312,8 +233,7 @@ tmin_median <- median(plot_dhm$tmin)
 normal_annual_precip_median <- median(plot_dhm$normal_annual_precip) 
 Shrubs_median <- median(plot_dhm$Shrubs)
 facts.planting.first.year_median <- 2
-log10SeedWallConifer_median <- median(plot_dhm$LitDuff)
-LitDuff_levels <- median(plot_dhm$LitDuff)
+log10SeedWallConifer_median = median(plot_dhm$log10SeedWallConifer)
 
 # variables to vary for the plot
 tpi2000_levels = (seq(from=min(plot_dhm$tpi2000),to=max(plot_dhm$tpi2000),length.out=701))
@@ -326,7 +246,6 @@ predict_pltd.te <- expand.grid(Shrubs = Shrubs_median,
                                log10SeedWallConifer = log10SeedWallConifer_median,
                                tmin = tmin_median,
                                normal_annual_precip = normal_annual_precip_median,
-                               LitDuff = LitDuff_median,
                                tpi2000 = tpi2000_levels,
                                elev = elev_levels,
                                Fire = "hypothetical",
@@ -344,11 +263,6 @@ tpiElev <-  ggplot(data = predicted_pltd.te %>% mutate(elev = as.factor(elev)), 
   geom_ribbon(aes(ymax = (exp(fit + se.fit)-24.99), ymin=(exp(fit - se.fit)-24.99), color = elev, fill = elev), 
               alpha = .15, color = NA, show.legend = FALSE) +
   geom_smooth(show.legend = FALSE, size = 1.5, se = F) +
-  #geom_point(data = plot_dhm %>% 
-  #            mutate(normal_annual_precip = as.factor(ifelse(normal_annual_precip < 900, 600, 
-  #                                                ifelse(normal_annual_precip > 900 & 
-  #                                                        normal_annual_precip < 1500, 1200, 1800)))), 
-  #                aes(y=dens.planted, x = tmin, color = normal_annual_precip, fill = normal_annual_precip), show.legend = FALSE) +
   scale_color_manual(values = c("#48281E","#4C6B6A", "#C8A104")) +
   scale_fill_manual(values = c("#48281E","#4C6B6A", "#C8A104")) +
   ylab("Seedling Density \nindv./ha)") +
@@ -357,14 +271,14 @@ tpiElev <-  ggplot(data = predicted_pltd.te %>% mutate(elev = as.factor(elev)), 
   facet_wrap(~elev, strip.position = "top", labeller = labeller(elev = elev.labs)) +
   theme(strip.placement = "outside", 
         strip.background = element_rect(fill = "transparent", color = "transparent"), 
-        #strip.text.y = element_text(margin = margin(0,0,0,1)),
         text = element_text(size = 12), 
         axis.text.y = rotatedAxisElementText(angle = 90, position = "y", Size = 10,  Color = "black"), #requires the function to be run at the head of this script
         panel.background = element_rect(fill = NA, color = "black"), panel.grid = element_blank(), 
         legend.position = "top", 
         panel.spacing.x = unit(.11, "lines"),
         panel.spacing.y = unit(.6, "lines"))
-ggsave(tpiElev , file="figures/manuscript/tpiElev.pdf", width=3.25, height=3.45)
+
+ggsave(tpiElev , file="figures/manuscript_resub/tpiElev.pdf", width=3.25, height=3.45)
 
 plot(plot_dhm$normal_annual_precip, plot_dhm$tmin)
 
@@ -379,33 +293,6 @@ predict_pltd.ty$Shrubs <- mean(plot_dhm$Shrubs)
 predict_pltd.ty$fsplanted <- "planted"
 predict_pltd.ty$fsplanted <- as.factor(predict_pltd.ty$fsplanted)
 predict_pltd.ty$LitDuff <- mean(plot_dhm$LitDuff)
-
-
-predicted_pltd.ty <- cbind(predict_pltd.ty, as.data.frame(
-  predictSE(pltd, newdata = predict_pltd.ty, re.form = NA, level = 0, type="response", se.fit = TRUE)))
-predicted_pltd.ty$facts.planting.first.year <- as.factor(predicted_pltd.ty$facts.planting.first.year)
-
-tpiYear <-  ggplot(data = predicted_pltd.ty, aes(y = exp(fit)-24.99, 
-                                                 x = tpi2000, 
-                                                 color = facts.planting.first.year, 
-                                                 fill = facts.planting.first.year)) +
-  geom_point(data = plot_dhm %>% 
-               mutate(facts.planting.first.year = as.factor(facts.planting.first.year)), 
-             aes(y=dens.planted, x = tpi2000, color = facts.planting.first.year, 
-                 fill = facts.planting.first.year), show.legend = FALSE) +
-  geom_ribbon(aes(ymax = (exp(fit + se.fit)-24.99), ymin=(exp(fit - se.fit)-24.99)), 
-              alpha = .15, color = NA, show.legend = FALSE) +
-  geom_smooth(show.legend = FALSE, size = 2, se = F) +
-  scale_color_manual(values = c("#8c8863","#756156", "#48553b")) +
-  scale_fill_manual(values = c("#8c8863","#756156", "#48553b")) +
-  ylab("Seedling Density \nindv./ha)") +
-  xlab("Topographic position index") +
-  ylim(-10, 1300) +
- theme( text = element_text(size = 12), 
-         axis.text.y = rotatedAxisElementText(angle = 90, position = "y", Size = 10,  Color = "black"), #requires the function to be run at the head of this script
-         panel.background = element_rect(fill = NA, color = "black"), panel.grid = element_blank(), 
-         legend.position = "top")
-ggsave(tpiYear , file="figures/manuscript/tpiYear .pdf", width=3.25, height=3.45)
 
 
 ##### Fire table ----------------------------------------------------------------------------------
