@@ -37,28 +37,7 @@ rotatedAxisElementText = function(angle,position='x',Size,Color){
 } # function for rotating axis labels
 
 
-#ln.dens.planted ~ scale(tpi2000)*facts.planting.first.year +
-#  scale(asin(sqrt(Shrubs/100)))*facts.planting.first.year*fsplanted +
-#  scale(tmean)*scale(normal_annual_precip) +
-#  log10SeedWallConifer + scale(ShrubHt) 
-
 ##### year by planted by shrub -----------------------------------------------
-
-#obs_pltd.pys <- plot_dhm %>% select(fsplanted, Shrubs, facts.planting.first.year)
-#obs_pltd.pys$tmin <- median(plot_dhm$tmin)
-#obs_pltd.pys$normal_annual_precip <- median(plot_dhm$normal_annual_precip)
-#obs_pltd.pys$log10SeedWallConifer <- 1.69 #median(plot_dhm$log10SeedWallConifer)
-#obs_pltd.pys$ShrubHt <- median(plot_dhm$ShrubHt)
-#obs_pltd.pys$tpi2000 <- median(plot_dhm$tpi2000)
-#obs_pltd.pys$LitDuff <- median(plot_dhm$LitDuff)
-
-#obs.pys <- predict(pltd, newdata = obs_pltd.pys, re.form=NA)
-#obs_resid.pys <- (obs.pys + resid(pltd,re.form=NA)) 
-#plot_dhm$obs_resid.pys <- exp(obs_resid.pys) -24.99
-
-
-
-
 
 # average value for other variables in the model
 #Shrubs_mean <- mean(plot_dhm$Shrubs)
@@ -281,18 +260,6 @@ tpiElev <-  ggplot(data = predicted_pltd.te %>% mutate(elev = as.factor(elev)), 
 ggsave(tpiElev , file="figures/manuscript_resub/tpiElev.pdf", width=3.25, height=3.45)
 
 plot(plot_dhm$normal_annual_precip, plot_dhm$tmin)
-
-
-predict_pltd.ty <- plot_dhm %>%
-  tidyr::expand(nesting(facts.planting.first.year), tpi2000) 
-predict_pltd.ty$tmin <- mean(plot_dhm$tmin)
-predict_pltd.ty$normal_annual_precip <- mean(plot_dhm$normal_annual_precip)
-predict_pltd.ty$log10SeedWallConifer <- -.6
-#predict_pltd.ty$ShrubHt <- mean(plot_dhm$ShrubHt)
-predict_pltd.ty$Shrubs <- mean(plot_dhm$Shrubs)
-predict_pltd.ty$fsplanted <- "planted"
-predict_pltd.ty$fsplanted <- as.factor(predict_pltd.ty$fsplanted)
-predict_pltd.ty$LitDuff <- mean(plot_dhm$LitDuff)
 
 
 ##### Fire table ----------------------------------------------------------------------------------
