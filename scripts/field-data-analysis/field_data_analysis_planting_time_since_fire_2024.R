@@ -64,7 +64,7 @@ two_way_interacs_to_test <- c("tmin:fsplanted", "normal_annual_precip:fsplanted"
     "CWD_sound:fsplanted", "tmin:normal_annual_precip", 
     "normal_annual_precip:rad_summer", "twi:normal_annual_precip", 
     "twi:rad_summer", "twi:elev", "tpi2000:normal_annual_precip", 
-    "tpi2000:tmin", "tpi2000:elev")
+    "tpi2000:tmin", "tpi2000:elev", "fsplanted:facts.planting.first.year")
 # Testing only one 3-way-interaction?? Shrubs:fsplanted:facts.planting.first.year
 #three_way_interacs_to_test <- c("tmin:fsplanted:facts.planting.first.year", 
     "normal_annual_precip:fsplanted:facts.planting.first.year", 
@@ -102,10 +102,11 @@ AIC_vals <- unlist(lapply(model_list, AIC))
 which((AIC(base_model) - AIC_vals) >= 2) # Models 13 and 20 have lower AIC than the base model
 model_list[[13]] # tmin:normal_annual_precip
 model_list[[20]]# tpi2000:elev
+model_list[[21]] # fsplanted:facts.planting.first.year
 
 #### Start with a base model including the chosen 2-way interactions, then test adding the 3-way interactions 
 
-vars_to_test_3way <- c(vars_to_test, "tmin:normal_annual_precip", "tpi2000:elev")
+vars_to_test_3way <- c(vars_to_test, "tmin:normal_annual_precip", "tpi2000:elev", "fsplanted:facts.planting.first.year")
 
 # Fit base model with 2-way interactions, but without any 3-way interactions 
 base_model_2way <- fit_lmer_model(x = vars_to_test_3way, response = response_variable, groups = groups, data = plot_dhm_for_model) 
@@ -121,7 +122,7 @@ model_list_3way <- lapply(model_fixed_effects_3way, FUN = fit_lmer_model, respon
 
 AIC_vals_3way <- unlist(lapply(model_list_3way, AIC))
 
-which((AIC(base_model_2way) - AIC_vals_3way) >= 2) # Shrub interaction improves AIC. Maybe so does precip, but that model won't converge. Ditch it? 
+which((AIC(base_model_2way) - AIC_vals_3way) >= 2) # Shrub interaction improves AIC. Maybe so does precip, but that model won't converge. Leave the precip interaction out, while adding the Shrub 3-way interaction. 
 
 
 #### Next and final step: Backward stepwise elimination of variables using AIC ####
@@ -134,14 +135,14 @@ full_model_3way <- lmer(full_model_formula, data = plot_dhm_for_model, na.action
 # These are ones involved in interactions that were already tested and added 
 fixed_vars <- c("tmin", "normal_annual_precip", "tpi2000", "elev", "Shrubs", "fsplanted", "facts.planting.first.year")
 
-m2 <- backwards_eliminate(full_model_3way, fixed = fixed_vars) # Remove Shrubs
+m2 <- backwards_eliminate(full_model_3way, fixed = fixed_vars) # Remove twi
 m2
 
 m3 <- backwards_eliminate(m2$model_list[[6]], fixed = fixed_vars)
-m3 # remove rad_summer
+m3 # remove forbs
 
-m4 <- backwards_eliminate(m3$model_list[[1]], fixed = fixed_vars)
-m4 # remove Forbs 
+m4 <- backwards_eliminate(m3$model_list[[2]], fixed = fixed_vars)
+m4 # remove rad_summer
 
 m5 <- backwards_eliminate(m4$model_list[[1]], fixed = fixed_vars)
 m5 # remove CWD_sound 
@@ -167,3 +168,4 @@ simulationOutput <- simulateResiduals(fittedModel = seedling_density_final_model
 plot(simulationOutput) # Residuals qqplot and distribution are fine; quantile deviations detected at the lower quantile level. 
 
 save(seedling_density_final_model, file = "./output/seedling_density_final_model.Rdata")
+
