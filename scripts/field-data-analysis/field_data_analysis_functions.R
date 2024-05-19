@@ -37,10 +37,18 @@ fit_lmer_model <- function(x, response, groups = NULL, data){
   m <- lmer(mod_form, data, REML = FALSE, control = lmerControl(optimizer="bobyqa", optCtrl=list(maxfun=2e5)))
   return(m)
 }
-  
-# testing
-# z = make_formula("response", c("pred1", "pred2") , groups ="Fire")
-# m = fit_lmer_model("ln.dens.planted", vars_to_test, groups ="Fire", dataset = plot_dhm_for_model)
+
+# Fit binomial glmer model, given a response and vectors of predictors and groups
+# Note this is set up so that it works with lapply() over the list of fixed effect vectors -- so the parameter x is a character vector of fixed effects to include in the model. 
+fit_binomial_glmer_model <- function(x, response, groups = NULL, data){
+  if (is.null(response) | is.null(x)) {
+    print("Missing response or predictors")
+    return()
+  }
+  mod_form <- make_formula(response, predictors = x, groups)
+  m <- glmer(mod_form, data, family = "binomial")
+  return(m)
+}
 
 # From an lmer model, extract the response, main effects, interactions, and grouping variables and return a list containing those (the attributes of the list are "response", "main_effects_vector", "interaction_vector", and "groups")
 extract_model_terms <- function(m) {
@@ -132,7 +140,11 @@ forward_select <- function(m, data, terms_to_add) {
   if ((lowest_AIC - AIC(m)) < 2) {
     variable_to_add <- terms_to_add[lowest_AIC_variable]
     print(paste0("The most explanatory variable is ", variable_to_add, "."))
-    return(models_add1[[lowest_AIC_variable]])
+    return(list(model = lowest_AIC_model, variables_to_test = terms_to_add[-lowest_AIC_variable]))
+  }
+  else {
+    print("No main effect addition lowers AIC by >=2 points. Stop forward selection.")
+    return(NULL)
   }
 }
 
