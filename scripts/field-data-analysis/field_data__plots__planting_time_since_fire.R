@@ -8,8 +8,14 @@ library(effects)
 library(sjPlot)
 library(MuMIn)
 
-load(file = "output/modelDataForPlots.RData")
-load("output/plotSeedlingData.RData") #load R object: plot_dhm_long
+#load(file = "output/modelDataForPlots.RData") # loads Quinn's old model versions
+load("output/plotSeedlingData.RData") #load dataframe for prediction and plotting: plot_dhm_long
+
+# Load final model for seedling density 
+load("./output/seedling_density_final_model.Rdata")
+
+# Refit this model using the untransformed data for plotting
+pltd <- lmer(formula(seedling_density_final_model), data = plot_dhm) # assign model name for compatibilit with plotting code
 
 
 fmt_dcimals <- function(decimals=0){
@@ -60,7 +66,7 @@ rotatedAxisElementText = function(angle,position='x',Size,Color){
 log10SeedWallConifer_mean = median(plot_dhm$log10SeedWallConifer)
 tmin_mean <- median(plot_dhm$tmin)
 normal_annual_precip_mean <- median(plot_dhm$normal_annual_precip)
-LitDuff_mean <- median(plot_dhm$LitDuff)
+#LitDuff_mean <- median(plot_dhm$LitDuff)
 tpi2000_mean <- median(plot_dhm$tpi2000)
 elev_mean <- median(plot_dhm$elev)
 
@@ -75,7 +81,7 @@ predict_pltd.pys <- expand.grid(Shrubs = Shrubs_levels,
                       log10SeedWallConifer = log10SeedWallConifer_mean,
                       tmin = tmin_mean,
                       normal_annual_precip = normal_annual_precip_mean,
-                      LitDuff = LitDuff_mean,
+                      #LitDuff = LitDuff_mean,
                       tpi2000 = tpi2000_mean,
                       elev = elev_mean,
                       Fire = "hypothetical",
@@ -91,14 +97,11 @@ predicted_pltd.pys <- cbind(predict_pltd.pys, as.data.frame(
 
 
 plantedYearShrubs <- ggplot(data = predicted_pltd.pys, 
-                            aes(y = (exp(fit)-24.99), x = Shrubs, color = fsplanted, fill = fsplanted)) +
-                            #aes(y = fit*24.99, x = Shrubs, color = fsplanted, fill = fsplanted)) +
-
+                            aes(y = (exp(fit)-24.99), x = Shrubs, 
+                            color = fsplanted, fill = fsplanted)) +
+        
   geom_ribbon(aes(ymax = (exp(fit + se.fit)-24.99), ymin=(exp(fit - se.fit)-24.99)), alpha = .50, color = NA) +
-  #geom_ribbon(aes(ymax = (fit + se.fit)*24.99, ymin= (fit - se.fit)*24.99), alpha = .50, color = NA) +
-  geom_line(show.legend = FALSE, size = 2, se = F) +
-  #geom_point(data = plot_dhm, aes(y=obs_resid.pys, x = Shrubs), show.legend = FALSE) +
-  #geom_point(data = plot_dhm, aes(y=dens.planted, x = Shrubs)) +
+  geom_line(show.legend = FALSE, linewidth = 2) +
   scale_color_manual(values = c("#4f5a3a","#807561")) +
   scale_fill_manual(values = c("#98ab8f","#d1cdb6")) +
   ylab("Seedling Density \n(indv/ha)") +
@@ -108,11 +111,10 @@ plantedYearShrubs <- ggplot(data = predicted_pltd.pys,
   facet_wrap(~facts.planting.first.year, strip.position = "top", labeller = labeller(facts.planting.first.year = year.labs)) +
   theme(strip.placement = "outside", 
         strip.background = element_rect(fill = "transparent", color = "transparent"), 
-        #strip.text.y = element_text(margin = margin(0,0,0,1)),
         text = element_text(size = 12), 
         axis.text.y = rotatedAxisElementText(angle = 90, position = "y", Size = 10,  Color = "black"), #requires the function to be run at the head of this script
         panel.background = element_rect(fill = NA, color = "black"), panel.grid = element_blank(), 
-        legend.position = "top", 
+        legend.position = "top", legend.title=element_blank(),
         panel.spacing.x = unit(.11, "lines"),
         panel.spacing.y = unit(.6, "lines"))
 ggsave(plantedYearShrubs, file="figures/manuscript/plantedYearShrubs.pdf", width=6.5, height=4.5)
@@ -164,12 +166,7 @@ tminPrecip <-
     geom_ribbon(aes(ymax = ifelse((exp(fit + se.fit)-24.99) < 1600,(exp(fit + se.fit)-24.99), 1600), ymin=(exp(fit - se.fit)-24.99), color = normal_annual_precip, fill = normal_annual_precip), 
     #geom_ribbon(aes(ymax = ifelse((fit + se.fit)*24.99 < 1600, (fit + se.fit)*24.99, 1600), ymin=(fit - se.fit)*24.99, color = normal_annual_precip, fill = normal_annual_precip), 
                   alpha = .15, color = NA, show.legend = FALSE) +
-  geom_line(show.legend = FALSE, size = 1.5, se = F, color = "#6D7274") +
-  #geom_point(data = plot_dhm %>% #for Poisson
-   #            mutate(normal_annual_precip = as.factor(ifelse(normal_annual_precip < 900, 600, 
-    #                                                ifelse(normal_annual_precip > 900 & 
-     #                                                        normal_annual_precip < 1500, 1200, 1800)))), 
-      #                aes(y=dens.planted, x = tmin, color = normal_annual_precip, fill = normal_annual_precip), show.legend = FALSE) +
+  geom_line(show.legend = FALSE, linewidth = 1.5, color = "#6D7274") +
   scale_color_manual(values = c("#8FBEDC","#508AA8", "#477998")) +
   scale_fill_manual(values = c("#8FBEDC","#508AA8", "#477998")) +
   ylab("Seedling Density \n(indv./ha)") +
