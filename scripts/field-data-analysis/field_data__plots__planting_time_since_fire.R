@@ -204,7 +204,6 @@ seedw <- ggplot(data = predicted_pltd.sw,
          axis.text.y = rotatedAxisElementText(angle = 90, position = "y", Size = 10,  Color = "black"), #requires the function to be run at the head of this script
          panel.background = element_rect(fill = NA, color = "black"), panel.grid = element_blank(), 
          legend.position = "top")
-ggsave(seedw , file="figures/manuscript_resub/seedw.pdf", width=3.25, height=3.45)
 
 ##### tpi elevation -----------------------------------------------
 
@@ -259,14 +258,12 @@ tpiElev <-  ggplot(data = predicted_pltd.te %>% mutate(elev = as.factor(elev)), 
 
 ggsave(tpiElev , file="figures/manuscript_resub/tpiElev.pdf", width=3.25, height=3.45)
 
-plot(plot_dhm$normal_annual_precip, plot_dhm$tmin)
-
 
 ##### Fire table ----------------------------------------------------------------------------------
 
 Fire.Table.Median <- plot_dhm %>% 
   group_by(Fire) %>%
-  summarize(ln.dens.planted = median(ln.dens.planted),
+  summarise(ln.dens.planted = median(ln.dens.planted),
             fire_year = median(fire_year),
             tpi100 =  median(tpi100),
             tpi500 =  median(tpi500),
@@ -298,13 +295,12 @@ Fire.Table.Median <- plot_dhm %>%
             CWD_sound =  median(CWD_sound),
             LiveOverstory =  median(LiveOverstory),
             aspect_dem =   median(aspect_dem),
-            slope_dem =  median(slope_dem)
-  ) %>%
+            slope_dem =  median(slope_dem)) %>%
   mutate(Type = "Median")
 
 Fire.Table.Minimum <- plot_dhm %>% 
   group_by(Fire) %>%
-  summarize(ln.dens.planted = min(ln.dens.planted),
+  summarise(ln.dens.planted = min(ln.dens.planted),
             fire_year = median(fire_year),              
             tpi100 =  min(tpi100),
             tpi500 =  min(tpi500),
@@ -342,7 +338,7 @@ Fire.Table.Minimum <- plot_dhm %>%
 
 Fire.Table.Maximum <- plot_dhm %>% 
   group_by(Fire) %>%
-  summarize(ln.dens.planted = max(ln.dens.planted),
+  summarise(ln.dens.planted = max(ln.dens.planted),
             fire_year = median(fire_year),           
             tpi100 =  max(tpi100),
             tpi500 =  max(tpi500),
@@ -382,6 +378,7 @@ Fire.Table <- as.data.frame(rbind(Fire.Table.Median, Fire.Table.Maximum, Fire.Ta
 Fire.Table[nrow(Fire.Table) + 1,] <- colnames(Fire.Table) 
 
 Fire.Table <- Fire.Table %>% 
+  dplyr::select(Fire, Type, ln.dens.planted, fire_year, normal_annual_precip, tmin, tmean, tmax, bcm_snowpack, rad_winter, rad_winter_spring, rad_spring, rad_spring_summer, rad_summer, aspect_dem, slope_dem, elev, tpi100, tpi500, tpi2000, tpi5000, twi, log10SeedWall, Forbs, Grasses, Shrubs, ShrubHt, CWD_sound, CWD_rotten, LitterDepth, DuffDepth, LitDuff,LiveOverstory, facts.planting.first.year) %>%
   mutate(ln.dens.planted           = str_replace( ln.dens.planted            , pattern = "ln.dens.planted", replacement = "Seedling Density")) %>% 
   mutate(tpi100                    = str_replace( tpi100                     , pattern = "tpi100", replacement = "Topographic Position Index 100")) %>% 
   mutate(tpi500                    = str_replace( tpi500                     , pattern = "tpi500", replacement = "Topographic Position Index 500")) %>% 
@@ -413,18 +410,15 @@ Fire.Table <- Fire.Table %>%
   mutate(LiveOverstory             = str_replace( LiveOverstory              , pattern = "LiveOverstory", replacement = "%Overstory")) %>% 
   mutate(aspect_dem                = str_replace( aspect_dem                 , pattern = "aspect_dem", replacement = "Aspect"))  %>% 
   mutate(slope_dem                 = str_replace( slope_dem                  , pattern = "slope_dem", replacement = "Slope")) %>%
-  arrange(Fire, Type) %>%
-  select(Fire, Type, ln.dens.planted, fire_year, normal_annual_precip, tmin, tmean, tmax, bcm_snowpack, rad_winter, rad_winter_spring, 
-         rad_spring, rad_spring_summer, rad_summer, aspect_dem, slope_dem, elev, tpi100, tpi500, tpi2000, tpi5000, twi, 
-         log10SeedWall, Forbs, Grasses, Shrubs, ShrubHt, CWD_sound, CWD_rotten, LitterDepth, DuffDepth, LitDuff,
-         facts.planting.first.year)
+  arrange(Fire, Type)
+
                                               
 
 write.csv(Fire.Table, file = "./tables/Fire_Table.csv")
 
-Fire.Table.1 <- Fire.Table %>% select(Fire, fire_year, elev, facts.planting.first.year)
+Fire.Table.1 <- Fire.Table %>% dplyr::select(Fire, fire_year, elev, facts.planting.first.year)
 
-plantinglisttable <- plot_dhm %>% select(Fire, plantingList) %>% distinct()
+plantinglisttable <- plot_dhm %>% dplyr::select(Fire, plantingList) %>% distinct()
 
 
 ##########################################################################################
