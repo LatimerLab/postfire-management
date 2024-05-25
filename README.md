@@ -1,4 +1,4 @@
-# IMPORTANT: This repo is not current. Current development is on the LatimerLab account:
+# IMPORTANT: This repo in the LatimerLab account is the current one. Older branch in the djnyoung account is no longer current. 
 https://github.com/LatimerLab/postfire-management
 
 # Post-fire forest management
