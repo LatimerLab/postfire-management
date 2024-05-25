@@ -25,7 +25,6 @@ pltd <- lmer(ln.dens.planted ~ scale(tpi2000)*scale(elev) +
                #scale(log(planted_density_tpa+24.99)) +
                scale(tmin)*scale(normal_annual_precip) +
                scale(log10SeedWallConifer) +
-               scale(LitDuff) +
                (1|Fire) +
                (1|Fire:PairID),
               REML = F,
@@ -272,12 +271,12 @@ mod.selc.record2.shr <- shr.selc.record2 %>%
   mutate(V1 = str_replace_all(V1, pattern = "scale\\(normal_annual_precip\\)", replacement = "Normal Annual Precipitation")) %>%  
   mutate(V1 = str_replace_all(V1, pattern = "scale\\(twi\\)", replacement = "Total Water Index"))
 
-write.csv(mod.selc.record2.shr, "output/shr.selc.record2.csv")
+#write.csv(mod.selc.record2.shr, "output/shr.selc.record2.csv")
 #save(mod.selc.est.list2, file = "output/mod.selc.est.list_backup2.RData")
 
 r.squaredGLMM(shr)
 
-save(pltd, shr, file = "output/modelDataForPlots.RData")
+#save(pltd, shr, file = "output/modelDataForPlots.RData")
 
 
 cor(plots %>% dplyr::select(elev, rad_winter, slope_dem, normal_annual_precip, twi, tpi100, tpi500, tpi2000, tpi5000, tmax, tmin, tmean),  use = "complete.obs", method = "pearson")
@@ -291,7 +290,7 @@ pltd.nb <- glmer.nb(round(dens.planted/24.94098, 0 ) ~ scale(tpi2000)*scale(elev
                       #scale(ShrubHolisticVolume^(2/3))*facts.planting.first.year*fsplanted +
                       scale(tmin)*scale(normal_annual_precip) +
                       scale(log10SeedWallConifer) +
-                      scale(LitDuff) +
+                      #scale(LitDuff) +
                       (1|Fire) +
                       #l(0+scale(normal_annual_precip)|Fire) + 
                       #(0+scale(tmin_mjjas)|Fire) + 

@@ -47,17 +47,18 @@ plot_dhm_pine_std <- stdize(plot_dhm_pine[ , vars_to_test_continuous], prefix = 
 # add factor variables
 plot_dhm_pine_std <- cbind(plot_dhm_pine_std, plot_dhm_pine[, vars_to_test_factor])
 
-# Sdd the response 
+# Add the response 
 
-#Binomial version: 
+#Binomial version:
+# This version converts counts of tree in the 11.3 m radius plot to trees per hectare, and rounds to nearest integer value. 
 plot_dhm_pine_std <- mutate(plot_dhm_pine_std, 
-      seedling_count = round(plot_dhm_pine$dens.conif/24.94098, 0), 
-      pine_count = round(plot_dhm_pine$dens.pine/24.94098, 0))
+      seedling_count = round(plot_dhm_pine$dens.conif/24.94098, digits = 0), 
+      pine_count = round(plot_dhm_pine$dens.pine/24.94098, digits = 0))
 
 # Continuous [0,1] version for beta regression 
 plot_dhm_pine_std <- mutate(plot_dhm_pine_std, 
         raw_prop = plot_dhm_pine$dens.pine / plot_dhm_pine$dens.conif)
-# Create new prop variable where 0s and 1s are replaced by halfway between min/max value and 0/1
+# Create new prop variable where 0s and 1s are replaced by halfway between min/max value and 0/1 (this allows the model to be fitted as a beta regression -- note an alternative could be to keep the 0s an 1s and fit a ZOIB)
 min_prop <- min(plot_dhm_pine_std$raw_prop[plot_dhm_pine_std$raw_prop>0])
 max_prop <- max(plot_dhm_pine_std$raw_prop[plot_dhm_pine_std$raw_prop<1])
 plot_dhm_pine_std$prop_response <- plot_dhm_pine_std$raw_prop
@@ -70,13 +71,16 @@ plot_dhm_pine_std <- cbind(plot_dhm_pine_std, plot_dhm_pine[, c("Fire", "PairID"
 # Reorder planted variable so unplanted is the base
 plot_dhm_pine_std <- mutate(plot_dhm_pine_std, fsplanted = relevel(fsplanted, "unplanted"))
 
-# remove NAs so model comparison is on par for all variable combinations 
-apply(plot_dhm_pine_std, 2, f <- function(x) {return(sum(is.na(x)))}) # only 1 row has missing data
-plot_dhm_pine_std <- plot_dhm_pine_std[complete.cases(plot_dhm_pine_std),]
+# Check again for NAs 
+check_missing_values(plot_dhm_pine[,vars_to_test_continuous])
+# if necessary remove some rows 
+#plot_dhm_pine_std <- plot_dhm_pine_std[complete.cases(plot_dhm_pine_std),]
 
 #### Fit same model as used for seedling density model ####
 
-prop_pine_formula <- as.formula("prop_response ~ tpi2000 * elev + Shrubs * facts.planting.first.year * fsplanted + tmin * normal_annual_precip + log10SeedWallConifer + (1|Fire) + (1|Fire:PairID)")
+prop_pine_formula <- as.formula("prop_response ~ tpi2000 * elev + Shrubs * facts.planting.first.year * fsplanted + tmin * normal_annual_precip + log10SeedWallConifer + (1|Fire)")
+
+prop_pine_m2 <- lmer(formula = prop_pine_forumula, family = "beta")#, save_pars = save_pars(all = TRUE))
 
 pines.m1 <- brm(formula = prop_pine_formula, data=plot_dhm_pine_std, family="beta", save_pars = save_pars(all = TRUE))
 pines.m1
@@ -108,11 +112,11 @@ plot(pines.m1.fitted ~ plot_dhm_pine_std$prop_response) # not awesome, not terri
 #fm_formula <- as.formula("cbind(seedling_count, pine_count) ~ normal_annual_precip + rad_summer + Forbs + Shrubs + Grasses + ShrubHt + LiveOverstory + 
 #  log10SeedWallConifer + twi + tpi2000 + elev + CWD_sound + facts.planting.first.year + fsplanted + (1|Fire) + (1|Fire:PairID)")
 # beta version  
-fm_formula <- as.formula("prop_response ~ tmin + tmean + normal_annual_precip + rad_summer + Forbs + Shrubs + Grasses + ShrubHt + LiveOverstory + 
-  log10SeedWallConifer + twi + tpi2000 + elev + CWD_sound + facts.planting.first.year * fsplanted + (1|Fire) + (1|Fire:PairID)")
+fm_formula <- as.formula("prop_response ~ tmin + normal_annual_precip +  Shrubs + 
+  log10SeedWallConifer + tpi2000 + elev + facts.planting.first.year * fsplanted + (1|Fire)")
 
 # Binomial 
-#fm1 <- glmer(fm_formula, data = plot_dhm_pine_std, family = "binomial", na.action = na.fail) # note won't converge 
+fm1 <- glmer(fm_formula, data = plot_dhm_pine_std, family = "binomial", na.action = na.fail) # note won't converge 
 
 fm1 <- brm(formula = fm_formula, data=plot_dhm_pine_std, family="beta", save_pars = save_pars(all = TRUE))
 fm1
@@ -126,7 +130,7 @@ loo(fm1, moment_match = TRUE)
 
 
 # Try model selection using MuMin from a base model that has to include "planted" and "timing" 
-fm1_dredge <- dredge(fm1, rank = "loo", fixed = ~ fsplanted + facts.planting.first.year + (1|Fire) + (1|Fire:PairID), m.lim = c(0, 3), trace = TRUE, evaluate = TRUE)
+fm1_dredge <- dredge(fm1, rank = "AIC", fixed = ~ fsplanted + facts.planting.first.year + (1|Fire) + (1|Fire:PairID), m.lim = c(0, 3), trace = TRUE, evaluate = TRUE)
 get.models(fm1_dredge, subset = delta < 4)
 
 # Top variable is twi -- add to fixed and proceed 
@@ -153,9 +157,8 @@ r.squaredGLMM(fm1)
 #### Next test interactions between planted and other fixed effects, testing one interaction at a time.  
 
 # facts.planting.first.year
-fm2 <- glmer(cbind(seedling_count, pine_count) ~ (1|Fire) + (1|Fire:PairID) + Shrubs + LiveOverstory + 
-               twi + fsplanted + facts.planting.first.year + 
-               fsplanted:facts.planting.first.year,
+fm2 <- glmer(cbind(seedling_count, pine_count) ~ (1|Fire) + (1|Fire:PairID) + log10SeedWallConifer + tmin + normal_annual_precip + tpi2000 + elev + Shrubs + fsplanted + facts.planting.first.year + 
+               fsplanted + facts.planting.first.year + tmin:normal_annual_precip + tpi2000:elev + Shrubs:fsplanted + Shrubs:fsplanted*facts.planting.first.year, 
                 data = plot_dhm_pine_std, 
                 family = "binomial")
 AIC(fm1, fm2) # not different 
