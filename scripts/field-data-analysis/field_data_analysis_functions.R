@@ -1,12 +1,6 @@
 #### Functions for model comparision in the tree planting project #### 
 
-# The strategy here is to use a ragged array to hold the fixed-effect variables to be included in each model. This ragged array will hold the fixed effects for every model we want to test. It is created at the beginning for the "field_data_analysis_planting_time.R" and "field_data_analysis_proportion_pine.R" scripts. 
-
-#The function make_formula() can take these plus the response variable and random effects groupings, if any, and make a formula. 
-
-# The function fit_lmer_model() calls make_formula() and fits that model, returning the model object. 
-
-# Make formula for lmer models, given a response and vectors of predictors and groups
+# Make formula for lmer models, given a response and vectors of predictors for the fixed effects, and grouping variables for the random intercepts
 make_formula <- function(response, predictors, groups = NULL) {
   if (is.null(response) | is.null(predictors)) {
     print("Missing response or predictors")
@@ -19,22 +13,22 @@ make_formula <- function(response, predictors, groups = NULL) {
   return(as.formula(formula_out))
 }
 
-# Check a data frome for missing values and tell which columns have them
+# Check a data frome for missing values and return a count by column
 check_missing_values <- function(d) {
   missing_count <- apply(d, 2, f <- function(x){return(sum(is.na(x)))})
   return(missing_count)
 }
 
 
-# Fit lmer model, given a response and vectors of predictors and groups
+# Fit lmer model, given a response variable and vectors of predictors and groups (for random intercepts).
 # Note this is set up so that it works with lapply() over the list of fixed effect vectors -- so the parameter x is a character vector of fixed effects to include in the model. 
-fit_lmer_model <- function(x, response, groups = NULL, data){
+fit_lmer_model <- function(x, response, groups = NULL, data, REML = FALSE){
   if (is.null(response) | is.null(x)) {
     print("Missing response or predictors")
     return()
   }
   mod_form <- make_formula(response, predictors = x, groups)
-  m <- lmer(mod_form, data, REML = FALSE, control = lmerControl(optimizer="bobyqa", optCtrl=list(maxfun=2e5)))
+  m <- lmer(mod_form, data, REML = REML, control = lmerControl(optimizer="bobyqa", optCtrl=list(maxfun=2e5)))
   return(m)
 }
 
@@ -50,14 +44,15 @@ fit_binomial_glmer_model <- function(x, response, groups = NULL, data){
   return(m)
 }
 
-# From an lmer model, extract the response, main effects, interactions, and grouping variables and return a list containing those (the attributes of the list are "response", "main_effects_vector", "interaction_vector", and "groups")
+# From an lmer model object, extract the response, main effects, interactions, and grouping variables and return a list containing those. 
+# The attributes of the list this function returns are "response", "main_effects_vector", "interaction_vector", and "groups")
 extract_model_terms <- function(m) {
   require(stringr)
   # Get the grouping variables, main effects, and interactions
   terms <- attributes(terms(m))
   response <- all.vars(terms(m))[1]
   model_terms <- terms$term.labels # Get list of variables including main effects and interactions 
-  interaction_index <- str_detect(model_terms, ":")
+  interaction_index <- str_detect(model_terms, ":") # identify the interactions, then separate the fixed effects into main effects and interactions
   main_effects_vector <- model_terms[!interaction_index]
   interaction_vector <- model_terms[interaction_index]
     groups <- names(ranef(m))
@@ -66,6 +61,7 @@ extract_model_terms <- function(m) {
   if (model_class =="lmerModLmerTest") response <- all.vars(terms(m))[1]
     else if (model_class == "glmerMod") response <- rownames(terms$factors)[1]
     
+  # Pull the information together into a list and return it
     model_terms <- list(response = response, main_effects_vector = main_effects_vector, interaction_vector = interaction_vector, groups = groups)
   return(model_terms)
 }
@@ -78,8 +74,7 @@ vector_drop1 <- function(v, fixed) {
   return(vector_list_drop1)
 }
 
-return_added_main_effects <- function(m, terms_to_add) { # Function takes an lmer model as input, and returns a list of formulas for models that include each of the variables from terms_to_add, one at a time
-  # the argument fixed is a character vector of terms to keep in the model and NOT consider dropping
+return_added_main_effects <- function(m, terms_to_add) { # Function takes an lmer model as input, and returns a list of formulas for models that include each of the variables from terms_to_add, one at a time.
   model_terms <- extract_model_terms(m) # get info for model formulas
   formulas_add1 <- list() 
   for (i in 1:length(terms_to_add)) { # loop through the main effects and add one at a time
@@ -90,7 +85,7 @@ return_added_main_effects <- function(m, terms_to_add) { # Function takes an lme
 
 
 return_reduced_main_effects <- function(m, fixed = NULL) { # Function takes an lmer model as input, and returns a list of formulas that are all the formulas for models that are minus one main effect (as in drop1) 
-  # the argument fixed is a character vector of terms to keep in the model and NOT consider dropping
+  # The argument fixed is a character vector of terms to keep in the model and NOT consider dropping.
   model_terms <- extract_model_terms(m) # get info for model formulas
   if (!is.null(fixed)) {
     index_fixed <- match(fixed, model_terms$main_effects_vector)
@@ -105,7 +100,8 @@ return_reduced_main_effects <- function(m, fixed = NULL) { # Function takes an l
 }
 
 # This function takes a current model, m, and tests all nested subsets of the model that sequentially remove one main effect. 
-backwards_eliminate <- function(m, fixed = NULL) { ## TO DO: add "fixed" argument for the variables we DON'T want to test for removal, e.g those involved in interactions
+# The argument fixed contains the variables NOT to consider removing. 
+backwards_eliminate <- function(m, fixed = NULL) { 
   require(lme4)
   # Get the response, fixed effect variables, and random effect variables from the model object
   formulas_drop1 <- return_reduced_main_effects(m, fixed)
