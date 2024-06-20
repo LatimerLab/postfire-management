@@ -36,7 +36,7 @@ vars_to_test_factor <- c("fsplanted", "facts.planting.first.year")
 # Check for missing values by variable 
 check_missing_values(plot_dhm_pine[,vars_to_test_continuous]) # one missing in LiveOverstory
 hist(plot_dhm$LiveOverstory)
-sum(plot_dhm$LiveOverstory==0, na.rm=T)/length(plot_dhm_pine) # This variable is 88% zeros -- can we leave it out? Will leave out for now. 
+sum(plot_dhm$LiveOverstory==0, na.rm=T)/length(plot_dhm_pine) # This variable is 88% zeros -- leave it out. 
 
 # Check variable correlations 
 cor(plot_dhm_pine[,vars_to_test_continuous], use = "na.or.complete")
@@ -86,7 +86,7 @@ m2 <- forward_select(pines_base_model, terms_to_add = vars_to_try_adding)
 
 m3 <- forward_select(m2$model, terms_to_add = m2$variables_to_test)
 m4 <- forward_select(m3$model, terms_to_add = m3$variables_to_test)
-m5 <- forward_select(m4$model, terms_to_add = m4$variables_to_test)
+m5 <- forward_select(m4$model, terms_to_add = m4$variables_to_test, glmerControl(optimizer = "bobqa", optCtrl = list(maxfun = 2e5, check.conv.grad = .makeCC("warning", tol = 5e-3, relTol = NULL))))
 # Model failed to converge here. Stop with m4. 
 
 #### Test adding interactions ####
@@ -95,8 +95,7 @@ pines_main_effects_model <- m4$model
 
 model_terms <- extract_model_terms(pines_main_effects_model)
 
-two_way_interacs_to_test <- c("Shrubs:fsplanted", "ShrubHt:fsplanted", 
-                              "twi:fsplanted")
+two_way_interacs_to_test <- c("Shrubs:fsplanted", "ShrubHt:fsplanted", "twi:fsplanted")
 
 # Create a list of fixed effects for all models with 2-way interactions 
 model_fixed_effects <- list()
@@ -105,11 +104,12 @@ for (i in 1:length(two_way_interacs_to_test)) model_fixed_effects[[i]] <- c(mode
 
 #### Fit all models with 2-way interactions and get AIC #### 
 
-response_variable <- "cbind(pine_count, seedling_count-pine_count)"
-groups <- "Fire"
+response_variable <- model_terms$response
+base_model_variables <- c(model_terms$main_effects_vector, model_terms$interaction_vector)
+groups <- model_terms$groups
 
 # Fit base model with only main effects
-base_model <- fit_binomial_glmer_model(x = vars_to_test, response = response_variable, groups = groups, data = plot_dhm_pine_std) 
+base_model <- fit_binomial_glmer_model(x = base_model_variables, response = response_variable, groups = groups, data = plot_dhm_pine_std) 
 
 # Fit all the models with interactions to test
 model_list <- lapply(model_fixed_effects, FUN = fit_binomial_glmer_model, response = response_variable, groups = groups, data = plot_dhm_pine_std)
@@ -118,6 +118,12 @@ AIC_vals <- unlist(lapply(model_list, AIC))
 
 which((AIC(base_model) - AIC_vals) >= 2) # Model 1 has lower AIC than the base model
 model_list[[1]] # fsplanted:Shrubs 
+model_list[[2]] # fsplanted:ShrubHt 
+
+AIC(fit_binomial_glmer_model(c(model_fixed_effects[[1]], "ShrubHt:fsplanted"), response = response_variable, groups = groups, data = plot_dhm_pine_std)) # Including interactions with ShrubHt improves model by >2 AIC points. 
+
+AIC(fit_binomial_glmer_model(c(model_fixed_effects[[1]], "ShrubHt:fsplanted", "twi:fsplanted"), response = response_variable, groups = groups, data = plot_dhm_pine_std)) # Including interactions with twi doesn't improve model by more than 2 AIC points. 
+
 
 #### Now test 3-way interaction with Shrubs #####
 
