@@ -45,7 +45,6 @@ rotatedAxisElementText = function(angle,position='x',Size,Color){
 log10SeedWallConifer_mean = median(plot_dhm$log10SeedWallConifer)
 tmin_mean <- median(plot_dhm$tmin)
 normal_annual_precip_mean <- median(plot_dhm$normal_annual_precip)
-#LitDuff_mean <- median(plot_dhm$LitDuff)
 tpi2000_mean <- median(plot_dhm$tpi2000)
 elev_mean <- median(plot_dhm$elev)
 
