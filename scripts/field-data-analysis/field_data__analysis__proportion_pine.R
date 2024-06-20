@@ -106,10 +106,11 @@ for (i in 1:length(two_way_interacs_to_test)) model_fixed_effects[[i]] <- c(mode
 #### Fit all models with 2-way interactions and get AIC #### 
 
 response_variable <- "cbind(pine_count, seedling_count-pine_count)"
+base_model_variables <- c(model_terms$main_effects_vector, model_terms$interaction_vector)
 groups <- "Fire"
 
 # Fit base model with only main effects
-base_model <- fit_binomial_glmer_model(x = vars_to_test, response = response_variable, groups = groups, data = plot_dhm_pine_std) 
+base_model <- fit_binomial_glmer_model(x = base_model_variables, response = response_variable, groups = groups, data = plot_dhm_pine_std) 
 
 # Fit all the models with interactions to test
 model_list <- lapply(model_fixed_effects, FUN = fit_binomial_glmer_model, response = response_variable, groups = groups, data = plot_dhm_pine_std)
@@ -117,11 +118,12 @@ model_list <- lapply(model_fixed_effects, FUN = fit_binomial_glmer_model, respon
 AIC_vals <- unlist(lapply(model_list, AIC))
 
 which((AIC(base_model) - AIC_vals) >= 2) # Model 1 has lower AIC than the base model
-model_list[[1]] # fsplanted:Shrubs 
+model_list[[1]] # fsplanted:Shrubs interaction is significant
+model_list[[2]] # ShrubHt:fsplanted interaction is significant
 
 #### Now test 3-way interaction with Shrubs #####
 
-pines_model_2way <- model_list[[1]]
+pines_model_2way <- fit_binomial_glmer_model(x = c(model_fixed_effects[[1]], "ShrubHt:fsplanted"), response = response_variable, groups = groups, data = plot_dhm_pine_std)
 
 pines_model_3way <-fit_binomial_glmer_model(x = c(model_fixed_effects[[1]], "Shrubs:fsplanted:facts.planting.first.year"), response = response_variable, groups = groups, data = plot_dhm_pine_std)
 AIC(pines_model_2way, pines_model_3way) # Convergence problems with the 3-way interaction 
