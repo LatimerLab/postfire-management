@@ -529,7 +529,7 @@ Shrubs_comp <- ggplot(data = predicted_comp.shrubs, aes(y =  fit, x = Shrubs, li
          axis.text.y = rotatedAxisElementText(angle = 90, position = "y", Size = 10,  Color = "black"), #requires the function to be run at the head of this script
          panel.background = element_rect(fill = NA, color = "black"), panel.grid = element_blank(), 
          legend.position = "top")
-ggsave(twi_comp, file="figures/manuscript_resub/shrubs_comp.pdf", width=3.25, height=3.45)
+ggsave(Shrubs_comp, file="figures/manuscript_resub/shrubs_comp.pdf", width=3.25, height=3.45)
 
 
 ##### Shrub Height -----------------------------------------------------------------------------------------
@@ -565,14 +565,13 @@ ShrubHt_comp <- ggplot(data = predicted_comp.shrubht, aes(y =  fit, x = ShrubHt,
          axis.text.y = rotatedAxisElementText(angle = 90, position = "y", Size = 10,  Color = "black"), #requires the function to be run at the head of this script
          panel.background = element_rect(fill = NA, color = "black"), panel.grid = element_blank(), 
          legend.position = "top")
-ggsave(twi_comp, file="figures/manuscript_resub/shrubht_comp.pdf", width=3.25, height=3.45)
+ggsave(ShrubHt_comp, file="figures/manuscript_resub/shrubht_comp.pdf", width=3.25, height=3.45)
 
 
 
 ##### planting year -------------------------------------------------------------------------------
 
-predict_comp.year <- expand.grid(normal_annual_precip = normal_annual_precip_median,
-                                 LiveOverstory = LiveOverstory_median, 
+predict_comp.year <- expand.grid(
                                  twi = twi_median, 
                                  facts.planting.first.year = facts.planting.first.year_levels,
                                  Shrubs = Shrubs_median,
