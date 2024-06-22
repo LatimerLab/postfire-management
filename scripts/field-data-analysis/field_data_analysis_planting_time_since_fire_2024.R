@@ -65,19 +65,9 @@ two_way_interacs_to_test <- c("tmin:fsplanted", "normal_annual_precip:fsplanted"
     "normal_annual_precip:rad_summer", "twi:normal_annual_precip", 
     "twi:rad_summer", "twi:elev", "tpi2000:normal_annual_precip", 
     "tpi2000:tmin", "tpi2000:elev", "fsplanted:facts.planting.first.year")
-# Testing only one 3-way-interaction?? Shrubs:fsplanted:facts.planting.first.year
-#three_way_interacs_to_test <- c("tmin:fsplanted:facts.planting.first.year", 
-    "normal_annual_precip:fsplanted:facts.planting.first.year", 
-    "rad_summer:fsplanted:facts.planting.first.year", 
-    "Forbs:fsplanted:facts.planting.first.year", 
-    "Grasses:fsplanted:facts.planting.first.year", 
-    "Shrubs:fsplanted:facts.planting.first.year", 
-    "ShrubHt:fsplanted:facts.planting.first.year", 
-    "log10SeedWallConifer:fsplanted:facts.planting.first.year", 
-    "tpi2000:fsplanted:facts.planting.first.year", 
-    "elev:fsplanted:facts.planting.first.year", 
-    "twi:fsplanted:facts.planting.first.year", 
-    "CWD_sound:fsplanted:facts.planting.first.year")
+
+# Testing only one 3-way-interaction: Shrubs:fsplanted:facts.planting.first.year
+three_way_interacs_to_test <- "Shrubs:fsplanted:facts.planting.first.year"
 
 #### Create list of vectors fixed effects for all models (essentially a ragged array but in list form). Each item in the list contains a character vector of fixed effects for one model. Each of these character vectors contains all the candidate main effect, plus either no interactions, or one 2-way interaction to test, or one 2-way and 3-way interaction to test. 
 
@@ -99,7 +89,7 @@ model_list <- lapply(model_fixed_effects, FUN = fit_lmer_model, response = respo
 
 AIC_vals <- unlist(lapply(model_list, AIC))
 
-which((AIC(base_model) - AIC_vals) >= 2) # Models 13 and 20 have lower AIC than the base model
+which((AIC(base_model) - AIC_vals) >= 2) # Models 13, 20, and 21 have lower AIC than the base model
 model_list[[13]] # tmin:normal_annual_precip
 model_list[[20]]# tpi2000:elev
 model_list[[21]] # fsplanted:facts.planting.first.year
@@ -122,13 +112,19 @@ model_list_3way <- lapply(model_fixed_effects_3way, FUN = fit_lmer_model, respon
 
 AIC_vals_3way <- unlist(lapply(model_list_3way, AIC))
 
-which((AIC(base_model_2way) - AIC_vals_3way) >= 2) # Shrub interaction improves AIC. Maybe so does precip, but that model won't converge. Leave the precip interaction out, while adding the Shrub 3-way interaction. 
+which((AIC(base_model_2way) - AIC_vals_3way) >= 2) # Shrub interaction improves AIC. 
+
+## Direct comparison of models with different interactions involving shrubs 
+# base_model_2way has no shrub interactions 
+base_model_2way_shrubs <- fit_lmer_model(x = c(vars_to_test_3way, "Shrubs:fsplanted"), response = response_variable, groups = groups, data = plot_dhm_for_model)
+base_model_3way_shrubs <- fit_lmer_model(x = c(vars_to_test_3way, "Shrubs:fsplanted", "Shrubs:fsplanted:facts.planting.first.year"), response = response_variable, groups = groups, data = plot_dhm_for_model)
+AIC(base_model_2way, base_model_2way_shrubs, base_model_3way_shrubs) # 3-way interaction improves AIC
 
 
 #### Next and final step: Backward stepwise elimination of variables using AIC ####
 
 # Set up full model from which to test dropping terms
-full_model_formula <- make_formula(response = response_variable, predictors = c(vars_to_test_3way, two_way_interacs_to_test[6], three_way_interacs_to_test[6]), groups = groups)
+full_model_formula <- make_formula(response = response_variable, predictors = c(vars_to_test_3way, two_way_interacs_to_test[6], three_way_interacs_to_test[1]), groups = groups)
 full_model_3way <- lmer(full_model_formula, data = plot_dhm_for_model, na.action = na.pass, REML=FALSE)
 
 # Variables not to include in the backwards stepwise elimination 
