@@ -14,6 +14,7 @@ library(MuMIn)
 library(Hmisc)
 library(car)
 library(DHARMa) 
+library(flextable)
 
 # Load the functions needed for this script
 source("./scripts/field-data-analysis/field_data_analysis_functions.R")
@@ -26,7 +27,7 @@ load("output/plotSeedlingData.RData")
 
 # First cut at variables to include 
 
-vars_to_test <- c("tmean", "tmin", "tmax", "normal_annual_precip", 
+vars_to_test <-c("tmean", "tmin", "tmax", "normal_annual_precip", 
                   "rad_summer", "Forbs", "Grasses", "Shrubs", "LiveOverstory", 
                   "ShrubHt", "log10SeedWallConifer", "tpi2000", "elev", "twi", 
                   "CWD_sound", "facts.planting.first.year", "fsplanted")
@@ -88,6 +89,22 @@ base_model <- fit_lmer_model(x = vars_to_test, response = response_variable, gro
 model_list <- lapply(model_fixed_effects, FUN = fit_lmer_model, response = response_variable, groups = groups, data = plot_dhm_for_model)
 
 AIC_vals <- unlist(lapply(model_list, AIC))
+
+# Make a data frame of the AIC values for each model
+
+#First create a row for the base model 
+base_model_info <- data.frame(model = as.character(formula(base_model))[3], AIC = AIC(base_model), delta_AIC = 0)
+
+model_selection_table <- data.frame(model = as.character(unlist(lapply(model_list, formula))), AIC = AIC_vals, delta_AIC = AIC(base_model) - AIC_vals)
+model_selection_table <- rbind(base_model_info, model_selection_table)
+
+model_selection_table <- mutate(model_selection_table,  AIC = round(AIC, 2), delta_AIC = round(delta_AIC, 2))
+
+# Convert to tabular format for Word
+flextable(model_selection_table) %>% 
+  # make columns of the flextable wider
+  flextable::width(j = 1:3, width = 1) %>%
+  save_as_docx(path = "./figures/exploratory/mytable.docx")
 
 which((AIC(base_model) - AIC_vals) >= 2) # Models 13, 20, and 21 have lower AIC than the base model
 model_list[[13]] # tmin:normal_annual_precip
