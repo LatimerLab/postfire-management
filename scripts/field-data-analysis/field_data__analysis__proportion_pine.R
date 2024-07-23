@@ -67,6 +67,9 @@ plot_dhm_pine_std <- mutate(plot_dhm_pine_std, fsplanted = relevel(fsplanted, "u
 apply(plot_dhm_pine_std, 2, f <- function(x) {return(sum(is.na(x)))}) # only 1 row has missing data
 plot_dhm_pine_std <- plot_dhm_pine_std[complete.cases(plot_dhm_pine_std),]
 
+
+
+
 #### Model selection ####
 
 # Set up and fit the base model 
@@ -132,5 +135,8 @@ AIC(pines_model_2way, pines_model_3way) # Convergence problems with the 3-way in
 # Stop here and leave out 3-way interaction. 
 
 pines_final_model <- pines_model_2way
+
+DHARMa::simulateResiduals(pines_final_model, plot = TRUE)
+DHARMa::testResiduals(pines_final_model)
 
 save(pines_final_model, file = "./output/proportion_pines_final_model.Rdata")
