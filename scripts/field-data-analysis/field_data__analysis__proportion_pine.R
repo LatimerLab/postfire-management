@@ -9,6 +9,7 @@ library(sjPlot)
 library(MuMIn)
 library(Hmisc)
 library(car)
+library(flextable)
 
 # Load data 
 load("./output/plotSeedlingData.RData") 
@@ -36,7 +37,7 @@ vars_to_test_factor <- c("fsplanted", "facts.planting.first.year")
 # Check for missing values by variable 
 check_missing_values(plot_dhm_pine[,vars_to_test_continuous]) # one missing in LiveOverstory
 hist(plot_dhm$LiveOverstory)
-sum(plot_dhm$LiveOverstory==0, na.rm=T)/length(plot_dhm_pine) # This variable is 88% zeros -- can we leave it out? Will leave out for now. 
+sum(plot_dhm$LiveOverstory==0, na.rm=T)/length(plot_dhm_pine) # This variable is 88% zeros, and the rest low values. So we will exclude it. 
 
 # Check variable correlations 
 cor(plot_dhm_pine[,vars_to_test_continuous], use = "na.or.complete")
@@ -86,7 +87,6 @@ AIC(pines_base_model)
 
 vars_to_try_adding <- vars_to_test_continuous
 m2 <- forward_select(pines_base_model, terms_to_add = vars_to_try_adding)
-
 m3 <- forward_select(m2$model, terms_to_add = m2$variables_to_test)
 m4 <- forward_select(m3$model, terms_to_add = m3$variables_to_test)
 m5 <- forward_select(m4$model, terms_to_add = m4$variables_to_test)
@@ -116,27 +116,59 @@ groups <- "Fire"
 base_model <- fit_binomial_glmer_model(x = base_model_variables, response = response_variable, groups = groups, data = plot_dhm_pine_std) 
 
 # Fit all the models with interactions to test
-model_list <- lapply(model_fixed_effects, FUN = fit_binomial_glmer_model, response = response_variable, groups = groups, data = plot_dhm_pine_std)
+model_list_2way <- lapply(model_fixed_effects, FUN = fit_binomial_glmer_model, response = response_variable, groups = groups, data = plot_dhm_pine_std)
 
-AIC_vals <- unlist(lapply(model_list, AIC))
+AIC_vals_2way <- unlist(lapply(model_list_2way, AIC))
 
-which((AIC(base_model) - AIC_vals) >= 2) # Model 1 has lower AIC than the base model
-model_list[[1]] # fsplanted:Shrubs interaction is significant
-model_list[[2]] # ShrubHt:fsplanted interaction is significant
+which((AIC(base_model) - AIC_vals_2way) >= 2) # Model 1 has lower AIC than the base model
+model_list_2way[[1]] # fsplanted:Shrubs interaction is significant
+model_list_2way[[2]] # ShrubHt:fsplanted interaction is significant
 
 #### Now test 3-way interaction with Shrubs #####
 
 pines_model_2way <- fit_binomial_glmer_model(x = c(model_fixed_effects[[1]], "ShrubHt:fsplanted"), response = response_variable, groups = groups, data = plot_dhm_pine_std)
 
-pines_model_3way <-fit_binomial_glmer_model(x = c(model_fixed_effects[[1]], "Shrubs:fsplanted:facts.planting.first.year"), response = response_variable, groups = groups, data = plot_dhm_pine_std)
-AIC(pines_model_2way, pines_model_3way) # Convergence problems with the 3-way interaction 
+pines_model_3way <-fit_binomial_glmer_model(x = c(model_fixed_effects[[1]],"Shrubs:fsplanted:facts.planting.first.year"), response = response_variable, groups = groups, data = plot_dhm_pine_std)
+
+pines_model_3way_ShrubHt <-fit_binomial_glmer_model(x = c(model_fixed_effects[[1]], "ShrubHt:fsplanted", "Shrubs:fsplanted:facts.planting.first.year"), response = response_variable, groups = groups, data = plot_dhm_pine_std)
+
+AIC(pines_model_2way, pines_model_3way, pines_model_3way_ShrubHt) # Convergence problems with the 3-way interaction 
 # Checking AIC, the 3-way interaction doesn't improve model by 2 points. 
 
-# Stop here and leave out 3-way interaction. 
+# Also when both 3-way interaction and ShrubHt are included, model won't converge. 
+# So we will stop here and use the 2-way interaction model.
 
-pines_final_model <- pines_model_2way
+pines_final_model <- glmer(formula(pines_model_2way), data = plot_dhm_pine_std, family = "binomial")
 
-DHARMa::simulateResiduals(pines_final_model, plot = TRUE)
-DHARMa::testResiduals(pines_final_model)
+r.squaredGLMM(pines_final_model) 
+#                 R2m      R2c
+#theoretical 0.7843631 0.935610
+#delta       0.7603270 0.906939
 
 save(pines_final_model, file = "./output/proportion_pines_final_model.Rdata")
+
+
+
+#### Make table of model selection procedure, including AIC for all models considered
+
+#First create a row for the base model 
+base_model_info <- data.frame(model = as.character(formula(pines_base_model))[3], AIC = AIC(pines_base_model), delta_AIC = 0)
+
+# Add the models that test individual variables 
+model_selection_table <- rbind(base_model_info, data.frame(model = as.character(unlist(lapply(list(m2$model, m3$model, m4$model), formula))), AIC = unlist(lapply(list(m2$model, m3$model, m4$model), AIC)), delta_AIC = AIC(pines_base_model) - unlist(lapply(list(m2$model, m3$model, m4$model), AIC))))
+
+# Add the models testing 2-way interactions
+model_selection_table <- rbind(model_selection_table, data.frame(model = as.character(unlist(lapply(model_list_2way, formula))), AIC = AIC_vals_2way, delta_AIC = AIC(pines_base_model) - AIC_vals_2way))
+
+# Add the model with both important 2-way interactions 
+model_selection_table <- rbind(model_selection_table, data.frame(model = as.character(formula(pines_model_2way))[3], AIC = AIC(pines_model_2way), delta_AIC = AIC(pines_base_model) - AIC(pines_model_2way)))
+
+# Add the model with the 3-way interaction 
+model_selection_table <- rbind(model_selection_table, data.frame(model = as.character(formula(pines_model_3way))[3], AIC = AIC(pines_model_3way), delta_AIC = AIC(pines_base_model) - AIC(pines_model_3way)))
+
+##### Convert model selection table to tabular format for Word and export 
+model_selection_table <- mutate(model_selection_table,  AIC = round(AIC, 2), delta_AIC = round(delta_AIC, 2))
+flextable(model_selection_table) %>% 
+  # make columns of the flextable wider
+  flextable::width(j = 1:3, width = 1) %>%
+  save_as_docx(path = "./figures/exploratory/prop_pines_model_selection_table.docx")
