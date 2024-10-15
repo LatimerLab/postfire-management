@@ -19,8 +19,8 @@ pltd <- lmer(formula(seedling_density_final_model), data = plot_dhm) # assign mo
 
 
 fmt_dcimals <- function(decimals=0){
-  function(x) format(x,nsmall = decimals,scientific = FALSE)
-} # Funciont for controling decimal number
+  function(x) format(x, nsmall = decimals, scientific = FALSE)
+} # Funcion for controlling decimal number
 
 rotatedAxisElementText = function(angle,position='x',Size,Color){
   angle     = angle[1]; 
@@ -40,8 +40,6 @@ rotatedAxisElementText = function(angle,position='x',Size,Color){
 ##### year by planted by shrub -----------------------------------------------
 
 # average value for other variables in the model
-#Shrubs_mean <- mean(plot_dhm$Shrubs)
-#ShrubHt_mean <- mean(plot_dhm$ShrubHt)
 log10SeedWallConifer_mean = median(plot_dhm$log10SeedWallConifer)
 tmin_mean <- median(plot_dhm$tmin)
 normal_annual_precip_mean <- median(plot_dhm$normal_annual_precip)
@@ -73,20 +71,29 @@ names(year.labs) <- c(1,2,3)
 predicted_pltd.pys <- cbind(predict_pltd.pys, as.data.frame(
   predictSE(pltd, newdata = predict_pltd.pys, re.form = NA, level = 0, type="response", se.fit = TRUE)))
 
+# Subset the prediction data based on quantiles of Shrub data
+quantiles <- plot_dhm %>%
+  group_by(fsplanted) %>%
+  summarize(Shrubs_q10 = quantile(Shrubs, 0.1), Shrubs_q90 = quantile(Shrubs, 0.9))
+truncated_prediction_data <- split(predicted_pltd.pys, predicted_pltd.pys$fsplanted)
+for (i in 1:2) truncated_prediction_data[[i]] <- filter(truncated_prediction_data[[i]], Shrubs >= quantiles$Shrubs_q10[i], Shrubs <= quantiles$Shrubs_q90[i])
+truncated_prediction_data <- do.call(rbind, truncated_prediction_data)
 
+# Make the plot 
 plantedYearShrubs <- ggplot(data = predicted_pltd.pys, 
                             aes(y = (exp(fit)-24.99), x = Shrubs, 
-                            color = fsplanted, fill = fsplanted)) +
+                            color = fsplanted, fill = fsplanted, linetype = fsplanted)) +
         
-  geom_ribbon(aes(ymax = (exp(fit + se.fit)-24.99), ymin=(exp(fit - se.fit)-24.99)), alpha = .50, color = NA) +
-  geom_line(show.legend = FALSE, linewidth = 2) +
+  geom_ribbon(data = truncated_prediction_data, aes(ymax = (exp(fit + se.fit)-24.99), ymin=(exp(fit - se.fit)-24.99)), alpha = .50, color = NA) +
+  geom_line(data = truncated_prediction_data, show.legend = FALSE, linewidth = 2) +
   scale_color_manual(values = c("#4f5a3a","#807561")) +
   scale_fill_manual(values = c("#98ab8f","#d1cdb6")) +
   ylab("Seedling Density \n(indv/ha)") +
   xlab("Shrub Cover (%)") +
-  xlim(20,100) +
+  coord_cartesian(xlim = range(plot_dhm$Shrubs)) +
   ylim(-10,325) +
   facet_wrap(~facts.planting.first.year, strip.position = "top", labeller = labeller(facts.planting.first.year = year.labs)) +
+  labs(color = truncated_prediction_data$fsplanted, fill = truncated_prediction_data$fsplanted, linetype = truncated_prediction_data$fsplanted) +
   theme(strip.placement = "outside", 
         strip.background = element_rect(fill = "transparent", color = "transparent"), 
         text = element_text(size = 12), 
@@ -95,7 +102,10 @@ plantedYearShrubs <- ggplot(data = predicted_pltd.pys,
         legend.position = "top", legend.title=element_blank(),
         panel.spacing.x = unit(.11, "lines"),
         panel.spacing.y = unit(.6, "lines"))
+
 ggsave(plantedYearShrubs, file="figures/manuscript_resub/plantedYearShrubs.pdf", width=6.5, height=4.5)
+
+
 
   
 
@@ -130,35 +140,47 @@ predict_pltd.tp <- expand.grid(Shrubs = Shrubs_median,
 precip.labs <- c(c("600mm", "1200mm", "1800mm"))
 names(precip.labs) <- c(600, 1200, 1800)
 
-
 predicted_pltd.tp <- cbind(predict_pltd.tp, as.data.frame(
   predictSE(pltd, newdata = predict_pltd.tp, re.form = NA, level = 0, type="response", se.fit = TRUE)))
 predicted_pltd.tp$facts.planting.first.year <- as.factor(predicted_pltd.tp$facts.planting.first.year)
+predicted_pltd.tp$normal_annual_precip = as.factor(predicted_pltd.tp$normal_annual_precip)
+
+# Subset the prediction data based on quantiles of temperature data for planted and unplanted
+quantiles <- plot_dhm %>%
+  group_by(fsplanted) %>%
+  summarize(tmin_q10 = quantile(tmin, 0.1), tmin_q90 = quantile(tmin, 0.9))
+truncated_prediction_data <- split(predicted_pltd.tp, predicted_pltd.tp$fsplanted)
+for (i in 1:2) truncated_prediction_data[[i]] <- filter(truncated_prediction_data[[i]], tmin >= quantiles$tmin_q10[i], tmin <= quantiles$tmin_q90[i])
+truncated_prediction_data <- do.call(rbind, truncated_prediction_data)
+
 
 tminPrecip <-  
-  ggplot(data = predicted_pltd.tp %>% mutate(normal_annual_precip = as.factor(normal_annual_precip)), 
-                      aes(y = exp(fit)-24.99, x = tmin, color = normal_annual_precip, fill = normal_annual_precip, linetype = fsplanted)) +
+  ggplot(data = predicted_pltd.tp, 
+                      aes(y = exp(fit)-24.99, x = tmin, color = fsplanted, fill = fsplanted, linetype = fsplanted)) +
                       #aes(y = fit*24.99, x = tmin, color = normal_annual_precip, fill = normal_annual_precip, linetype = fsplanted)) + #for Poisson
-    geom_ribbon(aes(ymax = ifelse((exp(fit + se.fit)-24.99) < 1600,(exp(fit + se.fit)-24.99), 1600), ymin=(exp(fit - se.fit)-24.99), color = normal_annual_precip, fill = normal_annual_precip), 
-    #geom_ribbon(aes(ymax = ifelse((fit + se.fit)*24.99 < 1600, (fit + se.fit)*24.99, 1600), ymin=(fit - se.fit)*24.99, color = normal_annual_precip, fill = normal_annual_precip), 
-                  alpha = .15, color = NA, show.legend = FALSE) +
-  geom_line(show.legend = FALSE, linewidth = 1.5, color = "#6D7274") +
-  scale_color_manual(values = c("#8FBEDC","#508AA8", "#477998")) +
-  scale_fill_manual(values = c("#8FBEDC","#508AA8", "#477998")) +
+    geom_ribbon(data = truncated_prediction_data, aes(ymax = ifelse((exp(fit + se.fit)-24.99) < 1600,(exp(fit + se.fit)-24.99), 1600), ymin=(exp(fit - se.fit)-24.99)), 
+                  alpha = .50, color = NA) +
+  geom_line(data = truncated_prediction_data, show.legend = FALSE, linewidth = 1.5) +
+  scale_color_manual(values = c("#4f5a3a","#807561")) +
+  scale_fill_manual(values = c("#98ab8f","#d1cdb6")) +
   ylab("Seedling Density \n(indv./ha)") +
   xlab("Yearly average minimum temperature (F)") +
   ylim(-40, 1600) +
-  xlim(0, 5.5) +
+  xlim(1, 5.5) +
   facet_wrap(~normal_annual_precip, strip.position = "top", labeller = labeller(normal_annual_precip = precip.labs)) +
+  labs(color = truncated_prediction_data$fsplanted, fill = truncated_prediction_data$fsplanted, linetype = truncated_prediction_data$fsplanted) +
   theme(strip.placement = "outside", 
         strip.background = element_rect(fill = "transparent", color = "transparent"), 
         #strip.text.y = element_text(margin = margin(0,0,0,1)),
         text = element_text(size = 12), 
         axis.text.y = rotatedAxisElementText(angle = 90, position = "y", Size = 10,  Color = "black"), #requires the function to be run at the head of this script
-        panel.background = element_rect(fill = NA, color = "black"), panel.grid = element_blank(), 
-        legend.position = "top", 
+        panel.background = element_rect(fill = NA, color = "black"), panel.grid = element_blank(),
+        legend.position = "top", legend.title=element_blank(),
         panel.spacing.x = unit(.11, "lines"),
         panel.spacing.y = unit(.6, "lines"))
+
+
+
 ggsave(tminPrecip , file="figures/manuscript_resub/tminPrecip.pdf", width=6.5, height=4.5)
 
 
@@ -191,18 +213,32 @@ predict_pltd.sw <- expand.grid(Shrubs = Shrubs_median,
 predicted_pltd.sw <- cbind(predict_pltd.sw, as.data.frame(
   predictSE(pltd, newdata = predict_pltd.sw, re.form = NA, level = 0, type="response", se.fit = TRUE)))
 
-seedw <- ggplot(data = predicted_pltd.sw, 
-                 aes(y = exp(fit)-24.99, x = 10^(log10SeedWallConifer),linetype = fsplanted)) +
-  geom_ribbon(aes(ymax = (exp(fit + se.fit)-24.99), ymin=(exp(fit - se.fit)-24.99)), 
-              alpha = .15, color = NA, fill = "#756156", show.legend = FALSE) +
-  geom_line(show.legend = FALSE, linewidth = 2, color = "#756156") +
+# Subset the prediction data based on quantiles of distance to seedwall
+quantiles <- plot_dhm %>%
+  group_by(fsplanted) %>%
+  summarize(seedwall_q10 = quantile(log10SeedWallConifer, 0.1), seedwall_q90 = quantile(log10SeedWallConifer, 0.9))
+truncated_prediction_data <- split(predicted_pltd.sw, predicted_pltd.sw$fsplanted)
+for (i in 1:2) truncated_prediction_data[[i]] <- filter(truncated_prediction_data[[i]], log10SeedWallConifer >= quantiles$seedwall_q10[i], log10SeedWallConifer <= quantiles$seedwall_q90[i])
+truncated_prediction_data <- do.call(rbind, truncated_prediction_data)
+
+
+# Make the plot 
+
+seedw  <- ggplot(data = predicted_pltd.sw, 
+                 aes(y = exp(fit)-24.99, x = 10^(log10SeedWallConifer),color = fsplanted, fill = fsplanted, linetype = fsplanted)) +
+  geom_ribbon(data = truncated_prediction_data, aes(ymax = (exp(fit + se.fit)-24.99), ymin=(exp(fit - se.fit)-24.99)), 
+              alpha = .50, color = NA) +
+  geom_line(data = truncated_prediction_data, show.legend = FALSE, linewidth = 2) +
   ylab("Seedling Density \n(indv./ha)") +
-  xlab("Minimum distance from seed source (m)") +
-  #ylim(-10, 230) +
+  xlab("Min. distance to seed source (m)") +
+  scale_color_manual(values = c("#4f5a3a","#807561")) +
+  scale_fill_manual(values = c("#98ab8f","#d1cdb6")) +
+  labs(color = truncated_prediction_data$fsplanted, fill = truncated_prediction_data$fsplanted, linetype = truncated_prediction_data$fsplanted) +
   theme( text = element_text(size = 12), 
          axis.text.y = rotatedAxisElementText(angle = 90, position = "y", Size = 10,  Color = "black"), #requires the function to be run at the head of this script
          panel.background = element_rect(fill = NA, color = "black"), panel.grid = element_blank(), 
-         legend.position = "top")
+         legend.position = "top", legend.title=element_blank())
+
 ggsave(seedw , file="figures/manuscript_resub/seedw.pdf", width=3.25, height=3.45)
 
 ##### tpi elevation -----------------------------------------------
@@ -237,15 +273,27 @@ names(elev.labs) <- c(1200, 1700, 2200)
 predicted_pltd.te <- cbind(predict_pltd.te, as.data.frame(
   predictSE(pltd, newdata = predict_pltd.te, re.form = NA, level = 0, type="response", se.fit = TRUE)))
 
-tpiElev <-  ggplot(data = predicted_pltd.te %>% mutate(elev = as.factor(elev)), aes(y = exp(fit)-24.99, x = tpi2000, color = elev, fill = elev, linetype = fsplanted)) +
-  geom_ribbon(aes(ymax = (exp(fit + se.fit)-24.99), ymin=(exp(fit - se.fit)-24.99), color = elev, fill = elev), 
-              alpha = .15, color = NA, show.legend = FALSE) +
-  geom_smooth(show.legend = FALSE, size = 1.5, se = F) +
-  scale_color_manual(values = c("#48281E","#4C6B6A", "#C8A104")) +
-  scale_fill_manual(values = c("#48281E","#4C6B6A", "#C8A104")) +
+predicted_pltd.te$elev <- as.factor(predicted_pltd.te$elev)
+
+# Subset the prediction data based on quantiles of TPI
+quantiles <- plot_dhm %>%
+  group_by(fsplanted) %>%
+  summarize(tpi_q10 = quantile(tpi2000, 0.1), tpi_q90 = quantile(tpi2000, 0.9))
+truncated_prediction_data <- split(predicted_pltd.te, predicted_pltd.te$fsplanted)
+for (i in 1:2) truncated_prediction_data[[i]] <- filter(truncated_prediction_data[[i]], tpi2000 >= quantiles$tpi_q10[i], tpi2000 <= quantiles$tpi_q90[i])
+truncated_prediction_data <- do.call(rbind, truncated_prediction_data)
+
+# Make plot 
+
+tpiElev  <-  ggplot(data = predicted_pltd.te, aes(y = exp(fit)-24.99, x = tpi2000, color = fsplanted, fill = fsplanted, linetype = fsplanted)) +
+  geom_ribbon(data = truncated_prediction_data, aes(ymax = (exp(fit + se.fit)-24.99), ymin=(exp(fit - se.fit)-24.99)), 
+              alpha = .50, color = NA) +
+  geom_smooth(data = truncated_prediction_data, show.legend = FALSE, se = F) +
+  scale_color_manual(values = c("#4f5a3a","#807561")) +
+  scale_fill_manual(values = c("#98ab8f","#d1cdb6")) +
   ylab("Seedling Density \nindv./ha)") +
   xlab("Topographic position index") +
-  #ylim(-40, 1600) +
+  labs(color = truncated_prediction_data$fsplanted, fill = truncated_prediction_data$fsplanted, linetype = truncated_prediction_data$fsplanted) +
   facet_wrap(~elev, strip.position = "top", labeller = labeller(elev = elev.labs)) +
   theme(strip.placement = "outside", 
         strip.background = element_rect(fill = "transparent", color = "transparent"), 
@@ -443,7 +491,7 @@ plot_comp <- mutate(plot_comp,
 load("./output/proportion_pines_final_model.Rdata")
 
 # Refit this model using the untransformed data for plotting
-pine.comp <- glmer(formula(pines_final_model), data = plot_comp, family = "binomial") # assign model name for compatibilit with plotting code
+pine.comp <- glmer(formula(pines_final_model), data = plot_comp, family = "binomial") # assign model name for compatibility with plotting code
 
 
 #normal_annual_precip_median <- median(plot_comp$normal_annual_precip) 
@@ -477,6 +525,17 @@ predict_comp.twi <- expand.grid(twi = twi_levels,
 
 predicted_comp.twi <- cbind(predict_comp.twi, as.data.frame(
   predictSE(pine.comp, newdata = predict_comp.twi, re.form = NA, level = 0, type="response", se.fit = TRUE)))
+
+predicted_comp.twi$twi <- as.factor(predicted_comp.twi$twi)
+
+
+# Subset the prediction data based on quantiles of TWI
+quantiles <- plot_dhm %>%
+  group_by(fsplanted) %>%
+  summarize(tpi_q10 = quantile(tpi2000, 0.1), tpi_q90 = quantile(tpi2000, 0.9))
+truncated_prediction_data <- split(predicted_pltd.te, predicted_pltd.te$fsplanted)
+for (i in 1:2) truncated_prediction_data[[i]] <- filter(truncated_prediction_data[[i]], tpi2000 >= quantiles$tpi_q10[i], tpi2000 <= quantiles$tpi_q90[i])
+truncated_prediction_data <- do.call(rbind, truncated_prediction_data)
 
 
 twi_comp <- ggplot(data = predicted_comp.twi, aes(y =  fit, x = twi, linetype = fsplanted)) +
@@ -512,23 +571,29 @@ predict_comp.shrubs <- expand.grid(Shrubs = Shrubs_levels,
 predicted_comp.shrubs <- cbind(predict_comp.shrubs, as.data.frame(
   predictSE(pine.comp, newdata = predict_comp.shrubs, re.form = NA, level = 0, type="response", se.fit = TRUE)))
 
+# Subset the prediction data based on quantiles of shrub cover
+quantiles <- plot_comp %>%
+  group_by(fsplanted) %>%
+  summarize(Shrubs_q10 = quantile(Shrubs, 0.1), Shrubs_q90 = quantile(Shrubs, 0.9))
+truncated_prediction_data <- split(predicted_comp.shrubs, predicted_comp.shrubs$fsplanted)
+for (i in 1:2) truncated_prediction_data[[i]] <- filter(truncated_prediction_data[[i]], Shrubs >= quantiles$Shrubs_q10[i], Shrubs <= quantiles$Shrubs_q90[i])
+truncated_prediction_data <- do.call(rbind, truncated_prediction_data)
 
-Shrubs_comp <- ggplot(data = predicted_comp.shrubs, aes(y =  fit, x = Shrubs, linetype = fsplanted)) +
-  #geom_point(data = plot_dhm, aes(y=obs_resid.sw, x = 10^(log10SeedWallConifer)), color = "#696030", show.legend = FALSE) +
-  #geom_point(data = plot_dhm %>% filter(fsplanted == "unplanted"), aes(y=dens.planted, x = 10^(log10SeedWallConifer)), color = "#696030", show.legend = FALSE) +
-  geom_ribbon(aes(ymax = fit + se.fit, ymin=fit - se.fit), 
+Shrubs_comp <- ggplot(data = predicted_comp.shrubs, aes(y =  fit, x = Shrubs, linetype = fsplanted, fill = fsplanted, color = fsplanted)) +
+  geom_ribbon(data = truncated_prediction_data, aes(ymax = fit + se.fit, ymin=fit - se.fit), 
               #geom_ribbon(aes(ymax = ((fit + se.fit)*24.99), ymin=((fit - se.fit)*24.99)), 
-              alpha = .15, color = NA, fill = "#98ab8f", show.legend = FALSE) +
-  geom_line(show.legend = FALSE, size = 2, color = "#98ab8f") +
-  #scale_color_manual(values = c("#8FBEDC","#508AA8", "#477998")) +
-  #scale_fill_manual(values = c("#8FBEDC","#508AA8", "#477998")) +
+              alpha = .5, color = NA) +
+  geom_line(data = truncated_prediction_data, show.legend = FALSE, size = 1) +
+  scale_color_manual(values = c("#4f5a3a","#807561")) +
+  scale_fill_manual(values = c("#98ab8f","#d1cdb6")) +
+  labs(color = truncated_prediction_data$fsplanted, fill = truncated_prediction_data$fsplanted, linetype = truncated_prediction_data$fsplanted) +
   ylab("Proportion Pine") +
   xlab("Percent Cover of Shrubs") +
-  #ylim(-10, 75) +
   theme( text = element_text(size = 12), 
          axis.text.y = rotatedAxisElementText(angle = 90, position = "y", Size = 10,  Color = "black"), #requires the function to be run at the head of this script
          panel.background = element_rect(fill = NA, color = "black"), panel.grid = element_blank(), 
-         legend.position = "top")
+         legend.position = "top", legend.title=element_blank())
+
 ggsave(Shrubs_comp, file="figures/manuscript_resub/shrubs_comp.pdf", width=3.25, height=3.45)
 
 
@@ -564,7 +629,7 @@ ShrubHt_comp <- ggplot(data = predicted_comp.shrubht, aes(y =  fit, x = ShrubHt,
   theme( text = element_text(size = 12), 
          axis.text.y = rotatedAxisElementText(angle = 90, position = "y", Size = 10,  Color = "black"), #requires the function to be run at the head of this script
          panel.background = element_rect(fill = NA, color = "black"), panel.grid = element_blank(), 
-         legend.position = "top")
+         legend.position = "top", legend.title=element_blank())
 ggsave(ShrubHt_comp, file="figures/manuscript_resub/shrubht_comp.pdf", width=3.25, height=3.45)
 
 
@@ -585,19 +650,24 @@ predict_comp.year <- expand.grid(
 predicted_comp.year <- cbind(predict_comp.year, as.data.frame(
   predictSE(pine.comp, newdata = predict_comp.year, re.form = NA, level = 0, type="response", se.fit = TRUE)))
 
+#predicted_comp.year$facts.planting.first.year <- as.factor(predicted_comp.year$facts.planting.first.year)
 
-year_comp <- ggplot(data = predicted_comp.year, aes(y =  fit, x = facts.planting.first.year, linetype = fsplanted)) +
+# For this variable, it probably doesn't make sense to subset by quantile, but let's check the sample size for each bin of planted/unplanted * year 
+table(plot_comp$fsplanted, round(plot_comp$facts.planting.first.year))
+# Balance is pretty good, so we can proceed without truncating! 
+
+
+year_comp <- ggplot(data = predicted_comp.year, aes(y =  fit, x = facts.planting.first.year, linetype = fsplanted, fill = fsplanted, color = fsplanted)) +
   #geom_point(data = plot_dhm, aes(y=obs_resid.sw, x = 10^(log10SeedWallConifer)), color = "#696030", show.legend = FALSE) +
   #geom_point(data = plot_dhm %>% filter(fsplanted == "unplanted"), aes(y=dens.planted, x = 10^(log10SeedWallConifer)), color = "#696030", show.legend = FALSE) +
   geom_ribbon(aes(ymax = fit + se.fit, ymin=fit - se.fit), 
-              #geom_ribbon(aes(ymax = ((fit + se.fit)*24.99), ymin=((fit - se.fit)*24.99)), 
-              alpha = .15, color = NA, fill = "#514A3D", show.legend = FALSE) +
-  geom_line(show.legend = FALSE, size = 2, color = "#514A3D") +
-  #scale_color_manual(values = c("#8FBEDC","#508AA8", "#477998")) +
-  #scale_fill_manual(values = c("#8FBEDC","#508AA8", "#477998")) +
+              alpha = .5, color = NA) +
+  geom_line(show.legend = FALSE, size = 1) +
+  scale_color_manual(values = c("#4f5a3a","#807561")) +
+  scale_fill_manual(values = c("#98ab8f","#d1cdb6")) +
+  labs(color = truncated_prediction_data$fsplanted, fill = truncated_prediction_data$fsplanted, linetype = truncated_prediction_data$fsplanted) +
   ylab("Proportion Pine") +
   xlab("Years After Fire") +
-  #ylim(-10, 75) +
   theme( text = element_text(size = 12), 
          axis.text.y = rotatedAxisElementText(angle = 90, position = "y", Size = 10,  Color = "black"), #requires the function to be run at the head of this script
          panel.background = element_rect(fill = NA, color = "black"), panel.grid = element_blank(), 
