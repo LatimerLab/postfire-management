@@ -164,7 +164,6 @@ plot(simulationOutput) # Residuals qqplot and distribution are fine; quantile de
 save(seedling_density_final_model, file = "./output/seedling_density_final_model.Rdata")
 
 
-
 #### Make table of model selection procedure, including AIC for all models considered
 
 #First create a row for the base model 
